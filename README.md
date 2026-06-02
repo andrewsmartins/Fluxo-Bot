@@ -48,7 +48,7 @@ O servidor sobe em `http://localhost:5173`.
 
 ## Como usar
 
-1. **Cole** o JSON no painel esquerdo ou clique em **Importar .json** para carregar um arquivo
+1. **Cole** o JSON no painel esquerdo ou clique em **Importar .json** para carregar um arquivo (example.json disponível para testes)
 2. Clique em **Gerar Fluxo** (ou `Ctrl+Enter`)
 3. Use scroll para zoom e arraste para navegar pelo fluxo
 4. Para exportar, clique em **PNG** ou **SVG** no canto superior direito do canvas
