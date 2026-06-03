@@ -67,40 +67,40 @@ export function ExportControls({ onSpacingIncrease, onSpacingDecrease }: ExportC
 
   return (
     <Panel position="top-right">
-      <div className="flex gap-2 bg-white border border-slate-200 rounded-lg shadow-sm p-1.5">
+      <div className="flex gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-1.5">
         <button
           onClick={() => handleExport('png')}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Exportar como PNG (2400×1600)"
         >
           {exporting === 'png' ? <Spinner /> : <ImageIcon />}
           PNG
         </button>
 
-        <div className="w-px bg-slate-200" />
+        <div className="w-px bg-slate-200 dark:bg-slate-700" />
 
         <button
           onClick={() => handleExport('svg')}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Exportar como SVG (vetor)"
         >
           {exporting === 'svg' ? <Spinner /> : <VectorIcon />}
           SVG
         </button>
 
-        <div className="w-px bg-slate-200" />
+        <div className="w-px bg-slate-200 dark:bg-slate-700" />
 
         <button
           onClick={onSpacingDecrease}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-base font-medium leading-none transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 text-base font-medium leading-none transition-colors"
           title="Diminuir espaçamento"
         >−</button>
-        <span className="text-xs text-slate-400 select-none self-center">espaço</span>
+        <span className="text-xs text-slate-400 dark:text-slate-500 select-none self-center">espaço</span>
         <button
           onClick={onSpacingIncrease}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-base font-medium leading-none transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 text-base font-medium leading-none transition-colors"
           title="Aumentar espaçamento"
         >+</button>
       </div>

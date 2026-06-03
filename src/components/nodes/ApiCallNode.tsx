@@ -6,7 +6,7 @@ export function ApiCallNode({ data }: { data: FlowNodeData }) {
   const preview = data.messagePreview?.replace(/@[\w.#]+/g, match => `[${match.slice(1)}]`) ?? ''
 
   return (
-    <div className="bg-white border border-teal-300 rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-teal-300 dark:border-teal-800/60 rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-teal-500" />
 
       <div className="bg-teal-600 text-white px-3 py-2 flex items-center gap-2">
@@ -20,14 +20,14 @@ export function ApiCallNode({ data }: { data: FlowNodeData }) {
       <div className="px-3 py-2 flex flex-col gap-1.5">
         {apiName && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">API</span>
-            <span className="text-[10px] font-mono bg-teal-50 text-teal-800 border border-teal-200 rounded px-1.5 py-0.5 truncate" title={apiName}>
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold">API</span>
+            <span className="text-[10px] font-mono bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded px-1.5 py-0.5 truncate" title={apiName}>
               {apiName}
             </span>
           </div>
         )}
         {preview && (
-          <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{preview}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">{preview}</p>
         )}
       </div>
 

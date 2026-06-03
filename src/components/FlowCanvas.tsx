@@ -50,13 +50,18 @@ interface FlowCanvasProps {
   onNodeClick: (node: Node<FlowNodeData>) => void
   onSpacingIncrease: () => void
   onSpacingDecrease: () => void
+  isDark: boolean
 }
 
-export function FlowCanvas({ nodes, edges, onNodeClick, onSpacingIncrease, onSpacingDecrease }: FlowCanvasProps) {
+export function FlowCanvas({ nodes, edges, onNodeClick, onSpacingIncrease, onSpacingDecrease, isDark }: FlowCanvasProps) {
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => onNodeClick(node as Node<FlowNodeData>),
     [onNodeClick]
   )
+
+  const bgColor      = isDark ? '#334155' : '#e2e8f0'
+  const maskColor    = isDark ? 'rgba(15,23,42,0.75)' : 'rgba(248,250,252,0.7)'
+  const minimapBg    = isDark ? '#1e293b' : '#f8fafc'
 
   return (
     <ReactFlow
@@ -66,13 +71,15 @@ export function FlowCanvas({ nodes, edges, onNodeClick, onSpacingIncrease, onSpa
       onNodeClick={handleNodeClick}
       minZoom={0.1}
       maxZoom={2}
+      colorMode={isDark ? 'dark' : 'light'}
       proOptions={{ hideAttribution: true }}
     >
-      <Background gap={20} color="#e2e8f0" />
+      <Background gap={20} color={bgColor} />
       <Controls />
       <MiniMap
         nodeColor={node => NODE_COLORS[node.type ?? 'defaultNode'] ?? '#64748b'}
-        maskColor="rgba(248,250,252,0.7)"
+        maskColor={maskColor}
+        style={{ background: minimapBg }}
         nodeComponent={MiniMapNodeRect}
       />
       <LayoutFitter nodeCount={nodes.length} />

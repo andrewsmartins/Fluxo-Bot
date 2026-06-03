@@ -19,7 +19,7 @@ export function CaptureNode({ data }: { data: FlowNodeData }) {
     : null
 
   return (
-    <div className="bg-white border border-violet-200 rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800/60 rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-violet-400" />
 
       <div className="bg-violet-500 text-white px-3 py-2">
@@ -29,13 +29,13 @@ export function CaptureNode({ data }: { data: FlowNodeData }) {
 
       {preview && (
         <div className="px-3 pt-2 pb-1">
-          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{preview}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">{preview}</p>
         </div>
       )}
 
       {captureLabel && (
         <div className="px-3 pb-2 pt-1">
-          <span className="inline-flex items-center gap-1 text-[10px] bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5">
+          <span className="inline-flex items-center gap-1 text-[10px] bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-full px-2 py-0.5">
             <span>Captura:</span>
             <span className="font-semibold">{captureLabel}</span>
           </span>

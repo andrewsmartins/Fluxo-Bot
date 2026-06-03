@@ -10,7 +10,7 @@ export function ExternalBotNode({ data }: { data: FlowNodeData }) {
   const intentId = data.externalIntentId ?? ''
 
   return (
-    <div className="bg-white border-2 border-amber-400 border-dashed rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border-2 border-amber-400 dark:border-amber-600 border-dashed rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-amber-400" />
 
       <div className="bg-amber-400 text-white px-3 py-2 flex items-center gap-2">
@@ -23,18 +23,18 @@ export function ExternalBotNode({ data }: { data: FlowNodeData }) {
 
       <div className="px-3 py-2 flex flex-col gap-1.5">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Bot ID</span>
+          <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold">Bot ID</span>
           <span
-            className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200 rounded px-1.5 py-0.5 truncate cursor-default"
+            className="text-[10px] font-mono bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5 truncate cursor-default"
             title={botId}
           >
             {truncate(botId, 22)}
           </span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Intent ID</span>
+          <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold">Intent ID</span>
           <span
-            className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200 rounded px-1.5 py-0.5 truncate cursor-default"
+            className="text-[10px] font-mono bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5 truncate cursor-default"
             title={intentId}
           >
             {truncate(intentId, 22)}

@@ -5,12 +5,14 @@ import { JsonInput }   from './components/JsonInput'
 import { DetailPanel } from './components/DetailPanel'
 import { parseFlow } from './utils/parseFlow'
 import type { BotFlowJson, FlowNodeData } from './types'
+import { useDarkMode } from './hooks/useDarkMode'
 
 const SPACING_STEP = 60
 const SPACING_MIN  = 20
 const SPACING_MAX  = 300
 
 export default function App() {
+  const { dark, toggle: toggleDark }    = useDarkMode()
   const [jsonText, setJsonText]         = useState('')
   const [nodes, setNodes]               = useState<Node<FlowNodeData>[]>([])
   const [edges, setEdges]               = useState<Edge[]>([])
@@ -79,13 +81,15 @@ export default function App() {
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <aside className="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-950">
+      <aside className="w-72 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col shadow-sm">
         <JsonInput
           value={jsonText}
           onChange={handleJsonChange}
           onSubmit={handleGenerate}
           error={error}
+          isDark={dark}
+          onToggleDark={toggleDark}
         />
       </aside>
 
@@ -98,13 +102,14 @@ export default function App() {
               onNodeClick={handleNodeClick}
               onSpacingIncrease={() => handleSpacingChange(SPACING_STEP)}
               onSpacingDecrease={() => handleSpacingChange(-SPACING_STEP)}
+              isDark={dark}
             />
             {selectedNode && (
               <DetailPanel node={selectedNode} onClose={handleClosePanel} />
             )}
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-3">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="3" y="3" width="7" height="4" rx="1" />
               <rect x="14" y="3" width="7" height="4" rx="1" />
@@ -115,8 +120,8 @@ export default function App() {
               <line x1="12" y1="10" x2="12" y2="17" />
             </svg>
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-500">Nenhum fluxo carregado</p>
-              <p className="text-xs text-slate-400 mt-1">Cole o JSON no painel e clique em Gerar Fluxo</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-500">Nenhum fluxo carregado</p>
+              <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">Cole o JSON no painel e clique em Gerar Fluxo</p>
             </div>
           </div>
         )}

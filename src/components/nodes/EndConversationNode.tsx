@@ -3,7 +3,7 @@ import type { FlowNodeData } from '../../types'
 
 export function EndConversationNode({ data }: { data: FlowNodeData }) {
   return (
-    <div className="bg-white border-2 border-rose-400 rounded-xl shadow-sm w-[200px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border-2 border-rose-400 dark:border-rose-600 rounded-xl shadow-sm w-[200px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-rose-400" />
 
       <div className="bg-rose-500 text-white px-3 py-2.5 flex items-center gap-2">

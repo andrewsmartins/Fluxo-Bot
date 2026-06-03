@@ -3,7 +3,7 @@ import type { FlowNodeData } from '../../types'
 
 export function SetDataNode({ data }: { data: FlowNodeData }) {
   return (
-    <div className="bg-white border border-indigo-200 rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800/60 rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-indigo-400" />
 
       <div className="bg-indigo-500 text-white px-3 py-2 flex items-center gap-2">
@@ -18,11 +18,11 @@ export function SetDataNode({ data }: { data: FlowNodeData }) {
         <div className="px-3 py-2 flex flex-col gap-1">
           {data.setDataItems.map((item, i) => (
             <div key={i} className="flex items-center gap-1 text-[10px]">
-              <span className="font-mono text-indigo-600 bg-indigo-50 border border-indigo-200 rounded px-1 py-0.5 truncate max-w-[110px]">
+              <span className="font-mono text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded px-1 py-0.5 truncate max-w-[110px]">
                 {item.variable}
               </span>
-              <span className="text-slate-400">=</span>
-              <span className="font-medium text-slate-700 truncate">{item.value}</span>
+              <span className="text-slate-400 dark:text-slate-500">=</span>
+              <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{item.value}</span>
             </div>
           ))}
         </div>

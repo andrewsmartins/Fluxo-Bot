@@ -6,7 +6,7 @@ export function ChoiceNode({ data }: { data: FlowNodeData }) {
   const isList  = data.actionType === 'list'
 
   return (
-    <div className="bg-white border border-blue-200 rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800/60 rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-blue-400" />
 
       <div className="bg-blue-500 text-white px-3 py-2 flex items-center gap-2">
@@ -19,7 +19,7 @@ export function ChoiceNode({ data }: { data: FlowNodeData }) {
 
       {preview && (
         <div className="px-3 pt-2 pb-1">
-          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{preview}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">{preview}</p>
         </div>
       )}
 
@@ -28,14 +28,14 @@ export function ChoiceNode({ data }: { data: FlowNodeData }) {
           {data.buttons.slice(0, 4).map(btn => (
             <span
               key={btn.id}
-              className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 truncate"
+              className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5 truncate"
               title={btn.description ?? btn.text}
             >
               {btn.text}
             </span>
           ))}
           {data.buttons.length > 4 && (
-            <span className="text-[10px] text-slate-400 pl-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 pl-1">
               +{data.buttons.length - 4} opções
             </span>
           )}

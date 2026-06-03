@@ -5,7 +5,7 @@ export function WaitNode({ data }: { data: FlowNodeData }) {
   const preview = data.messagePreview?.replace(/@[\w.#]+/g, m => `[${m.slice(1)}]`) ?? ''
 
   return (
-    <div className="bg-white border border-cyan-200 rounded-xl shadow-sm w-[240px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-cyan-200 dark:border-cyan-800/60 rounded-xl shadow-sm w-[240px] overflow-hidden">
       <Handle type="target" position={Position.Top} className="!bg-cyan-400" />
 
       <div className="bg-cyan-500 text-white px-3 py-2 flex items-center gap-2">
@@ -18,12 +18,12 @@ export function WaitNode({ data }: { data: FlowNodeData }) {
 
       {preview && (
         <div className="px-3 py-2">
-          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{preview}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">{preview}</p>
         </div>
       )}
 
       <div className="px-3 pb-2">
-        <span className="inline-flex items-center gap-1 text-[10px] bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-full px-2 py-0.5">
+        <span className="inline-flex items-center gap-1 text-[10px] bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 rounded-full px-2 py-0.5">
           Aguarda interação do usuário
         </span>
       </div>
