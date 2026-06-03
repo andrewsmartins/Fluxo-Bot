@@ -13,6 +13,8 @@ export interface BotIntent {
   conditions: Condition[]
   createdAt?: string
   updatedAt?: string
+  executionDelay?: unknown
+  advanced?: { active: boolean; endpointId: string | null }
 }
 
 export interface Condition {
@@ -21,7 +23,7 @@ export interface Condition {
   variable: string | null
   intent: string | null
   value: string | null
-  valueNumber: number | null
+  valueNumber: unknown
   fallbackIntents: string[]
   values: unknown
   context: unknown
@@ -30,9 +32,14 @@ export interface Condition {
   next: Next
 }
 
+export interface BulkUpdateItem {
+  variable: string
+  value: string
+}
+
 export interface Action {
   type: string
-  choices: string[] | null
+  choices: string[] | string | null
   captureDataType: string | null
   transferType: string | null
   value: string | null
@@ -41,7 +48,7 @@ export interface Action {
   orderType?: string | null
   storeType: string | null
   entity: unknown
-  bulkUpdate?: unknown[]
+  bulkUpdate?: BulkUpdateItem[] | string
   external?: { type: unknown; apiName: unknown }
   error?: ErrorAction
 }
@@ -67,6 +74,7 @@ export interface AssistantSay {
 export interface BotMessage {
   type: string
   content?: string | null
+  fileName?: string
   messageConfig?: ButtonMessageConfig
 }
 
@@ -85,7 +93,21 @@ export interface ButtonOption {
   description: string | null
 }
 
-export type NodeKind = 'startNode' | 'choiceNode' | 'captureNode' | 'transferNode' | 'defaultNode'
+export type NodeKind =
+  | 'startNode'
+  | 'choiceNode'
+  | 'captureNode'
+  | 'transferNode'
+  | 'waitNode'
+  | 'setDataNode'
+  | 'externalBotNode'
+  | 'defaultNode'
+
+export interface ConditionInfo {
+  name: string
+  type: string
+  variable: string | null
+}
 
 export interface FlowNodeData extends Record<string, unknown> {
   name: string
@@ -95,4 +117,11 @@ export interface FlowNodeData extends Record<string, unknown> {
   actionType: string
   captureDataType: string | null
   transferType: string | null
+  transferValue: string | null
+  allMessages: string[]
+  setDataItems: BulkUpdateItem[]
+  keywords: string[]
+  conditions: ConditionInfo[]
+  externalBotId?: string
+  externalIntentId?: string
 }
