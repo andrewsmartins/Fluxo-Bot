@@ -29,7 +29,7 @@ export function JsonInput({ value, onChange, onSubmit, error }: JsonInputProps) 
   return (
     <div className="flex flex-col h-full gap-3 p-4">
       <div>
-        <h1 className="text-lg font-bold text-slate-800">Fluxo Bot</h1>
+        <h1 className="text-lg font-bold text-slate-800">Flow Viewer</h1>
         <p className="text-xs text-slate-500 mt-0.5">Cole ou importe o JSON do bot para visualizar o fluxo.</p>
       </div>
 

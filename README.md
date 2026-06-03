@@ -1,4 +1,4 @@
-# Fluxo Bot
+# Flow Viewer
 
 Visualizador de fluxos de chatbot a partir de JSON. Cole ou importe o JSON de configuração do bot e veja o fluxograma gerado automaticamente com layout hierárquico.
 

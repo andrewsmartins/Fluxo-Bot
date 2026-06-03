@@ -1,0 +1,1124 @@
+{
+    "list": [
+        {
+            "createdAt": "Fri, 29 Jul 2022 20:01:06 GMT",
+            "keywords": [],
+            "context": null,
+            "name": "start",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start",
+            "category": "start",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "continueFlow",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "28616bc1-1df5-48b9-b88e-1c800f1c5953"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Start",
+                    "variable": null,
+                    "action": {
+                        "conversationType": null,
+                        "external": {
+                            "type": null,
+                            "apiName": null
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "transferType": null,
+                        "choices": null,
+                        "type": "none",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": []
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Thu, 13 Oct 2022 17:25:42 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "Cadastro"
+            ],
+            "context": null,
+            "name": "confirmar_cadastro",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "28616bc1-1df5-48b9-b88e-1c800f1c5953",
+            "category": "confirmação de cadastro",
+            "conditions": [
+                {
+                    "next": {
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": [
+                            "0138d0b0-74c8-432d-b33a-5553456c2195",
+                            "56de7e03-b998-4bad-972f-a4d829b2715c"
+                        ],
+                        "type": "choice",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "BUTTON",
+                                    "content": null,
+                                    "messageConfig": {
+                                        "header": null,
+                                        "buttons": [
+                                            {
+                                                "description": null,
+                                                "id": "c3c08050-1e95-471a-b103-126f28b008c8",
+                                                "text": "Confirmar"
+                                            },
+                                            {
+                                                "description": null,
+                                                "id": "0d38eb6f-d0a4-4cb9-8fb0-d1a0d3a21995",
+                                                "text": "Aguardar atendente"
+                                            }
+                                        ],
+                                        "body": "Para continuarmos precisamos confirmar alguns dados! 😊",
+                                        "title": null,
+                                        "type": "text",
+                                        "footer": "Vai ser rapidinho, apenas seu nome e endereço!"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:37:15 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "confirmar"
+            ],
+            "context": null,
+            "name": "Confirmar_nome",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "0138d0b0-74c8-432d-b33a-5553456c2195",
+            "category": "confirmação de nome",
+            "conditions": [
+                {
+                    "next": {
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Tem nome",
+                    "variable": "@customer.name",
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": [
+                            "a732362a-79fd-47a4-883d-d2fef912e435",
+                            "feab8a32-4183-4585-9d0a-c3e28bd8a55b"
+                        ],
+                        "type": "choice",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "O seu *nome* é:\n@customer.name"
+                                },
+                                {
+                                    "type": "BUTTON",
+                                    "content": null,
+                                    "messageConfig": {
+                                        "header": null,
+                                        "buttons": [
+                                            {
+                                                "description": null,
+                                                "id": "aed37bf9-c2fc-4a12-b8c0-3715ea0f2dbb",
+                                                "text": "Sim, está correto"
+                                            },
+                                            {
+                                                "description": null,
+                                                "id": "fe6f6438-fceb-4ab2-9c83-aef0517149c1",
+                                                "text": "Não, corrigir"
+                                            }
+                                        ],
+                                        "body": "Clique na opção:",
+                                        "title": null,
+                                        "type": "text",
+                                        "footer": null
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "exists",
+                    "intent": null,
+                    "value": "any"
+                },
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "a732362a-79fd-47a4-883d-d2fef912e435"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Não tem nome",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": "name",
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "captureData",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Acho que ainda não nos conhecemos! 🤔\nQual é o seu nome?"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "else",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:37:42 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "correto"
+            ],
+            "context": null,
+            "name": "confirmação de nomenome_correto",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "a732362a-79fd-47a4-883d-d2fef912e435",
+            "category": "confirmação de nome",
+            "conditions": [
+                {
+                    "next": {
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Confirma CEP",
+                    "variable": "@customer.address.zip",
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": [
+                            "68449515-fa4e-4579-a2a7-8340ae50ab9c",
+                            "50a3def8-00f9-4a0d-9d50-04049b9f52c9"
+                        ],
+                        "type": "choice",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "@customer.name , obrigada pela informação! ❤️\n\nAgora, poderia confirmar se o seu CEP ainda é @customer.address.zip?"
+                                },
+                                {
+                                    "type": "BUTTON",
+                                    "content": null,
+                                    "messageConfig": {
+                                        "header": null,
+                                        "buttons": [
+                                            {
+                                                "description": null,
+                                                "id": "964101fa-2df1-40b2-a36e-b4eddf4e515b",
+                                                "text": "Sim, manter"
+                                            },
+                                            {
+                                                "description": null,
+                                                "id": "c7326ae3-957e-4aa9-8894-4d27bf867753",
+                                                "text": "Não, alterar"
+                                            }
+                                        ],
+                                        "body": "Selecione a opção abaixo:",
+                                        "title": null,
+                                        "type": "text",
+                                        "footer": null
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "exists",
+                    "intent": null,
+                    "value": "any"
+                },
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "50a3def8-00f9-4a0d-9d50-04049b9f52c9"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição 2",
+                    "variable": null,
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": null,
+                            "apiName": null
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": null,
+                        "type": "none",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": []
+                        }
+                    ],
+                    "type": "else",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:38:28 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "manter"
+            ],
+            "context": null,
+            "name": "CEP_correto",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "68449515-fa4e-4579-a2a7-8340ae50ab9c",
+            "category": "confirmação de cep",
+            "conditions": [
+                {
+                    "next": {
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [
+                        "68449515-fa4e-4579-a2a7-8340ae50ab9c"
+                    ],
+                    "values": null,
+                    "context": null,
+                    "name": "Solicita numero",
+                    "variable": "@customer.address.number#onlyNumbers ",
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": null,
+                        "choices": [
+                            "d435c1a1-446e-4aa4-a52d-a2d1f5047690",
+                            "defc0870-ef0e-45ec-803e-789660c500df"
+                        ],
+                        "type": "choice",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": " @customer.name , obrigada pela informação! ❤️\nAgora, poderia confirmar se o número do seu endereço ainda @customer.address.number#onlyNumbers ?"
+                                },
+                                {
+                                    "type": "BUTTON",
+                                    "content": null,
+                                    "messageConfig": {
+                                        "header": null,
+                                        "buttons": [
+                                            {
+                                                "description": null,
+                                                "id": "caee32b0-e5dc-4dce-ac3d-0a17feb4b0b8",
+                                                "text": "Sim, este é o número"
+                                            },
+                                            {
+                                                "description": null,
+                                                "id": "a1d9f9b8-93fa-4dd1-b61c-2f04db8a471a",
+                                                "text": "Não, é outro número"
+                                            }
+                                        ],
+                                        "body": "Selecione a opção abaixo:",
+                                        "title": null,
+                                        "type": "text",
+                                        "footer": null
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "exists",
+                    "intent": null,
+                    "value": "any"
+                },
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "defc0870-ef0e-45ec-803e-789660c500df"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição 2",
+                    "variable": null,
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": null,
+                            "apiName": null
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": null,
+                        "type": "none",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": []
+                        }
+                    ],
+                    "type": "else",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:39:23 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "aguardar"
+            ],
+            "context": null,
+            "name": "aguardar_atendente",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "56de7e03-b998-4bad-972f-a4d829b2715c",
+            "category": "confirmação de cadastro",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": null,
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "transfer",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": "direct4group",
+                        "choices": null,
+                        "value": "UrAnEmtASL",
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Tudo bem, estou encaminhando essa conversa para um de nossos atendentes."
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:37:09 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "alterar"
+            ],
+            "context": null,
+            "name": "Alterar_CEP",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "50a3def8-00f9-4a0d-9d50-04049b9f52c9",
+            "category": "confirmação de cep",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "68449515-fa4e-4579-a2a7-8340ae50ab9c"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": "zipcode",
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "50a3def8-00f9-4a0d-9d50-04049b9f52c9"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": [
+                                        {
+                                            "type": "TEXT",
+                                            "content": "Ops, acho que não entendi seu CEP..."
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "type": "captureData",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": "@customer.address.zip",
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Ok, agora vamos atualizar o seu CEP!\nPor favor digite o seu CEP atualizado (pode ser apenas números).\n_Ex:01311-000_"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:39:07 GMT"
+        },
+        {
+            "createdAt": "Mon, 12 Jun 2023 11:55:05 GMT",
+            "keywords": [
+                "corrigir"
+            ],
+            "context": null,
+            "name": "Corrigir_nome",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "feab8a32-4183-4585-9d0a-c3e28bd8a55b",
+            "category": "confirmação de nome",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "a732362a-79fd-47a4-883d-d2fef912e435"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": "fullName",
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "captureData",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": null,
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Tudo bem, pode me falar seu nome completo?"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:37:56 GMT"
+        },
+        {
+            "keywords": [
+                "numero"
+            ],
+            "context": null,
+            "name": "numero_correto",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "d435c1a1-446e-4aa4-a52d-a2d1f5047690",
+            "category": "confirmação de número do endereço",
+            "conditions": [
+                {
+                    "next": {
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [
+                        "a732362a-79fd-47a4-883d-d2fef912e435"
+                    ],
+                    "values": null,
+                    "context": null,
+                    "name": "Confirma complemento",
+                    "variable": "@customer.address.addressLine2",
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": null,
+                        "choices": [
+                            "6be9746d-4309-4e3c-a0af-458cf0737f84",
+                            "f0d490ba-8764-4261-b4ee-c8fb41797435"
+                        ],
+                        "type": "choice",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "@customer.name , obrigada pela informação! ❤️\n\nAgora, poderia confirmar se o seu complemento ainda é @customer.address.addressLine2?"
+                                },
+                                {
+                                    "type": "BUTTON",
+                                    "content": null,
+                                    "messageConfig": {
+                                        "header": null,
+                                        "buttons": [
+                                            {
+                                                "description": null,
+                                                "id": "9973522a-0b0d-43aa-9640-086d39d95204",
+                                                "text": "Complemento é este"
+                                            },
+                                            {
+                                                "description": null,
+                                                "id": "05c757fb-3a69-47a6-8c33-6ea668c876b4",
+                                                "text": "Mudar o complemento"
+                                            }
+                                        ],
+                                        "body": "Selecione a opção abaixo:",
+                                        "title": null,
+                                        "type": "text",
+                                        "footer": null
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "exists",
+                    "intent": null,
+                    "value": "any"
+                },
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "f0d490ba-8764-4261-b4ee-c8fb41797435"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição 2",
+                    "variable": null,
+                    "action": {
+                        "conversationType": null,
+                        "orderType": null,
+                        "external": {
+                            "type": null,
+                            "apiName": null
+                        },
+                        "storeType": null,
+                        "captureDataType": null,
+                        "variable": null,
+                        "bulkUpdate": [],
+                        "transferType": null,
+                        "choices": null,
+                        "type": "none",
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": []
+                        }
+                    ],
+                    "type": "else",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:39:54 GMT"
+        },
+        {
+            "keywords": [
+                "outro"
+            ],
+            "context": null,
+            "name": "alterar_numero",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "defc0870-ef0e-45ec-803e-789660c500df",
+            "category": "confirmação de número do endereço",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "d435c1a1-446e-4aa4-a52d-a2d1f5047690"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": "addressNumber",
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "captureData",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": null,
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Tudo bem, pode me falar qual o número do seu endereço?"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:39:45 GMT"
+        },
+        {
+            "keywords": [
+                "mudar"
+            ],
+            "context": null,
+            "name": "alterar_complemento",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "f0d490ba-8764-4261-b4ee-c8fb41797435",
+            "category": "confirmação de complemento do número de endereço",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "action": "intent",
+                        "type": "context",
+                        "intent": {
+                            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                            "id": "6be9746d-4309-4e3c-a0af-458cf0737f84"
+                        }
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": "addressComplement",
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "captureData",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": null,
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Tudo bem, pode me falar o complemento do seu endereço?"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:40:21 GMT"
+        },
+        {
+            "keywords": [
+                "este"
+            ],
+            "context": null,
+            "name": "complemento_correto",
+            "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+            "id": "6be9746d-4309-4e3c-a0af-458cf0737f84",
+            "category": "confirmação de complemento do número de endereço",
+            "conditions": [
+                {
+                    "next": {
+                        "redirect": "waitInteraction",
+                        "type": "context"
+                    },
+                    "valueNumber": null,
+                    "fallbackIntents": [],
+                    "values": null,
+                    "context": null,
+                    "name": "Condição Padrão",
+                    "variable": null,
+                    "action": {
+                        "orderType": null,
+                        "storeType": null,
+                        "captureDataType": null,
+                        "error": {
+                            "next": {
+                                "redirect": "waitInteraction",
+                                "action": "intent",
+                                "intentBot": "8df3c1e7-a8c9-4bad-ac5a-2855462da840",
+                                "type": "error",
+                                "intent": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start"
+                            },
+                            "assistant_says": [
+                                {
+                                    "channel": "any",
+                                    "messages": []
+                                }
+                            ]
+                        },
+                        "type": "transfer",
+                        "conversationType": null,
+                        "external": {
+                            "type": [],
+                            "apiName": []
+                        },
+                        "variable": null,
+                        "bulkUpdate": null,
+                        "transferType": "direct4userPrevious",
+                        "choices": null,
+                        "value": null,
+                        "entity": null
+                    },
+                    "assistant_says": [
+                        {
+                            "channel": "any",
+                            "messages": [
+                                {
+                                    "type": "TEXT",
+                                    "content": "Obrigada pelas confirmações, seu cadastro está atualizado. 😎\n\n*Nome*: @customer.name\n\n*CEP*: @customer.address.zip\n\n*Número*: @customer.address.number#onlyNumbers \n\n*Complemento*: @customer.address.addressLine2"
+                                }
+                            ]
+                        }
+                    ],
+                    "type": "any",
+                    "intent": null,
+                    "value": "any"
+                }
+            ],
+            "priority": 0,
+            "updatedAt": "Wed, 14 Jun 2023 16:40:30 GMT"
+        }
+    ]
+}
