@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import type { Node, Edge } from '@xyflow/react'
 import { FlowCanvas }  from './components/FlowCanvas'
 import { JsonInput }   from './components/JsonInput'
 import { DetailPanel } from './components/DetailPanel'
 import { parseFlow } from './utils/parseFlow'
 import type { BotFlowJson, FlowNodeData } from './types'
+
+const SPACING_STEP = 60
+const SPACING_MIN  = 20
+const SPACING_MAX  = 300
 
 export default function App() {
   const [jsonText, setJsonText]         = useState('')
@@ -13,6 +17,8 @@ export default function App() {
   const [error, setError]               = useState<string | null>(null)
   const [hasFlow, setHasFlow]           = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node<FlowNodeData> | null>(null)
+  const parsedDataRef                   = useRef<BotFlowJson | null>(null)
+  const spacingRef                      = useRef({ ranksep: 60, nodesep: 40 })
 
   function handleGenerate() {
     if (!jsonText.trim()) {
@@ -36,7 +42,8 @@ export default function App() {
       return
     }
     try {
-      const result = parseFlow(data)
+      parsedDataRef.current = data
+      const result = parseFlow(data, spacingRef.current)
       setNodes(result.nodes)
       setEdges(result.edges)
       setError(null)
@@ -46,6 +53,19 @@ export default function App() {
       setError(`Erro ao processar o fluxo: ${e instanceof Error ? e.message : 'desconhecido'}`)
     }
   }
+
+  const handleSpacingChange = useCallback((delta: number) => {
+    if (!parsedDataRef.current) return
+    const prev = spacingRef.current
+    const next = {
+      ranksep: Math.min(SPACING_MAX, Math.max(SPACING_MIN, prev.ranksep + delta)),
+      nodesep: Math.min(SPACING_MAX, Math.max(SPACING_MIN, prev.nodesep + delta)),
+    }
+    spacingRef.current = next
+    const result = parseFlow(parsedDataRef.current, next)
+    setNodes(result.nodes)
+    setEdges(result.edges)
+  }, [])
 
   function handleJsonChange(value: string) {
     setJsonText(value)
@@ -76,6 +96,8 @@ export default function App() {
               nodes={nodes}
               edges={edges}
               onNodeClick={handleNodeClick}
+              onSpacingIncrease={() => handleSpacingChange(SPACING_STEP)}
+              onSpacingDecrease={() => handleSpacingChange(-SPACING_STEP)}
             />
             {selectedNode && (
               <DetailPanel node={selectedNode} onClose={handleClosePanel} />

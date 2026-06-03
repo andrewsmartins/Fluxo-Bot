@@ -8,8 +8,10 @@ const KIND_LABELS: Record<NodeKind, { label: string; color: string }> = {
   transferNode:    { label: 'Transferência',    color: 'bg-rose-100 text-rose-700' },
   waitNode:        { label: 'Aguarda',          color: 'bg-cyan-100 text-cyan-700' },
   setDataNode:     { label: 'Variável',         color: 'bg-indigo-100 text-indigo-700' },
-  externalBotNode: { label: 'Outro Bot',        color: 'bg-amber-100 text-amber-700' },
-  defaultNode:     { label: 'Padrão',           color: 'bg-slate-100 text-slate-600' },
+  externalBotNode:     { label: 'Outro Bot',         color: 'bg-amber-100 text-amber-700' },
+  endConversationNode: { label: 'Encerrar',          color: 'bg-rose-100 text-rose-700' },
+  apiCallNode:         { label: 'Chamada de API',    color: 'bg-teal-100 text-teal-700' },
+  defaultNode:         { label: 'Padrão',            color: 'bg-slate-100 text-slate-600' },
 }
 
 const CAPTURE_LABELS: Record<string, string> = {

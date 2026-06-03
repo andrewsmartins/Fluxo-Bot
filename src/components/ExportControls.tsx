@@ -30,7 +30,12 @@ function triggerDownload(dataUrl: string, format: 'png' | 'svg') {
   a.click()
 }
 
-export function ExportControls() {
+interface ExportControlsProps {
+  onSpacingIncrease: () => void
+  onSpacingDecrease: () => void
+}
+
+export function ExportControls({ onSpacingIncrease, onSpacingDecrease }: ExportControlsProps) {
   const { getNodes } = useReactFlow()
   const [exporting, setExporting] = useState<'png' | 'svg' | null>(null)
 
@@ -84,6 +89,20 @@ export function ExportControls() {
           {exporting === 'svg' ? <Spinner /> : <VectorIcon />}
           SVG
         </button>
+
+        <div className="w-px bg-slate-200" />
+
+        <button
+          onClick={onSpacingDecrease}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-base font-medium leading-none transition-colors"
+          title="Diminuir espaçamento"
+        >−</button>
+        <span className="text-xs text-slate-400 select-none self-center">espaço</span>
+        <button
+          onClick={onSpacingIncrease}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-base font-medium leading-none transition-colors"
+          title="Aumentar espaçamento"
+        >+</button>
       </div>
     </Panel>
   )

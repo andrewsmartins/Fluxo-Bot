@@ -6,19 +6,31 @@ import type {
 } from '../types'
 
 const NODE_SIZES: Record<NodeKind, { w: number; h: number }> = {
-  startNode:       { w: 180, h: 56 },
-  choiceNode:      { w: 260, h: 200 },
-  captureNode:     { w: 260, h: 160 },
-  transferNode:    { w: 260, h: 140 },
-  waitNode:        { w: 260, h: 130 },
-  setDataNode:     { w: 260, h: 130 },
-  externalBotNode: { w: 260, h: 150 },
-  defaultNode:     { w: 260, h: 130 },
+  startNode:           { w: 180, h: 56 },
+  choiceNode:          { w: 260, h: 200 },
+  captureNode:         { w: 260, h: 160 },
+  transferNode:        { w: 260, h: 140 },
+  waitNode:            { w: 260, h: 130 },
+  setDataNode:         { w: 260, h: 130 },
+  externalBotNode:     { w: 260, h: 150 },
+  endConversationNode: { w: 220, h: 72 },
+  apiCallNode:         { w: 260, h: 140 },
+  defaultNode:         { w: 260, h: 130 },
 }
 
 const GENERIC_CONDITION_NAMES = new Set([
   'Condição Padrão', 'Condição padrão', 'Condição 2', 'Condição 3', 'Condição 4', 'Start',
 ])
+
+function fixEncoding(str: string): string {
+  try {
+    const bytes = Uint8Array.from(str, c => c.charCodeAt(0))
+    const decoded = new TextDecoder('utf-8').decode(bytes)
+    return decoded.includes('�') ? str : decoded
+  } catch {
+    return str
+  }
+}
 
 // ─── Intent data helpers ───────────────────────────────────────────────────
 
@@ -29,6 +41,8 @@ function getNodeKind(intent: BotIntent): NodeKind {
   for (const c of intent.conditions) if (c.action.type === 'choice') return 'choiceNode'
   for (const c of intent.conditions) if (c.action.type === 'captureData') return 'captureNode'
   for (const c of intent.conditions) if (c.action.type === 'setData') return 'setDataNode'
+  for (const c of intent.conditions) if (c.action.type === 'endConversation') return 'endConversationNode'
+  for (const c of intent.conditions) if (c.action.type === 'external') return 'apiCallNode'
   return 'defaultNode'
 }
 
@@ -42,9 +56,9 @@ function getMessagePreview(intent: BotIntent): string {
   for (const cond of intent.conditions)
     for (const say of cond.assistant_says)
       for (const msg of say.messages) {
-        if (msg.type === 'TEXT' && msg.content) return msg.content.slice(0, 120)
+        if (msg.type === 'TEXT' && msg.content) return fixEncoding(msg.content).slice(0, 120)
         if ((msg.type === 'BUTTON' || msg.type === 'LIST') && msg.messageConfig?.body)
-          return msg.messageConfig.body.slice(0, 120)
+          return fixEncoding(msg.messageConfig.body).slice(0, 120)
       }
   return ''
 }
@@ -55,9 +69,9 @@ function getAllMessages(intent: BotIntent): string[] {
     for (const say of cond.assistant_says)
       for (const msg of say.messages) {
         let text = ''
-        if (msg.type === 'TEXT' && msg.content) text = msg.content
+        if (msg.type === 'TEXT' && msg.content) text = fixEncoding(msg.content)
         else if ((msg.type === 'BUTTON' || msg.type === 'LIST') && msg.messageConfig?.body)
-          text = msg.messageConfig.body
+          text = fixEncoding(msg.messageConfig.body)
         if (text && !seen.has(text)) { seen.add(text); result.push(text) }
       }
   return result
@@ -90,8 +104,8 @@ function getTransferValue(intent: BotIntent): string | null {
 
 function getConditionInfos(intent: BotIntent): ConditionInfo[] {
   return intent.conditions
-    .filter(c => c.variable || !GENERIC_CONDITION_NAMES.has(c.name))
-    .map(c => ({ name: c.name, type: c.type, variable: c.variable ?? null }))
+    .filter(c => c.variable || !GENERIC_CONDITION_NAMES.has(fixEncoding(c.name)))
+    .map(c => ({ name: fixEncoding(c.name), type: c.type, variable: c.variable ?? null }))
 }
 
 function getSetDataItems(intent: BotIntent): BulkUpdateItem[] {
@@ -101,11 +115,18 @@ function getSetDataItems(intent: BotIntent): BulkUpdateItem[] {
   return []
 }
 
+function getApiName(intent: BotIntent): string | null {
+  for (const c of intent.conditions)
+    if (c.action.type === 'external' && c.action.external?.apiName)
+      return String(c.action.external.apiName)
+  return null
+}
+
 function getButtonLabel(cond: Condition, idx: number): string {
   for (const say of cond.assistant_says)
     for (const msg of say.messages)
       if ((msg.type === 'BUTTON' || msg.type === 'LIST') && msg.messageConfig?.buttons?.[idx])
-        return msg.messageConfig.buttons[idx].text
+        return fixEncoding(msg.messageConfig.buttons[idx].text)
   return `Opção ${idx + 1}`
 }
 
@@ -114,7 +135,8 @@ function getEdgeLabel(cond: Condition, choiceIdx?: number): string {
   if (cond.type === 'equals' && cond.value && cond.value !== 'any') return `= ${cond.value}`
   if (cond.type === 'else') return 'senão'
   if (cond.type === 'exists') return cond.variable ? `existe: ${cond.variable}` : 'existe'
-  return GENERIC_CONDITION_NAMES.has(cond.name) ? '' : cond.name
+  const condName = fixEncoding(cond.name)
+  return GENERIC_CONDITION_NAMES.has(condName) ? '' : condName
 }
 
 function getNextRef(next: Condition['next']): { id: string; botId: string } | null {
@@ -168,11 +190,11 @@ function findComponents(nodes: Node<FlowNodeData>[], edges: Edge[]): Node<FlowNo
   return components
 }
 
-function layoutSingle(nodes: Node<FlowNodeData>[], edges: Edge[]): Node<FlowNodeData>[] {
+function layoutSingle(nodes: Node<FlowNodeData>[], edges: Edge[], ranksep: number, nodesep: number): Node<FlowNodeData>[] {
   const ids = new Set(nodes.map(n => n.id))
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', ranksep: 60, nodesep: 40 })
+  g.setGraph({ rankdir: 'TB', ranksep, nodesep })
   nodes.forEach(n => {
     const s = NODE_SIZES[n.type as NodeKind] ?? NODE_SIZES.defaultNode
     g.setNode(n.id, { width: s.w, height: s.h })
@@ -199,7 +221,7 @@ function bbox(nodes: Node<FlowNodeData>[]): { x: number; y: number; w: number; h
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
-function dagreLayout(nodes: Node<FlowNodeData>[], edges: Edge[]): Node<FlowNodeData>[] {
+function dagreLayout(nodes: Node<FlowNodeData>[], edges: Edge[], ranksep: number, nodesep: number): Node<FlowNodeData>[] {
   if (!nodes.length) return []
 
   // 1. Find connected components, sort largest first
@@ -207,7 +229,7 @@ function dagreLayout(nodes: Node<FlowNodeData>[], edges: Edge[]): Node<FlowNodeD
 
   // 2. Run Dagre on each component, normalize to origin (0,0)
   const laid = components.map(comp => {
-    const laidNodes = layoutSingle(comp, edges)
+    const laidNodes = layoutSingle(comp, edges, ranksep, nodesep)
     const bb = bbox(laidNodes)
     return {
       nodes: laidNodes.map(n => ({
@@ -246,19 +268,24 @@ function dagreLayout(nodes: Node<FlowNodeData>[], edges: Edge[]): Node<FlowNodeD
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
-export function parseFlow(json: BotFlowJson): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
+export function parseFlow(json: BotFlowJson, spacing?: { ranksep?: number; nodesep?: number }): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const intents   = json.list
   const mainBotId = intents.find(i => i.category === 'start')?.botId ?? intents[0]?.botId ?? ''
   const intentIds = new Set(intents.map(i => i.id))
 
   const externalNodeMap = new Map<string, Node<FlowNodeData>>()
 
-  const internalNodes: Node<FlowNodeData>[] = intents.map(intent => ({
+  const internalNodes: Node<FlowNodeData>[] = intents.map(intent => {
+    const kind = getNodeKind(intent)
+    const size = NODE_SIZES[kind]
+    return {
     id:   intent.id,
-    type: getNodeKind(intent),
+    type: kind,
     position: { x: 0, y: 0 },
+    width: size.w,
+    height: size.h,
     data: {
-      name:            intent.name,
+      name:            fixEncoding(intent.name),
       category:        intent.category,
       messagePreview:  getMessagePreview(intent),
       buttons:         getButtons(intent),
@@ -270,8 +297,10 @@ export function parseFlow(json: BotFlowJson): { nodes: Node<FlowNodeData>[]; edg
       setDataItems:    getSetDataItems(intent),
       keywords:        intent.keywords ?? [],
       conditions:      getConditionInfos(intent),
+      apiName:         getApiName(intent),
     },
-  }))
+  }
+  })
 
   const edges: Edge[] = []
 
@@ -301,10 +330,16 @@ export function parseFlow(json: BotFlowJson): { nodes: Node<FlowNodeData>[]; edg
 
       if (isExternal) {
         const extId = `ext-${intent.id}-c${ci}`
+        const extBotLabel = (() => {
+          if (!ref.botId) return 'Outro Bot'
+          const last = ref.botId.split('-').pop() ?? ''
+          return /^[0-9a-f]+$/i.test(last) ? ref.botId.slice(0, 16) : last
+        })()
         externalNodeMap.set(extId, {
           id: extId, type: 'externalBotNode', position: { x: 0, y: 0 },
+          width: NODE_SIZES.externalBotNode.w, height: NODE_SIZES.externalBotNode.h,
           data: {
-            name: 'Outro Bot', category: 'Redirecionamento externo',
+            name: extBotLabel, category: 'Redirecionamento externo',
             messagePreview: '', buttons: [], actionType: 'none',
             captureDataType: null, transferType: null, transferValue: null,
             allMessages: [], setDataItems: [], keywords: [], conditions: [],
@@ -328,6 +363,7 @@ export function parseFlow(json: BotFlowJson): { nodes: Node<FlowNodeData>[]; edg
     }
   }
 
+  const { ranksep = 60, nodesep = 40 } = spacing ?? {}
   const allNodes = [...internalNodes, ...Array.from(externalNodeMap.values())]
-  return { nodes: dagreLayout(allNodes, edges), edges }
+  return { nodes: dagreLayout(allNodes, edges, ranksep, nodesep), edges }
 }

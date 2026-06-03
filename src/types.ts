@@ -101,6 +101,8 @@ export type NodeKind =
   | 'waitNode'
   | 'setDataNode'
   | 'externalBotNode'
+  | 'endConversationNode'
+  | 'apiCallNode'
   | 'defaultNode'
 
 export interface ConditionInfo {
@@ -124,4 +126,5 @@ export interface FlowNodeData extends Record<string, unknown> {
   conditions: ConditionInfo[]
   externalBotId?: string
   externalIntentId?: string
+  apiName?: string | null
 }

@@ -16,7 +16,7 @@ export function ExternalBotNode({ data }: { data: FlowNodeData }) {
       <div className="bg-amber-400 text-white px-3 py-2 flex items-center gap-2">
         <ExternalIcon />
         <div className="min-w-0">
-          <p className="text-xs font-bold leading-tight">Outro Bot</p>
+          <p className="text-xs font-bold leading-tight truncate">{data.name || 'Outro Bot'}</p>
           <p className="text-[10px] opacity-80">Redirecionamento externo</p>
         </div>
       </div>

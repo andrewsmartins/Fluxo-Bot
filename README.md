@@ -8,9 +8,10 @@ Visualizador de fluxos de chatbot a partir de JSON. Cole ou importe o JSON de co
 
 - Geração automática de fluxograma a partir de JSON
 - Layout hierárquico top-down calculado pelo [Dagre](https://github.com/dagrejs/dagre)
-- 5 tipos de nó com cores distintas: Início, Escolha, Captura, Transferência e Padrão
+- 10 tipos de nó com cores distintas (veja tabela abaixo)
 - Rótulos nas arestas com o texto dos botões de escolha
 - Zoom, pan e minimapa interativos
+- Controle de espaçamento entre nós (botões `−` / `+` no canto superior direito)
 - Exportação do fluxo completo em **PNG** (2400×1600) e **SVG** (vetor)
 - Input via textarea (colar JSON) ou upload de arquivo `.json`
 
@@ -48,10 +49,12 @@ O servidor sobe em `http://localhost:5173`.
 
 ## Como usar
 
-1. **Cole** o JSON no painel esquerdo ou clique em **Importar .json** para carregar um arquivo (example.json disponível para testes)
+1. **Cole** o JSON no painel esquerdo ou clique em **Importar .json** para carregar um arquivo
+   > Três arquivos de exemplo estão disponíveis na raiz do projeto: `sample01.json` (12 nós), `sample02.json` (159 nós) e `sample03.json` (141 nós)
 2. Clique em **Gerar Fluxo** (ou `Ctrl+Enter`)
 3. Use scroll para zoom e arraste para navegar pelo fluxo
-4. Para exportar, clique em **PNG** ou **SVG** no canto superior direito do canvas
+4. Use os botões **−** / **+** no canto superior direito para ajustar o espaçamento entre os nós
+5. Para exportar, clique em **PNG** ou **SVG** no mesmo painel do canto superior direito
 
 ---
 
@@ -109,6 +112,10 @@ Cada intent contém um array `conditions` que define tanto as **mensagens que o 
 | `"choice"` | Apresenta botões de escolha ao usuário | Azul |
 | `"captureData"` | Captura um dado do usuário (nome, CEP, etc.) | Roxo |
 | `"transfer"` | Transfere a conversa para um atendente humano | Vermelho |
+| `"waitForInteraction"` | Aguarda interação do usuário sem capturar dado | Ciano |
+| `"setData"` | Atribui valor a uma ou mais variáveis | Índigo |
+| `"endConversation"` | Encerra a conversa | Vermelho escuro |
+| `"external"` | Chama uma API externa | Verde-azulado |
 | `"none"` | Sem ação, apenas avança para o próximo nó | Cinza |
 
 ### Transições entre nós
@@ -179,13 +186,18 @@ src/
 ├── components/
 │   ├── FlowCanvas.tsx          Canvas React Flow com todos os providers
 │   ├── JsonInput.tsx           Painel de entrada (textarea, upload, legenda)
-│   ├── ExportControls.tsx      Botões de exportação PNG/SVG
+│   ├── ExportControls.tsx      Botões de exportação PNG/SVG e controle de espaçamento
 │   └── nodes/
-│       ├── StartNode.tsx       Nó de início (verde)
-│       ├── ChoiceNode.tsx      Nó de escolha com botões (azul)
-│       ├── CaptureNode.tsx     Nó de captura de dados (roxo)
-│       ├── TransferNode.tsx    Nó de transferência para atendente (vermelho)
-│       └── DefaultNode.tsx     Nó padrão (cinza)
+│       ├── StartNode.tsx           Nó de início (verde)
+│       ├── ChoiceNode.tsx          Nó de escolha com botões (azul)
+│       ├── CaptureNode.tsx         Nó de captura de dados (roxo)
+│       ├── TransferNode.tsx        Nó de transferência para atendente (vermelho)
+│       ├── WaitNode.tsx            Nó de espera por interação (ciano)
+│       ├── SetDataNode.tsx         Nó de atribuição de variáveis (índigo)
+│       ├── ExternalBotNode.tsx     Nó de redirecionamento externo (âmbar)
+│       ├── EndConversationNode.tsx Nó de encerramento de conversa (vermelho escuro)
+│       ├── ApiCallNode.tsx         Nó de chamada de API externa (verde-azulado)
+│       └── DefaultNode.tsx         Nó padrão (cinza)
 ├── App.tsx                     Layout principal e gerenciamento de estado
 └── main.tsx                    Entry point
 ```
@@ -194,12 +206,12 @@ src/
 
 ```
 JSON (textarea / arquivo)
-  └─▶ parseFlow()
+  └─▶ parseFlow(json, spacing?)
         ├─▶ getNodeKind()        detecta tipo de cada nó
         ├─▶ extrai arestas       via action.choices ou next.intent.id
-        └─▶ applyDagreLayout()   calcula posições x/y
+        └─▶ dagreLayout()        calcula posições x/y com ranksep/nodesep configuráveis
               └─▶ ReactFlow      renderiza canvas interativo
-                    └─▶ ExportControls  captura viewport → PNG / SVG
+                    └─▶ ExportControls  exportação PNG/SVG + controle de espaçamento
 ```
 
 ---
@@ -209,9 +221,14 @@ JSON (textarea / arquivo)
 | Cor | Tipo | Condição de detecção |
 |---|---|---|
 | Verde | Início | `category === "start"` |
+| Vermelho | Transferência | Qualquer condição com `action.type === "transfer"` |
+| Ciano | Espera | Qualquer condição com `action.type === "waitForInteraction"` |
 | Azul | Escolha | Qualquer condição com `action.type === "choice"` |
 | Roxo | Captura | Qualquer condição com `action.type === "captureData"` |
-| Vermelho | Transferência | Qualquer condição com `action.type === "transfer"` |
+| Índigo | Atribuição | Qualquer condição com `action.type === "setData"` |
+| Vermelho escuro | Encerramento | Qualquer condição com `action.type === "endConversation"` |
+| Verde-azulado | API externa | Qualquer condição com `action.type === "external"` |
+| Âmbar | Bot externo | Nó gerado para redirecionamentos a outro botId |
 | Cinza | Padrão | Demais casos |
 
-A prioridade de detecção é: **Início > Transferência > Escolha > Captura > Padrão**.
+A prioridade de detecção é: **Início > Transferência > Espera > Escolha > Captura > Atribuição > Encerramento > API > Padrão**.

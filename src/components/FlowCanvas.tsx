@@ -1,46 +1,58 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { ReactFlow, Background, Controls, MiniMap, useReactFlow, type Node, type Edge, type NodeMouseHandler } from '@xyflow/react'
+import { ReactFlow, Background, Controls, MiniMap, useReactFlow, type Node, type Edge, type NodeMouseHandler, type MiniMapNodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { StartNode }       from './nodes/StartNode'
-import { ChoiceNode }      from './nodes/ChoiceNode'
-import { CaptureNode }     from './nodes/CaptureNode'
-import { TransferNode }    from './nodes/TransferNode'
-import { DefaultNode }     from './nodes/DefaultNode'
-import { WaitNode }        from './nodes/WaitNode'
-import { SetDataNode }     from './nodes/SetDataNode'
-import { ExternalBotNode } from './nodes/ExternalBotNode'
-import { ExportControls }  from './ExportControls'
+import { StartNode }            from './nodes/StartNode'
+import { ChoiceNode }           from './nodes/ChoiceNode'
+import { CaptureNode }          from './nodes/CaptureNode'
+import { TransferNode }         from './nodes/TransferNode'
+import { DefaultNode }          from './nodes/DefaultNode'
+import { WaitNode }             from './nodes/WaitNode'
+import { SetDataNode }          from './nodes/SetDataNode'
+import { ExternalBotNode }      from './nodes/ExternalBotNode'
+import { EndConversationNode }  from './nodes/EndConversationNode'
+import { ApiCallNode }          from './nodes/ApiCallNode'
+import { ExportControls }       from './ExportControls'
 import type { FlowNodeData } from '../types'
 
 const nodeTypes = {
-  startNode:       StartNode,
-  choiceNode:      ChoiceNode,
-  captureNode:     CaptureNode,
-  transferNode:    TransferNode,
-  defaultNode:     DefaultNode,
-  waitNode:        WaitNode,
-  setDataNode:     SetDataNode,
-  externalBotNode: ExternalBotNode,
+  startNode:           StartNode,
+  choiceNode:          ChoiceNode,
+  captureNode:         CaptureNode,
+  transferNode:        TransferNode,
+  defaultNode:         DefaultNode,
+  waitNode:            WaitNode,
+  setDataNode:         SetDataNode,
+  externalBotNode:     ExternalBotNode,
+  endConversationNode: EndConversationNode,
+  apiCallNode:         ApiCallNode,
 }
 
 const NODE_COLORS: Record<string, string> = {
-  startNode:       '#10b981',
-  choiceNode:      '#3b82f6',
-  captureNode:     '#8b5cf6',
-  transferNode:    '#f43f5e',
-  waitNode:        '#06b6d4',
-  setDataNode:     '#6366f1',
-  externalBotNode: '#f59e0b',
-  defaultNode:     '#64748b',
+  startNode:           '#10b981',
+  choiceNode:          '#3b82f6',
+  captureNode:         '#8b5cf6',
+  transferNode:        '#f43f5e',
+  waitNode:            '#06b6d4',
+  setDataNode:         '#6366f1',
+  externalBotNode:     '#f59e0b',
+  endConversationNode: '#f43f5e',
+  apiCallNode:         '#0d9488',
+  defaultNode:         '#64748b',
+}
+
+function MiniMapNodeRect({ x, y, width, height, color }: MiniMapNodeProps) {
+  return <rect x={x} y={y} width={width} height={height} fill={color} rx={6} ry={6} />
 }
 
 interface FlowCanvasProps {
   nodes: Node<FlowNodeData>[]
   edges: Edge[]
   onNodeClick: (node: Node<FlowNodeData>) => void
+  onSpacingIncrease: () => void
+  onSpacingDecrease: () => void
 }
 
-export function FlowCanvas({ nodes, edges, onNodeClick }: FlowCanvasProps) {
+export function FlowCanvas({ nodes, edges, onNodeClick, onSpacingIncrease, onSpacingDecrease }: FlowCanvasProps) {
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => onNodeClick(node as Node<FlowNodeData>),
     [onNodeClick]
@@ -61,9 +73,10 @@ export function FlowCanvas({ nodes, edges, onNodeClick }: FlowCanvasProps) {
       <MiniMap
         nodeColor={node => NODE_COLORS[node.type ?? 'defaultNode'] ?? '#64748b'}
         maskColor="rgba(248,250,252,0.7)"
+        nodeComponent={MiniMapNodeRect}
       />
       <LayoutFitter nodeCount={nodes.length} />
-      <ExportControls />
+      <ExportControls onSpacingIncrease={onSpacingIncrease} onSpacingDecrease={onSpacingDecrease} />
     </ReactFlow>
   )
 }
