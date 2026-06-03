@@ -197,7 +197,9 @@ function layoutSingle(nodes: Node<FlowNodeData>[], edges: Edge[], ranksep: numbe
   g.setGraph({ rankdir: 'TB', ranksep, nodesep })
   nodes.forEach(n => {
     const s = NODE_SIZES[n.type as NodeKind] ?? NODE_SIZES.defaultNode
-    g.setNode(n.id, { width: s.w, height: s.h })
+    const w = n.measured?.width  ?? s.w
+    const h = n.measured?.height ?? s.h
+    g.setNode(n.id, { width: w, height: h })
   })
   edges.filter(e => ids.has(e.source) && ids.has(e.target))
        .forEach(e => g.setEdge(e.source, e.target))
@@ -205,7 +207,9 @@ function layoutSingle(nodes: Node<FlowNodeData>[], edges: Edge[], ranksep: numbe
   return nodes.map(n => {
     const pos = g.node(n.id)
     const s = NODE_SIZES[n.type as NodeKind] ?? NODE_SIZES.defaultNode
-    return { ...n, position: { x: pos.x - s.w / 2, y: pos.y - s.h / 2 } }
+    const w = n.measured?.width  ?? s.w
+    const h = n.measured?.height ?? s.h
+    return { ...n, position: { x: pos.x - w / 2, y: pos.y - h / 2 } }
   })
 }
 
@@ -366,4 +370,12 @@ export function parseFlow(json: BotFlowJson, spacing?: { ranksep?: number; nodes
   const { ranksep = 60, nodesep = 40 } = spacing ?? {}
   const allNodes = [...internalNodes, ...Array.from(externalNodeMap.values())]
   return { nodes: dagreLayout(allNodes, edges, ranksep, nodesep), edges }
+}
+
+export function relayout(
+  nodes: Node<FlowNodeData>[],
+  edges: Edge[],
+  spacing: { ranksep: number; nodesep: number }
+): Node<FlowNodeData>[] {
+  return dagreLayout(nodes, edges, spacing.ranksep, spacing.nodesep)
 }

@@ -19,6 +19,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<Node<FlowNodeData> | null>(null)
   const parsedDataRef                   = useRef<BotFlowJson | null>(null)
   const spacingRef                      = useRef({ ranksep: 60, nodesep: 40 })
+  const [spacing, setSpacing]           = useState({ ranksep: 60, nodesep: 40 })
 
   function handleGenerate() {
     if (!jsonText.trim()) {
@@ -62,6 +63,7 @@ export default function App() {
       nodesep: Math.min(SPACING_MAX, Math.max(SPACING_MIN, prev.nodesep + delta)),
     }
     spacingRef.current = next
+    setSpacing(next)
     const result = parseFlow(parsedDataRef.current, next)
     setNodes(result.nodes)
     setEdges(result.edges)
@@ -95,6 +97,7 @@ export default function App() {
             <FlowCanvas
               nodes={nodes}
               edges={edges}
+              spacing={spacing}
               onNodeClick={handleNodeClick}
               onSpacingIncrease={() => handleSpacingChange(SPACING_STEP)}
               onSpacingDecrease={() => handleSpacingChange(-SPACING_STEP)}
