@@ -2,20 +2,26 @@ import { useState } from 'react'
 import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
 
-const EXPORT_WIDTH = 2400
-const EXPORT_HEIGHT = 1600
+const MAX_EXPORT_PX = 8000
 
-async function captureViewport(format: 'png' | 'svg', x: number, y: number, zoom: number) {
+async function captureViewport(
+  format: 'png' | 'svg',
+  x: number,
+  y: number,
+  zoom: number,
+  width: number,
+  height: number,
+) {
   const el = document.querySelector<HTMLElement>('.react-flow__viewport')
   if (!el) throw new Error('Viewport não encontrado')
 
   const options = {
     backgroundColor: '#f8fafc',
-    width: EXPORT_WIDTH,
-    height: EXPORT_HEIGHT,
+    width,
+    height,
     style: {
-      width: `${EXPORT_WIDTH}px`,
-      height: `${EXPORT_HEIGHT}px`,
+      width: `${width}px`,
+      height: `${height}px`,
       transform: `translate(${x}px, ${y}px) scale(${zoom})`,
     },
   }
@@ -46,15 +52,28 @@ export function ExportControls({ onSpacingIncrease, onSpacingDecrease }: ExportC
     setExporting(format)
     try {
       const bounds = getNodesBounds(nodes)
+
+      // Scale to 2× resolution for sharpness, capped to avoid browser memory limits
+      let w = (bounds.width || 400) * 2
+      let h = (bounds.height || 300) * 2
+      if (w > MAX_EXPORT_PX || h > MAX_EXPORT_PX) {
+        const factor = MAX_EXPORT_PX / Math.max(w, h)
+        w *= factor
+        h *= factor
+      }
+      const exportWidth = Math.max(800, Math.round(w))
+      const exportHeight = Math.max(600, Math.round(h))
+
       const { x, y, zoom } = getViewportForBounds(
         bounds,
-        EXPORT_WIDTH,
-        EXPORT_HEIGHT,
-        0.3,
-        2,
-        0.1
+        exportWidth,
+        exportHeight,
+        0.01, // minZoom muito baixo para fluxos grandes caberem
+        10,
+        0.05  // 5% de padding ao redor do conteúdo
       )
-      const dataUrl = await captureViewport(format, x, y, zoom)
+
+      const dataUrl = await captureViewport(format, x, y, zoom, exportWidth, exportHeight)
       triggerDownload(dataUrl, format)
     } catch (err) {
       console.error('Erro ao exportar:', err)
@@ -72,7 +91,7 @@ export function ExportControls({ onSpacingIncrease, onSpacingDecrease }: ExportC
           onClick={() => handleExport('png')}
           disabled={busy}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Exportar como PNG (2400×1600)"
+          title="Exportar como PNG (dimensões dinâmicas baseadas no fluxo)"
         >
           {exporting === 'png' ? <Spinner /> : <ImageIcon />}
           PNG
