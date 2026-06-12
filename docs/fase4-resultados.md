@@ -52,6 +52,14 @@ sem `conditions`, push duplicado da mesma intenção.)
 Push altera somente o **rascunho** (confirmado pelo Andy + comportamento
 observado). Publicar é botão manual na plataforma — fora do escopo do Fluxo.
 
+## Validação manual na tela da Omni — APROVADA (2026-06-12)
+
+Todos os itens do checklist confirmados pelo Andy: intenções na lista e
+categoria certas, formulários abrem sem erro, mensagem configurada correta,
+**salvar pela própria tela da Omni funciona** (compatibilidade total do
+template), simulador percorre a cadeia start → mensagem → espera, e o
+publicado permanece intocado. **Fase 4a validada ponta a ponta.**
+
 ## Pendências para validação MANUAL na tela da Omni
 
 O bot de testes está com 4 intenções (resíduo das etapas 1 e 3). Antes/depois
@@ -66,9 +74,9 @@ node scripts/rollback-bot.mjs 2a3859ff-62d5-4c01-ae60-6ae2f812e786 samples/backu
 ```
 
 Checklist de validação na tela (você):
-- [ ] As intenções aparecem na lista do bot, na categoria certa?
-- [ ] O formulário de cada uma **abre sem erro**?
-- [ ] A mensagem de texto aparece como configurada?
-- [ ] Salvar pela própria tela da Omni funciona (compatibilidade total)?
-- [ ] O simulador percorre a cadeia start → mensagem → espera?
-- [ ] O rascunho mudou e o publicado **não** (até você publicar manualmente)?
+- [SIM] As intenções aparecem na lista do bot, na categoria certa?
+- [SIM] O formulário de cada uma **abre sem erro**?
+- [SIM] A mensagem de texto aparece como configurada?
+- [SIM] Salvar pela própria tela da Omni funciona (compatibilidade total)?
+- [SIM] O simulador percorre a cadeia start → mensagem → espera?
+- [SIM] O rascunho mudou e o publicado **não** (até você publicar manualmente)?

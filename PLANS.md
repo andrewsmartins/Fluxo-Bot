@@ -168,7 +168,17 @@ Implementação efetiva:
 - Aprendizado Playwright: não criar nós de teste no canto inferior direito —
   o MiniMap intercepta o mouse e o gesto de conexão nunca inicia.
 
-### Fase 4 — Push direto via API (REVISADA 2026-06-12 — pronta para teste guiado)
+### Fase 4 — Push direto via API
+
+> **Fase 4a (CLI) CONCLUÍDA e VALIDADA na plataforma real (2026-06-12).**
+> `scripts/push-flow.mjs` empurra fluxo exportado para o rascunho do bot, com
+> remapeamento de IDs em 2 passadas (POST com ID novo é ignorado pelo servidor
+> — ver docs/fase4-resultados.md). Validado: cadeia íntegra no servidor, tela
+> da Omni abre/salva as intenções, simulador percorre o fluxo, publicado
+> intocado. Decisão pendente: Fase 4b (mesmo push pela UI do Fluxo — CORS
+> permite) ou manter só CLI.
+
+#### Histórico do planejamento (REVISADO 2026-06-12)
 
 Revisão de segurança feita em 2026-06-12. Protocolo completo de teste em
 **docs/TESTE-FASE4.md**; sonda read-only em **scripts/probe-api.mjs**.
