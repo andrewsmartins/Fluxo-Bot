@@ -1,6 +1,6 @@
 # Fluxo Bot
 
-Visualizador de fluxos de chatbot a partir de JSON. Cole ou importe o JSON de configuração do bot e veja o fluxograma gerado automaticamente com layout hierárquico.
+Editor visual de fluxos de chatbot OmniChat. Importe o JSON do bot (ou crie um fluxo do zero a partir do botId), edite nós, conexões e conteúdo no canvas, e exporte de volta no formato aceito pela plataforma.
 
 ---
 
@@ -13,6 +13,12 @@ Visualizador de fluxos de chatbot a partir de JSON. Cole ou importe o JSON de co
 - Zoom, pan e minimapa interativos
 - Controle de espaçamento entre nós (botões `−` / `+` no canto superior direito)
 - Exportação do fluxo completo em **PNG** e **SVG** com dimensões calculadas pelos bounds reais dos nós
+- **Criação de nós** — paleta no canto superior esquerdo: arraste um tipo (Mensagem, Escolha, Captura, Transferência, Espera, Definir dados) para o canvas para criar uma intenção nova com template canônico
+- **Edição de conexões** — arraste a ponta de destino de uma aresta para outra intenção; conecte nós arrastando do handle inferior; delete arestas com Delete/Backspace; o JSON subjacente é atualizado (`next.intent` ou `action.choices`)
+- **Edição de conteúdo** — clique num nó para abrir o painel: edite nome, categoria, keywords, mensagens, botões (adicionar/remover, com sincronia automática das escolhas), condições, transferência, captura e variáveis; **Aplicar alterações** grava no modelo
+- **Exclusão de intenções** — botão no painel ou tecla Delete; todas as referências de entrada são limpas automaticamente
+- **Validação no export** — erros estruturais bloqueiam o download; inconsistências prováveis aparecem como aviso
+- **Exportação JSON** — baixa o fluxo (com as edições) no mesmo formato `{ "list": [...] }` aceito pela plataforma, preservando todos os campos não editados
 - **Dark mode** completo — toggle sol/lua na sidebar altera sidebar, nodes, painéis e canvas simultaneamente; preferência salva em `localStorage`
 - Input via textarea (colar JSON) ou upload de arquivo `.json`
 
@@ -42,6 +48,9 @@ npm run dev
 
 # Build de produção
 npm run build
+
+# Testes (Vitest)
+npm test
 ```
 
 O servidor sobe em `http://localhost:5173`.
@@ -50,12 +59,16 @@ O servidor sobe em `http://localhost:5173`.
 
 ## Como usar
 
-1. **Cole** o JSON no painel esquerdo ou clique em **Importar .json** para carregar um arquivo
-   > Três arquivos de exemplo estão disponíveis na raiz do projeto: `sample01.json` (12 nós), `sample02.json` (159 nós) e `sample03.json` (141 nós)
-2. Clique em **Gerar Fluxo** (ou `Ctrl+Enter`)
-3. Use scroll para zoom e arraste para navegar pelo fluxo
-4. Use os botões **−** / **+** no canto superior direito para ajustar o espaçamento entre os nós
-5. Para exportar, clique em **PNG** ou **SVG** no mesmo painel do canto superior direito
+1. **Importar** (toolbar) abre o modal: cole o JSON do bot (resposta da aba Network) ou carregue um arquivo `.json`, e clique em **Gerar fluxo** (`Ctrl+Enter`) — ou use **Novo fluxo** informando o botId para começar do zero
+   > Arquivos de exemplo em `samples/` (não versionados — dados reais): `sample01.json` (12 nós), `sample02.json` (159 nós) e `sample03.json` (141 nós)
+2. Use scroll para zoom e arraste para navegar; os botões **−** / **+** na barra superior ajustam o espaçamento do layout
+3. Para **criar** um nó, arraste um tipo da paleta (canto superior esquerdo) até a posição desejada
+4. Para **conectar**, arraste do handle inferior de um nó até outro nó; para **reconectar**, arraste a ponta de destino (seta) de uma aresta — conexões para outros bots não são editáveis
+5. Para **editar conteúdo**, clique no nó e use o painel à direita (Aplicar alterações grava no modelo)
+6. Para **excluir**, selecione nó ou aresta e pressione Delete, ou use o botão no painel
+7. **Ctrl+Z** desfaz e **Ctrl+Shift+Z** refaz qualquer edição (botões ↶ ↷ na toolbar)
+8. O **indicador de validação** na toolbar mostra erros/avisos do fluxo em tempo real (clique para ver a lista)
+9. **Exportar** (toolbar) baixa o **JSON** no formato da plataforma (com todas as edições) ou imagem **PNG**/**SVG**
 
 ---
 

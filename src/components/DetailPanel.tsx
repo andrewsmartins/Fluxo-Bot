@@ -1,6 +1,14 @@
+import { useState, useEffect, useCallback } from 'react'
 import type { Node } from '@xyflow/react'
-import type { FlowNodeData, NodeKind } from '../types'
+import type { BotIntent, BulkUpdateItem, FlowNodeData, NodeKind } from '../types'
 import { useTheme } from '../contexts/ThemeContext'
+import {
+  listMessages, updateMessageText, addTextMessage, removeMessage,
+  updateButton, addButton, removeButton, addButtonsMessage,
+  updateCondition, addCondition, removeCondition,
+  updateIntentMeta, updateActionFields, updateSetDataItems,
+  type EditableMessage, type MessageRef,
+} from '../utils/editIntent'
 
 const KIND_LABELS_LIGHT: Record<NodeKind, { label: string; color: string }> = {
   startNode:       { label: 'Início',          color: 'bg-emerald-100 text-emerald-700' },
@@ -24,66 +32,211 @@ const KIND_LABELS_DARK: Record<NodeKind, { label: string; color: string }> = {
   defaultNode:     { label: 'Padrão',           color: 'bg-slate-800 text-slate-400' },
 }
 
-const CAPTURE_LABELS: Record<string, string> = {
-  name: 'Nome', fullName: 'Nome completo', zipcode: 'CEP',
-  addressNumber: 'Número do endereço', addressComplement: 'Complemento',
-  email: 'E-mail', phone: 'Telefone', cpf: 'CPF',
+const TRANSFER_TYPES = [
+  { value: 'direct4group',        label: 'Grupo direto' },
+  { value: 'search4group',        label: 'Busca de grupo' },
+  { value: 'direct4user',         label: 'Usuário direto' },
+  { value: 'direct4userPrevious', label: 'Atendente anterior' },
+  { value: 'direct4userCurrent',  label: 'Atendente atual' },
+]
+
+const CAPTURE_TYPES = [
+  { value: 'free',    label: 'Livre' },
+  { value: 'custom',  label: 'Customizado' },
+  { value: 'name',    label: 'Nome' },
+  { value: 'fullName', label: 'Nome completo' },
+  { value: 'cpf',     label: 'CPF' },
+  { value: 'email',   label: 'E-mail' },
+  { value: 'phone',   label: 'Telefone' },
+  { value: 'zipcode', label: 'CEP' },
+  { value: 'entity',  label: 'Entidade' },
+]
+
+const COND_TYPES = [
+  { value: 'any',    label: 'qualquer' },
+  { value: 'equals', label: 'igual a' },
+  { value: 'exists', label: 'existe' },
+  { value: 'else',   label: 'senão' },
+]
+
+interface DraftCondition {
+  name: string
+  type: string
+  variable: string
+  value: string
+  /** Índice em intent.conditions; null = condição nova ainda não aplicada. */
+  originalIdx: number | null
 }
 
-const TRANSFER_TYPE_LABELS: Record<string, string> = {
-  direct4group:        'Grupo direto',
-  direct4user:         'Usuário direto',
-  direct4userPrevious: 'Atendente anterior',
-  direct4userCurrent:  'Atendente atual',
-  queue:               'Fila de atendimento',
+interface Draft {
+  name: string
+  category: string
+  keywords: string
+  messages: EditableMessage[]
+  newMessages: string[]
+  removedRefs: MessageRef[]
+  buttons: { text: string; description: string; originalIdx: number | null }[]
+  removedButtonIdxs: number[]
+  /** Body da nova mensagem de botões (null = não solicitada). */
+  newButtonsBody: string | null
+  conditions: DraftCondition[]
+  removedCondIdxs: number[]
+  transferType: string
+  transferValue: string
+  captureDataType: string
+  captureVariable: string
+  setDataItems: BulkUpdateItem[]
 }
 
-const COND_TYPE_STYLES_LIGHT: Record<string, string> = {
-  exists: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  else:   'bg-slate-50 text-slate-500 border-slate-200',
-  any:    'bg-blue-50 text-blue-600 border-blue-200',
-  equals: 'bg-orange-50 text-orange-700 border-orange-200',
+function hasButtonsMessage(intent: BotIntent): boolean {
+  return intent.conditions.some(c =>
+    c.assistant_says.some(s => s.messages.some(m => (m.type === 'BUTTON' || m.type === 'LIST') && m.messageConfig)))
 }
 
-const COND_TYPE_STYLES_DARK: Record<string, string> = {
-  exists: 'bg-emerald-950 text-emerald-300 border-emerald-800',
-  else:   'bg-slate-800 text-slate-400 border-slate-700',
-  any:    'bg-blue-950 text-blue-300 border-blue-800',
-  equals: 'bg-orange-950 text-orange-300 border-orange-800',
-}
+function buildDraft(intent: BotIntent): Draft {
+  const transferCond = intent.conditions.find(c => c.action.type === 'transfer')
+  const captureCond  = intent.conditions.find(c => c.action.type === 'captureData')
+  const setDataCond  = intent.conditions.find(c => c.action.type === 'setData')
+  const buttons = intent.conditions
+    .flatMap(c => c.assistant_says).flatMap(s => s.messages)
+    .find(m => (m.type === 'BUTTON' || m.type === 'LIST') && m.messageConfig?.buttons?.length)
+    ?.messageConfig?.buttons ?? []
 
-const COND_TYPE_LABELS: Record<string, string> = {
-  exists: 'existe',
-  else:   'senão',
-  any:    'qualquer',
-  equals: 'igual',
+  return {
+    name: intent.name,
+    category: intent.category,
+    keywords: (intent.keywords ?? []).join(', '),
+    messages: listMessages(intent),
+    newMessages: [],
+    removedRefs: [],
+    buttons: buttons.map((b, i) => ({ text: b.text, description: b.description ?? '', originalIdx: i })),
+    removedButtonIdxs: [],
+    newButtonsBody: null,
+    conditions: intent.conditions.map((c, i) => ({
+      name: c.name, type: c.type, variable: c.variable ?? '', value: c.value ?? '', originalIdx: i,
+    })),
+    removedCondIdxs: [],
+    transferType: transferCond?.action.transferType ?? '',
+    transferValue: transferCond?.action.value ?? '',
+    captureDataType: captureCond?.action.captureDataType ?? '',
+    captureVariable: captureCond?.action.variable ?? '',
+    setDataItems: (Array.isArray(setDataCond?.action.bulkUpdate) ? setDataCond.action.bulkUpdate : [])
+      .map(i => ({ ...i })),
+  }
 }
 
 interface DetailPanelProps {
   node: Node<FlowNodeData>
+  intent: BotIntent | null
+  /** Chamado antes do primeiro patch — o App captura o snapshot de undo aqui. */
+  onBeforeApply: () => void
+  onApply: (intentId: string) => void
+  /** Chamado quando um patch falha no meio — o App faz rollback do parcial. */
+  onApplyFailed: () => void
+  onDelete: (intentId: string) => void
   onClose: () => void
 }
 
-export function DetailPanel({ node, onClose }: DetailPanelProps) {
+export function DetailPanel({ node, intent, onBeforeApply, onApply, onApplyFailed, onDelete, onClose }: DetailPanelProps) {
   const isDark = useTheme()
-  const data = node.data
   const kind = (node.type ?? 'defaultNode') as NodeKind
-  const KIND_LABELS = isDark ? KIND_LABELS_DARK : KIND_LABELS_LIGHT
-  const COND_TYPE_STYLES = isDark ? COND_TYPE_STYLES_DARK : COND_TYPE_STYLES_LIGHT
-  const badge = KIND_LABELS[kind] ?? KIND_LABELS.defaultNode
+  const badge = (isDark ? KIND_LABELS_DARK : KIND_LABELS_LIGHT)[kind]
+  const [draft, setDraft] = useState<Draft | null>(intent ? buildDraft(intent) : null)
+  const [panelError, setPanelError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDraft(intent ? buildDraft(intent) : null)
+    setPanelError(null)
+  }, [node.id])
+
+  const set = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setDraft(d => d ? { ...d, [key]: value } : d)
+  }, [])
+
+  /**
+   * Aplica o rascunho no modelo via patches pequenos. A ordem importa:
+   * remoções sempre em índice decrescente (endereços deslocam) e remoções de
+   * condição por último (refs de mensagem usam condIdx pré-remoção).
+   */
+  function handleApply() {
+    if (!intent || !draft) return
+    onBeforeApply()
+    const results = [
+      updateIntentMeta(intent, {
+        name: draft.name,
+        category: draft.category,
+        keywords: draft.keywords.split(',').map(k => k.trim()).filter(Boolean),
+      }),
+      ...draft.messages.map(m => updateMessageText(intent, m.ref, m.text)),
+      ...[...draft.removedRefs]
+        .sort((a, b) => b.condIdx - a.condIdx || b.sayIdx - a.sayIdx || b.msgIdx - a.msgIdx)
+        .map(ref => removeMessage(intent, ref)),
+      ...draft.newMessages.filter(t => t.trim()).map(t => addTextMessage(intent, t.trim())),
+    ]
+    if (draft.newButtonsBody !== null && draft.newButtonsBody.trim()) {
+      results.push(addButtonsMessage(intent, draft.newButtonsBody.trim()))
+    }
+    results.push(
+      ...draft.buttons
+        .filter(b => b.originalIdx !== null)
+        .map(b => updateButton(intent, b.originalIdx as number, b.text, b.description || null)),
+      ...[...draft.removedButtonIdxs].sort((a, b) => b - a).map(i => removeButton(intent, i)),
+      ...draft.buttons
+        .filter(b => b.originalIdx === null && b.text.trim())
+        .map(b => addButton(intent, b.text.trim(), b.description || null)),
+    )
+    if (kind === 'transferNode') {
+      results.push(updateActionFields(intent, 'transfer', { transferType: draft.transferType, value: draft.transferValue }))
+    }
+    if (kind === 'captureNode') {
+      results.push(updateActionFields(intent, 'captureData', { captureDataType: draft.captureDataType, variable: draft.captureVariable }))
+    }
+    if (kind === 'setDataNode') {
+      results.push(updateSetDataItems(intent, draft.setDataItems))
+    }
+    results.push(
+      ...draft.conditions
+        .filter(c => c.originalIdx !== null)
+        .map(c => updateCondition(intent, c.originalIdx as number, c)),
+      ...[...draft.removedCondIdxs].sort((a, b) => b - a).map(i => removeCondition(intent, i)),
+    )
+    for (const added of draft.conditions.filter(c => c.originalIdx === null && c.name.trim())) {
+      const addResult = addCondition(intent)
+      results.push(addResult.ok ? updateCondition(intent, intent.conditions.length - 1, added) : addResult)
+    }
+    const failed = results.find(r => !r.ok)
+    if (failed && !failed.ok) {
+      setPanelError(`Falha ao aplicar: ${failed.reason}.`)
+      onApplyFailed()
+      return
+    }
+    setPanelError(null)
+    onApply(intent.id)
+    setDraft(buildDraft(intent))
+  }
+
+  const inputCls = `w-full text-xs rounded-lg border px-2.5 py-1.5 outline-none transition-colors ${
+    isDark
+      ? 'bg-slate-800 border-slate-700 text-slate-200 focus:border-blue-600 placeholder:text-slate-600'
+      : 'bg-white border-slate-200 text-slate-700 focus:border-blue-400 placeholder:text-slate-300'
+  }`
+  const labelCls = `text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`
+  const ghostBtnCls = `text-[10px] font-medium rounded px-1.5 py-0.5 transition-colors ${
+    isDark ? 'text-slate-500 hover:text-rose-400' : 'text-slate-400 hover:text-rose-600'
+  }`
+
+  const editable = !!intent && !!draft
 
   return (
-    <div className={`absolute right-0 top-0 h-full w-80 border-l shadow-xl z-10 flex flex-col ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+    <div className={`absolute right-0 top-0 h-full w-96 border-l shadow-xl z-10 flex flex-col ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
       {/* Header */}
       <div className={`flex items-start justify-between px-4 py-3 border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
         <div className="min-w-0 pr-2">
-          <p className={`text-sm font-semibold leading-tight truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{data.name}</p>
-          <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{data.category}</p>
+          <p className={`text-sm font-semibold leading-tight truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{node.data.name}</p>
+          <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{node.data.category}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>
-            {badge.label}
-          </span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
           <button
             onClick={onClose}
             className={`transition-colors ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}
@@ -97,140 +250,318 @@ export function DetailPanel({ node, onClose }: DetailPanelProps) {
         </div>
       </div>
 
-      {/* Scrollable body */}
+      {/* Body */}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
-
-        {/* Keywords */}
-        {data.keywords.length > 0 && (
-          <Section title="Keywords" isDark={isDark}>
-            <div className="flex flex-wrap gap-1">
-              {data.keywords.map(kw => (
-                <span key={kw} className={`text-[10px] rounded-full px-2 py-0.5 ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
-                  {kw}
-                </span>
-              ))}
-            </div>
-          </Section>
+        {!editable && (
+          <ReadOnlyExternal node={node} isDark={isDark} />
         )}
 
-        {/* Messages */}
-        {data.allMessages.length > 0 && (
-          <Section title="Mensagens" isDark={isDark}>
-            <div className="flex flex-col gap-2">
-              {data.allMessages.map((msg, i) => (
-                <p
-                  key={i}
-                  className={`text-xs leading-relaxed rounded-lg px-3 py-2 border whitespace-pre-wrap ${isDark ? 'text-slate-300 bg-slate-800 border-slate-700' : 'text-slate-600 bg-slate-50 border-slate-100'}`}
-                >
-                  {msg.replace(/@[\w.#]+/g, m => `[${m.slice(1)}]`)}
-                </p>
-              ))}
-            </div>
-          </Section>
-        )}
+        {editable && draft && (
+          <>
+            <Section title="Geral" isDark={isDark}>
+              <div className="flex flex-col gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className={labelCls}>Nome</span>
+                  <input className={inputCls} value={draft.name} onChange={e => set('name', e.target.value)} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className={labelCls}>Categoria</span>
+                  <input className={inputCls} value={draft.category} onChange={e => set('category', e.target.value)} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className={labelCls}>Keywords (separadas por vírgula)</span>
+                  <input className={inputCls} value={draft.keywords} onChange={e => set('keywords', e.target.value)} placeholder="ex: oi, olá, menu" />
+                </label>
+              </div>
+            </Section>
 
-        {/* Buttons / list options */}
-        {data.buttons.length > 0 && (
-          <Section title="Opções" isDark={isDark}>
-            <div className="flex flex-col gap-1.5">
-              {data.buttons.map(btn => (
-                <div key={btn.id} className={`border rounded-lg px-3 py-1.5 ${isDark ? 'bg-blue-950 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
-                  <p className={`text-xs font-medium ${isDark ? 'text-blue-200' : 'text-blue-800'}`}>{btn.text}</p>
-                  {btn.description && (
-                    <p className={`text-[10px] mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{btn.description}</p>
+            <Section title="Mensagens" isDark={isDark}>
+              <div className="flex flex-col gap-2">
+                {draft.messages.map((msg, i) => (
+                  <div key={`${msg.ref.condIdx}-${msg.ref.sayIdx}-${msg.ref.msgIdx}`} className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className={labelCls}>{msg.type}</span>
+                      {msg.type === 'TEXT' && (
+                        <button
+                          className={ghostBtnCls}
+                          onClick={() => setDraft(d => d && ({
+                            ...d,
+                            messages: d.messages.filter((_, j) => j !== i),
+                            removedRefs: [...d.removedRefs, msg.ref],
+                          }))}
+                        >remover</button>
+                      )}
+                    </div>
+                    <textarea
+                      className={`${inputCls} resize-y min-h-[56px]`}
+                      value={msg.text}
+                      onChange={e => setDraft(d => d && ({
+                        ...d,
+                        messages: d.messages.map((m, j) => j === i ? { ...m, text: e.target.value } : m),
+                      }))}
+                    />
+                  </div>
+                ))}
+                {draft.newMessages.map((text, i) => (
+                  <div key={`new-${i}`} className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className={labelCls}>TEXT (nova)</span>
+                      <button
+                        className={ghostBtnCls}
+                        onClick={() => set('newMessages', draft.newMessages.filter((_, j) => j !== i))}
+                      >remover</button>
+                    </div>
+                    <textarea
+                      className={`${inputCls} resize-y min-h-[56px]`}
+                      value={text}
+                      placeholder="Texto da mensagem…"
+                      onChange={e => set('newMessages', draft.newMessages.map((t, j) => j === i ? e.target.value : t))}
+                    />
+                  </div>
+                ))}
+                <button
+                  className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                    isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  onClick={() => set('newMessages', [...draft.newMessages, ''])}
+                >+ Adicionar mensagem de texto</button>
+              </div>
+            </Section>
+
+            {(draft.buttons.length > 0 || kind === 'choiceNode') && (
+              <Section title="Opções (botões ↔ escolhas)" isDark={isDark}>
+                <div className="flex flex-col gap-2">
+                  {draft.buttons.map((btn, i) => (
+                    <div key={i} className={`flex flex-col gap-1 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          className={inputCls}
+                          value={btn.text}
+                          placeholder="Texto do botão"
+                          onChange={e => set('buttons', draft.buttons.map((b, j) => j === i ? { ...b, text: e.target.value } : b))}
+                        />
+                        {kind === 'choiceNode' && (
+                          <button
+                            className={ghostBtnCls}
+                            title="Remover botão e a escolha correspondente"
+                            onClick={() => setDraft(d => d && ({
+                              ...d,
+                              buttons: d.buttons.filter((_, j) => j !== i),
+                              removedButtonIdxs: btn.originalIdx !== null
+                                ? [...d.removedButtonIdxs, btn.originalIdx]
+                                : d.removedButtonIdxs,
+                            }))}
+                          >×</button>
+                        )}
+                      </div>
+                      <input
+                        className={inputCls}
+                        value={btn.description}
+                        placeholder="Descrição (opcional)"
+                        onChange={e => set('buttons', draft.buttons.map((b, j) => j === i ? { ...b, description: e.target.value } : b))}
+                      />
+                      {btn.originalIdx === null && (
+                        <p className={labelCls}>novo — conecte no canvas após aplicar</p>
+                      )}
+                    </div>
+                  ))}
+
+                  {kind === 'choiceNode' && !hasButtonsMessage(intent!) && draft.newButtonsBody === null && (
+                    <button
+                      className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                        isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                      }`}
+                      onClick={() => set('newButtonsBody', '')}
+                    >+ Criar mensagem de botões</button>
+                  )}
+                  {draft.newButtonsBody !== null && (
+                    <label className="flex flex-col gap-1">
+                      <span className={labelCls}>Corpo da mensagem de botões (nova)</span>
+                      <textarea
+                        className={`${inputCls} resize-y min-h-[56px]`}
+                        value={draft.newButtonsBody}
+                        placeholder="Texto que acompanha os botões…"
+                        onChange={e => set('newButtonsBody', e.target.value)}
+                      />
+                    </label>
+                  )}
+                  {kind === 'choiceNode' && (hasButtonsMessage(intent!) || draft.newButtonsBody !== null) && (
+                    <button
+                      className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                        isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                      }`}
+                      onClick={() => set('buttons', [...draft.buttons, { text: '', description: '', originalIdx: null }])}
+                    >+ Adicionar botão</button>
                   )}
                 </div>
-              ))}
-            </div>
-          </Section>
-        )}
+              </Section>
+            )}
 
-        {/* Capture type */}
-        {data.captureDataType && (
-          <Section title="Dado capturado" isDark={isDark}>
-            <span className={`text-xs border rounded-full px-2 py-0.5 ${isDark ? 'text-violet-300 bg-violet-950 border-violet-800' : 'text-violet-700 bg-violet-50 border-violet-200'}`}>
-              {CAPTURE_LABELS[data.captureDataType] ?? data.captureDataType}
-            </span>
-          </Section>
-        )}
-
-        {/* Transfer info */}
-        {(data.transferType || data.transferValue) && (
-          <Section title="Transferência" isDark={isDark}>
-            <div className="flex flex-col gap-1.5">
-              {data.transferType && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Tipo</span>
-                  <span className={`text-xs border rounded-full px-2 py-0.5 ${isDark ? 'text-rose-300 bg-rose-950 border-rose-800' : 'text-rose-700 bg-rose-50 border-rose-200'}`}>
-                    {TRANSFER_TYPE_LABELS[data.transferType] ?? data.transferType}
-                  </span>
+            {kind === 'transferNode' && (
+              <Section title="Transferência" isDark={isDark}>
+                <div className="flex flex-col gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className={labelCls}>Tipo</span>
+                    <select className={inputCls} value={draft.transferType} onChange={e => set('transferType', e.target.value)}>
+                      {TRANSFER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      {!TRANSFER_TYPES.some(t => t.value === draft.transferType) && draft.transferType && (
+                        <option value={draft.transferType}>{draft.transferType}</option>
+                      )}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className={labelCls}>Destino (ID do grupo/usuário)</span>
+                    <input className={`${inputCls} font-mono`} value={draft.transferValue} onChange={e => set('transferValue', e.target.value)} />
+                  </label>
                 </div>
-              )}
-              {data.transferValue && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Destino</span>
-                  <span className={`text-[10px] font-mono border rounded px-1.5 py-0.5 ${isDark ? 'text-rose-300 bg-rose-950 border-rose-800' : 'text-rose-700 bg-rose-50 border-rose-200'}`}>
-                    {data.transferValue}
-                  </span>
-                </div>
-              )}
-            </div>
-          </Section>
-        )}
+              </Section>
+            )}
 
-        {/* Conditions */}
-        {data.conditions.length > 0 && (
-          <Section title="Condições" isDark={isDark}>
-            <div className="flex flex-col gap-1.5">
-              {data.conditions.map((cond, i) => {
-                const typeStyle = COND_TYPE_STYLES[cond.type] ?? COND_TYPE_STYLES.any
-                const typeLabel = COND_TYPE_LABELS[cond.type] ?? cond.type
-                return (
-                  <div key={i} className={`border rounded-lg px-3 py-2 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className={`text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{cond.name}</p>
-                      <span className={`text-[10px] border rounded-full px-1.5 py-0 ${typeStyle}`}>
-                        {typeLabel}
-                      </span>
+            {kind === 'captureNode' && (
+              <Section title="Captura de dado" isDark={isDark}>
+                <div className="flex flex-col gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className={labelCls}>Tipo de dado</span>
+                    <select className={inputCls} value={draft.captureDataType} onChange={e => set('captureDataType', e.target.value)}>
+                      {CAPTURE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      {!CAPTURE_TYPES.some(t => t.value === draft.captureDataType) && draft.captureDataType && (
+                        <option value={draft.captureDataType}>{draft.captureDataType}</option>
+                      )}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className={labelCls}>Variável de destino</span>
+                    <input className={`${inputCls} font-mono`} value={draft.captureVariable} onChange={e => set('captureVariable', e.target.value)} placeholder="ex: customer.name" />
+                  </label>
+                </div>
+              </Section>
+            )}
+
+            {kind === 'setDataNode' && (
+              <Section title="Variáveis definidas" isDark={isDark}>
+                <div className="flex flex-col gap-1.5">
+                  {draft.setDataItems.map((item, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <input
+                        className={`${inputCls} font-mono flex-1`}
+                        value={item.variable}
+                        placeholder="variável"
+                        onChange={e => set('setDataItems', draft.setDataItems.map((it, j) => j === i ? { ...it, variable: e.target.value } : it))}
+                      />
+                      <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>=</span>
+                      <input
+                        className={`${inputCls} flex-1`}
+                        value={item.value}
+                        placeholder="valor"
+                        onChange={e => set('setDataItems', draft.setDataItems.map((it, j) => j === i ? { ...it, value: e.target.value } : it))}
+                      />
+                      <button className={ghostBtnCls} onClick={() => set('setDataItems', draft.setDataItems.filter((_, j) => j !== i))}>×</button>
                     </div>
-                    {cond.variable && (
-                      <p className={`text-[10px] font-mono mt-1 truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`} title={cond.variable}>
-                        {cond.variable}
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </Section>
-        )}
-
-        {/* External bot info */}
-        {kind === 'externalBotNode' && (
-          <Section title="Destino externo" isDark={isDark}>
-            <InfoRow label="Bot ID"    value={data.externalBotId    ?? '-'} mono isDark={isDark} />
-            <InfoRow label="Intent ID" value={data.externalIntentId ?? '-'} mono isDark={isDark} />
-          </Section>
-        )}
-
-        {/* SetData items */}
-        {data.setDataItems.length > 0 && (
-          <Section title="Variáveis definidas" isDark={isDark}>
-            <div className="flex flex-col gap-1.5">
-              {data.setDataItems.map((item, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-xs">
-                  <span className={`font-mono border rounded px-1.5 py-0.5 text-[10px] ${isDark ? 'text-indigo-300 bg-indigo-950 border-indigo-800' : 'text-indigo-600 bg-indigo-50 border-indigo-200'}`}>
-                    {item.variable}
-                  </span>
-                  <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>=</span>
-                  <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{item.value}</span>
+                  ))}
+                  <button
+                    className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                      isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                    }`}
+                    onClick={() => set('setDataItems', [...draft.setDataItems, { variable: '', value: '' }])}
+                  >+ Adicionar variável</button>
                 </div>
-              ))}
-            </div>
-          </Section>
+              </Section>
+            )}
+
+            <Section title="Condições" isDark={isDark}>
+              <div className="flex flex-col gap-2">
+                {draft.conditions.map((cond, i) => (
+                  <div key={i} className={`flex flex-col gap-1 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        className={inputCls}
+                        value={cond.name}
+                        placeholder="Nome da condição"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, name: e.target.value } : c))}
+                      />
+                      <button
+                        className={ghostBtnCls}
+                        title="Remover condição"
+                        onClick={() => setDraft(d => d && ({
+                          ...d,
+                          conditions: d.conditions.filter((_, j) => j !== i),
+                          removedCondIdxs: cond.originalIdx !== null
+                            ? [...d.removedCondIdxs, cond.originalIdx]
+                            : d.removedCondIdxs,
+                        }))}
+                      >×</button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        className={inputCls}
+                        value={cond.type}
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, type: e.target.value } : c))}
+                      >
+                        {COND_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        {!COND_TYPES.some(t => t.value === cond.type) && (
+                          <option value={cond.type}>{cond.type}</option>
+                        )}
+                      </select>
+                      <input
+                        className={`${inputCls} font-mono`}
+                        value={cond.variable}
+                        placeholder="variável"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, variable: e.target.value } : c))}
+                      />
+                      <input
+                        className={inputCls}
+                        value={cond.value}
+                        placeholder="valor"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, value: e.target.value } : c))}
+                      />
+                    </div>
+                    {cond.originalIdx === null && <p className={labelCls}>nova — aplicada ao salvar</p>}
+                  </div>
+                ))}
+                <button
+                  className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                    isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  onClick={() => set('conditions', [...draft.conditions, { name: `Condição ${draft.conditions.length + 1}`, type: 'any', variable: '', value: 'any', originalIdx: null }])}
+                >+ Adicionar condição</button>
+              </div>
+            </Section>
+          </>
         )}
       </div>
+
+      {/* Footer */}
+      {editable && (
+        <div className={`px-4 py-3 border-t flex flex-col gap-2 ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+          {panelError && (
+            <p className={`text-[11px] leading-snug ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>{panelError}</p>
+          )}
+          <button
+            onClick={handleApply}
+            className="w-full text-xs font-semibold rounded-lg px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >Aplicar alterações</button>
+          {kind !== 'startNode' && (
+            <button
+              onClick={() => intent && onDelete(intent.id)}
+              className={`w-full text-xs font-medium rounded-lg px-3 py-1.5 border transition-colors ${
+                isDark
+                  ? 'text-rose-400 border-rose-900 hover:bg-rose-950'
+                  : 'text-rose-600 border-rose-200 hover:bg-rose-50'
+              }`}
+            >Excluir intenção</button>
+          )}
+        </div>
+      )}
     </div>
+  )
+}
+
+function ReadOnlyExternal({ node, isDark }: { node: Node<FlowNodeData>; isDark: boolean }) {
+  return (
+    <Section title="Destino externo (somente leitura)" isDark={isDark}>
+      <InfoRow label="Bot ID"    value={node.data.externalBotId    ?? '-'} isDark={isDark} />
+      <InfoRow label="Intent ID" value={node.data.externalIntentId ?? '-'} isDark={isDark} />
+    </Section>
   )
 }
 
@@ -243,14 +574,11 @@ function Section({ title, children, isDark }: { title: string; children: React.R
   )
 }
 
-function InfoRow({ label, value, mono, isDark }: { label: string; value: string; mono?: boolean; isDark: boolean }) {
+function InfoRow({ label, value, isDark }: { label: string; value: string; isDark: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 mb-1.5">
       <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{label}</span>
-      <span
-        className={`text-[10px] break-all border rounded px-1.5 py-0.5 ${mono ? 'font-mono' : ''} ${isDark ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-800 border-amber-200'}`}
-        title={value}
-      >
+      <span className={`text-[10px] break-all border rounded px-1.5 py-0.5 font-mono ${isDark ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-800 border-amber-200'}`} title={value}>
         {value}
       </span>
     </div>

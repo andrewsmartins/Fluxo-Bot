@@ -8,3 +8,17 @@ body { margin: 0; }
 .react-flow__edge-label {
   pointer-events: none;
 }
+
+/* Handles maiores para facilitar mirar ao reconectar arestas */
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+}
+
+/* Feedback visual durante a reconexão: destaca os handles de destino válidos
+   (React Flow aplica .connectionindicator aos handles conectáveis durante o drag) */
+.react-flow__handle.connectionindicator {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 0 4px rgb(59 130 246 / 0.35);
+}

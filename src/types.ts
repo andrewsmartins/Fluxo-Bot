@@ -51,6 +51,9 @@ export interface Action {
   bulkUpdate?: BulkUpdateItem[] | string
   external?: { type: unknown; apiName: unknown }
   error?: ErrorAction
+  captureDataTypesCategory?: string
+  multipleFields?: string
+  lastMessageTextParams?: { position: unknown; pattern: unknown }
 }
 
 export interface ErrorAction {

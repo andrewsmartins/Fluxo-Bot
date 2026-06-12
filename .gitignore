@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Cache de ferramentas
+.vite/
+*.tsbuildinfo
+
+# Variáveis de ambiente — nunca commitar segredos
+.env
+.env.*
+
+# Dados reais de clientes OmniChat — nunca commitar (testes os usam localmente)
+samples/
+
+# Arquivo de workspace pessoal do editor
+*.code-workspace
+
+# Editor / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
