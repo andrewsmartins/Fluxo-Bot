@@ -13,6 +13,7 @@ import { applyEdgeReconnect, applyConnect, applyEdgeDelete, applyNodeDelete, ser
 import { createIntentTemplate, createStartIntent, type CreatableKind } from './utils/intentTemplates'
 import { validateFlow } from './utils/validateFlow'
 import { exportFlowImage } from './utils/exportImage'
+import { FlowHistory, takeSnapshot, type FlowSnapshot } from './utils/history'
 import type { BotFlowJson, FlowNodeData } from './types'
 import pkg from '../package.json'
 
@@ -34,6 +35,13 @@ export default function App() {
   const [modelVersion, setModelVersion]   = useState(0)
   const parsedDataRef                   = useRef<BotFlowJson | null>(null)
   const spacingRef                      = useRef({ ranksep: 60, nodesep: 40 })
+  const historyRef                      = useRef(new FlowHistory())
+  const applySnapRef                    = useRef<FlowSnapshot | null>(null)
+  // Espelhos do estado para capturar snapshots dentro de callbacks estáveis
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  useEffect(() => { nodesRef.current = nodes }, [nodes])
+  useEffect(() => { edgesRef.current = edges }, [edges])
 
   useEffect(() => {
     if (isDark) {
@@ -47,6 +55,57 @@ export default function App() {
 
   const toggleTheme = useCallback(() => setIsDark(d => !d), [])
   const bumpModel   = useCallback(() => setModelVersion(v => v + 1), [])
+
+  /** Snapshot do estado atual (modelo + nós + arestas) para o histórico. */
+  const takeSnap = useCallback((): FlowSnapshot | null => {
+    return parsedDataRef.current
+      ? takeSnapshot(parsedDataRef.current, nodesRef.current, edgesRef.current)
+      : null
+  }, [])
+
+  /** Restaura um snapshot (undo/redo ou rollback de edição parcial). */
+  const restoreSnap = useCallback((snapshot: FlowSnapshot) => {
+    parsedDataRef.current = snapshot.model
+    setNodes(snapshot.nodes)
+    setEdges(snapshot.edges)
+    setSelectedNode(null)
+    setNotice(null)
+    setModelVersion(v => v + 1)
+  }, [])
+
+  const handleUndo = useCallback(() => {
+    const current = takeSnap()
+    if (!current) return
+    const snapshot = historyRef.current.undo(current)
+    if (snapshot) restoreSnap(snapshot)
+  }, [takeSnap, restoreSnap])
+
+  const handleRedo = useCallback(() => {
+    const current = takeSnap()
+    if (!current) return
+    const snapshot = historyRef.current.redo(current)
+    if (snapshot) restoreSnap(snapshot)
+  }, [takeSnap, restoreSnap])
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — ignorados quando o foco está num campo
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod || e.altKey) return
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) handleRedo()
+        else handleUndo()
+      } else if (e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        handleRedo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleUndo, handleRedo])
 
   /** Relatório de validação vivo, recalculado a cada mutação do modelo. */
   const report = useMemo(
@@ -83,6 +142,7 @@ export default function App() {
 
   /** Carrega um modelo no editor (importação ou fluxo novo). */
   function loadModel(data: BotFlowJson) {
+    historyRef.current.clear()
     parsedDataRef.current = data
     const result = parseFlow(data, spacingRef.current)
     setNodes(result.nodes)
@@ -120,18 +180,20 @@ export default function App() {
   const deleteNode = useCallback((nodeId: string) => {
     const model = parsedDataRef.current
     if (!model) return false
+    const snapshot = takeSnap()
     const result = applyNodeDelete(model, nodeId)
     if (!result.ok) {
       fail(`Não foi possível excluir: ${result.reason}.`)
       return false
     }
+    if (snapshot) historyRef.current.push(snapshot)
     setNodes(ns => ns.filter(n => n.id !== nodeId))
     setEdges(buildEdges(model).edges)
     setSelectedNode(prev => prev?.id === nodeId ? null : prev)
     setNotice(null)
     bumpModel()
     return true
-  }, [fail, bumpModel])
+  }, [fail, bumpModel, takeSnap])
 
   /**
    * Mudanças de nós do canvas: posição/seleção/dimensões são estado visual;
@@ -154,15 +216,17 @@ export default function App() {
   const handleReconnect = useCallback((oldEdge: Edge, connection: Connection) => {
     const model = parsedDataRef.current
     if (!model) return
+    const snapshot = takeSnap()
     const result = applyEdgeReconnect(model, oldEdge.id, oldEdge.target, connection.target)
     if (!result.ok) {
       fail(`Não foi possível reconectar: ${result.reason}.`)
       return
     }
+    if (snapshot) historyRef.current.push(snapshot)
     setEdges(eds => reconnectEdge(oldEdge, connection, eds, { shouldReplaceId: false }))
     setNotice(null)
     bumpModel()
-  }, [fail, bumpModel])
+  }, [fail, bumpModel, takeSnap])
 
   /**
    * Conecta dois nós: preenche o primeiro slot de escolha vazio ou o next da
@@ -171,15 +235,17 @@ export default function App() {
   const handleConnect = useCallback((connection: Connection) => {
     const model = parsedDataRef.current
     if (!model || !connection.source || !connection.target) return
+    const snapshot = takeSnap()
     const result = applyConnect(model, connection.source, connection.target)
     if (!result.ok) {
       fail(`Não foi possível conectar: ${result.reason}.`)
       return
     }
+    if (snapshot) historyRef.current.push(snapshot)
     setEdges(buildEdges(model).edges)
     setNotice(null)
     bumpModel()
-  }, [fail, bumpModel])
+  }, [fail, bumpModel, takeSnap])
 
   /**
    * Mudanças de aresta vindas do canvas: seleção é aplicada direto; remoção
@@ -188,6 +254,7 @@ export default function App() {
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     const model = parsedDataRef.current
     const allowed: EdgeChange[] = []
+    const snapshot = changes.some(c => c.type === 'remove') ? takeSnap() : null
     let removed = false
     for (const change of changes) {
       if (change.type !== 'remove') {
@@ -204,9 +271,10 @@ export default function App() {
         fail(`Não foi possível excluir: ${result.reason}.`)
       }
     }
+    if (removed && snapshot) historyRef.current.push(snapshot)
     if (allowed.length) setEdges(eds => applyEdgeChanges(allowed, eds))
     if (removed) bumpModel()
-  }, [fail, bumpModel])
+  }, [fail, bumpModel, takeSnap])
 
   /** Cria uma intenção nova (template canônico) na posição do drop da paleta. */
   const handleCreateNode = useCallback((kind: CreatableKind, position: XYPosition) => {
@@ -215,6 +283,8 @@ export default function App() {
     const botId = model.list.find(i => i.category === 'start')?.botId ?? model.list[0]?.botId ?? ''
     const count = model.list.filter(i => i.name.startsWith('nova_intencao')).length
     const intent = createIntentTemplate(kind, botId, `nova_intencao_${count + 1}`)
+    const snapshot = takeSnap()
+    if (snapshot) historyRef.current.push(snapshot)
     model.list.push(intent)
     setNodes(ns => [...ns, {
       id: intent.id,
@@ -224,7 +294,30 @@ export default function App() {
     }])
     setNotice(null)
     bumpModel()
-  }, [bumpModel])
+  }, [bumpModel, takeSnap])
+
+  /**
+   * Captura o estado pré-edição: o DetailPanel muta o intent diretamente, então
+   * o snapshot precisa ser tirado antes do primeiro patch.
+   */
+  const handleBeforeApply = useCallback(() => {
+    applySnapRef.current = takeSnap()
+  }, [takeSnap])
+
+  /**
+   * Rollback de edição parcial: se um patch do meio falhar, restaura o estado
+   * pré-edição para o modelo não ficar meio-aplicado.
+   */
+  const handleApplyFailed = useCallback(() => {
+    if (applySnapRef.current) {
+      const { model } = applySnapRef.current
+      parsedDataRef.current = model
+      setNodes(applySnapRef.current.nodes)
+      setEdges(applySnapRef.current.edges)
+      setModelVersion(v => v + 1)
+      applySnapRef.current = null
+    }
+  }, [])
 
   /**
    * Pós-edição de conteúdo: refaz o view-model do nó editado e os labels das
@@ -235,6 +328,10 @@ export default function App() {
     if (!model) return
     const intent = model.list.find(i => i.id === intentId)
     if (!intent) return
+    if (applySnapRef.current) {
+      historyRef.current.push(applySnapRef.current)
+      applySnapRef.current = null
+    }
     const data = intentToNodeData(intent)
     setNodes(ns => ns.map(n => n.id === intentId ? { ...n, data } : n))
     setEdges(buildEdges(model).edges)
@@ -297,6 +394,10 @@ export default function App() {
         hasFlow={hasFlow}
         report={report}
         exporting={exporting}
+        canUndo={hasFlow && historyRef.current.canUndo}
+        canRedo={hasFlow && historyRef.current.canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />}
         onImport={() => setImportOpen(true)}
         onNewFlow={() => setNewFlowOpen(true)}
@@ -324,7 +425,9 @@ export default function App() {
               <DetailPanel
                 node={selectedNode}
                 intent={parsedDataRef.current?.list.find(i => i.id === selectedNode.id) ?? null}
+                onBeforeApply={handleBeforeApply}
                 onApply={handleApplyEdit}
+                onApplyFailed={handleApplyFailed}
                 onDelete={deleteNode}
                 onClose={handleClosePanel}
               />

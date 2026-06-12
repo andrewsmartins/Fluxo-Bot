@@ -10,6 +10,10 @@ interface TopBarProps {
   report: ValidationReport | null
   exporting: boolean
   themeToggle: React.ReactNode
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
   onImport: () => void
   onNewFlow: () => void
   onExport: (format: ExportFormat) => void
@@ -28,7 +32,7 @@ function useClickOutside(onOutside: () => void) {
   return ref
 }
 
-export function TopBar({ version, hasFlow, report, exporting, themeToggle, onImport, onNewFlow, onExport }: TopBarProps) {
+export function TopBar({ version, hasFlow, report, exporting, themeToggle, canUndo, canRedo, onUndo, onRedo, onImport, onNewFlow, onExport }: TopBarProps) {
   const isDark = useTheme()
   const [exportOpen, setExportOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -85,6 +89,15 @@ export function TopBar({ version, hasFlow, report, exporting, themeToggle, onImp
             </div>
           )}
         </div>
+
+        <div className={`w-px h-5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+        <button className={btnCls} disabled={!canUndo} onClick={onUndo} title="Desfazer (Ctrl+Z)" aria-label="Desfazer">
+          ↶
+        </button>
+        <button className={btnCls} disabled={!canRedo} onClick={onRedo} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer">
+          ↷
+        </button>
       </div>
 
       <div className="ml-auto flex items-center gap-2">

@@ -128,12 +128,16 @@ function buildDraft(intent: BotIntent): Draft {
 interface DetailPanelProps {
   node: Node<FlowNodeData>
   intent: BotIntent | null
+  /** Chamado antes do primeiro patch — o App captura o snapshot de undo aqui. */
+  onBeforeApply: () => void
   onApply: (intentId: string) => void
+  /** Chamado quando um patch falha no meio — o App faz rollback do parcial. */
+  onApplyFailed: () => void
   onDelete: (intentId: string) => void
   onClose: () => void
 }
 
-export function DetailPanel({ node, intent, onApply, onDelete, onClose }: DetailPanelProps) {
+export function DetailPanel({ node, intent, onBeforeApply, onApply, onApplyFailed, onDelete, onClose }: DetailPanelProps) {
   const isDark = useTheme()
   const kind = (node.type ?? 'defaultNode') as NodeKind
   const badge = (isDark ? KIND_LABELS_DARK : KIND_LABELS_LIGHT)[kind]
@@ -156,6 +160,7 @@ export function DetailPanel({ node, intent, onApply, onDelete, onClose }: Detail
    */
   function handleApply() {
     if (!intent || !draft) return
+    onBeforeApply()
     const results = [
       updateIntentMeta(intent, {
         name: draft.name,
@@ -202,6 +207,7 @@ export function DetailPanel({ node, intent, onApply, onDelete, onClose }: Detail
     const failed = results.find(r => !r.ok)
     if (failed && !failed.ok) {
       setPanelError(`Falha ao aplicar: ${failed.reason}.`)
+      onApplyFailed()
       return
     }
     setPanelError(null)
