@@ -63,10 +63,10 @@ Testar os erros de propósito para conhecer as respostas da API:
 ## Etapa 3 — Fluxo completo + rascunho/publicação
 
 1. Push de um fluxo de ~5 nós (start + escolha com botões + transferência).
-2. **Pergunta-chave a responder**: o push altera só o *rascunho* ou o bot ao
-   vivo? (O bundle tem `POST /v1/{botId}/publish` e `restore` — a hipótese é
-   que salvar ≠ publicar. Confirmar olhando se o simulador/canal muda antes
-   de clicar em publicar na plataforma.)
+2. ~~Pergunta-chave~~ **Confirmado (2026-06-12)**: o push altera só o
+   *rascunho*; publicar é um botão manual na plataforma e está fora do escopo
+   do Fluxo. Sanity check nesta etapa: confirmar visualmente que o rascunho
+   mudou e o publicado não.
 3. Teste de restauração: a tela de versões da Omni permite voltar ao estado
    do backup? Se sim, é nosso plano B oficial de rollback.
 

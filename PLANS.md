@@ -186,10 +186,10 @@ Decisões do redesenho seguro:
   "copiar relatório" sanitizado (sem token).
 - **Backup-first sempre**: nenhuma escrita sem GET prévio salvo em samples/.
 - **Push sequencial com stop-on-first-error** e relatório do que entrou.
-- Hipótese a confirmar na Etapa 3 do protocolo: salvar via API altera só o
-  RASCUNHO (existe `POST /v1/{botId}/publish` separado, além de
-  `versions`/`restore`) — se confirmada, o risco de afetar canal ao vivo
-  durante o teste é estruturalmente baixo.
+- **CONFIRMADO pelo Andy (2026-06-12): salvar via API altera só o RASCUNHO.**
+  A publicação é um botão manual na plataforma e fica FORA do escopo do Fluxo
+  (decisão: não implementar `POST /publish`). Risco de afetar canal ao vivo
+  durante push é estruturalmente baixo.
 - Riscos mapeados: push no bot errado (mitigado por confirmação explícita do
   botId), push parcial (sequencial + relatório + backup), schema rejeitado
   (a tela da Omni é o validador final — Etapa 1 do protocolo), token vazado
