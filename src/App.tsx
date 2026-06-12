@@ -5,8 +5,8 @@ import { JsonInput }     from './components/JsonInput'
 import { DetailPanel }   from './components/DetailPanel'
 import { ThemeToggle }   from './components/ThemeToggle'
 import { ThemeContext }  from './contexts/ThemeContext'
-import { parseFlow, intentToNodeData, buildNextEdge, buildEdges } from './utils/parseFlow'
-import { applyEdgeReconnect, applyConnect, applyEdgeDelete, serializeFlow } from './utils/editFlow'
+import { parseFlow, intentToNodeData, buildEdges } from './utils/parseFlow'
+import { applyEdgeReconnect, applyConnect, applyEdgeDelete, applyNodeDelete, serializeFlow } from './utils/editFlow'
 import { createIntentTemplate, type CreatableKind } from './utils/intentTemplates'
 import { validateFlow } from './utils/validateFlow'
 import type { BotFlowJson, FlowNodeData } from './types'
@@ -110,15 +110,34 @@ export default function App() {
     setError(null)
   }, [])
 
+  /** Exclui a intenção do modelo (com limpeza de referências) e some com o nó. */
+  const deleteNode = useCallback((nodeId: string) => {
+    const model = parsedDataRef.current
+    if (!model) return false
+    const result = applyNodeDelete(model, nodeId)
+    if (!result.ok) {
+      setError(`Não foi possível excluir: ${result.reason}.`)
+      return false
+    }
+    setNodes(ns => ns.filter(n => n.id !== nodeId))
+    setEdges(buildEdges(model).edges)
+    setSelectedNode(prev => prev?.id === nodeId ? null : prev)
+    setError(null)
+    return true
+  }, [])
+
   /**
    * Mudanças de nós do canvas: posição/seleção/dimensões são estado visual;
-   * remoção de nós ainda não é suportada (exigiria limpar referências no
-   * modelo — Fase 3), então mudanças do tipo remove são descartadas.
+   * remoção (Delete/Backspace) passa pelo patch do modelo, que limpa as
+   * referências de entrada — só é aplicada se o patch for válido.
    */
   const handleNodesChange = useCallback((changes: NodeChange<Node<FlowNodeData>>[]) => {
-    const allowed = changes.filter(c => c.type !== 'remove')
-    if (allowed.length) setNodes(curr => applyNodeChanges(allowed, curr))
-  }, [])
+    const visual = changes.filter(c => c.type !== 'remove')
+    if (visual.length) setNodes(curr => applyNodeChanges(visual, curr))
+    for (const change of changes) {
+      if (change.type === 'remove') deleteNode(change.id)
+    }
+  }, [deleteNode])
 
   /**
    * Conecta dois nós criando a referência next na primeira condição livre da
@@ -133,8 +152,9 @@ export default function App() {
       setError(`Não foi possível conectar: ${result.reason}.`)
       return
     }
-    const edge = buildNextEdge(model, connection.source, result.condIdx)
-    if (edge) setEdges(eds => [...eds, edge])
+    // Reconstrói todas as arestas do modelo: cobre tanto next quanto slots de
+    // escolha, com IDs posicionais e labels (texto do botão) consistentes
+    setEdges(buildEdges(model).edges)
     setError(null)
   }, [])
 
@@ -262,6 +282,7 @@ export default function App() {
                 node={selectedNode}
                 intent={parsedDataRef.current?.list.find(i => i.id === selectedNode.id) ?? null}
                 onApply={handleApplyEdit}
+                onDelete={deleteNode}
                 onClose={handleClosePanel}
               />
             )}

@@ -1,5 +1,6 @@
-import type { BotIntent, BotMessage, BulkUpdateItem } from '../types'
+import type { BotIntent, BotMessage, BulkUpdateItem, Condition } from '../types'
 import type { EditResult } from './editFlow'
+import { createConditionTemplate } from './intentTemplates'
 
 /**
  * Patches de CONTEÚDO de uma intenção (Fase 3): mensagens, botões, metadados
@@ -99,6 +100,105 @@ export function updateButton(intent: BotIntent, btnIdx: number, text: string, de
     }
   }
   return { ok: false, reason: 'botão não encontrado na intenção' }
+}
+
+function findChoiceContext(intent: BotIntent): { cond: Condition; msg: BotMessage | null } | null {
+  const cond = intent.conditions.find(c => c.action.type === 'choice')
+  if (!cond) return null
+  const msg = cond.assistant_says
+    .flatMap(s => s.messages)
+    .find(m => (m.type === 'BUTTON' || m.type === 'LIST') && m.messageConfig) ?? null
+  return { cond, msg }
+}
+
+/**
+ * Adiciona um botão à mensagem BUTTON/LIST da condição de escolha, criando em
+ * sincronia um slot vazio em `action.choices` (buttons[i] ↔ choices[i]).
+ * O slot é preenchido depois, conectando o nó no canvas.
+ */
+export function addButton(intent: BotIntent, text: string, description: string | null): EditResult {
+  const ctx = findChoiceContext(intent)
+  if (!ctx) return { ok: false, reason: 'a intenção não tem ação de escolha' }
+  if (!ctx.msg?.messageConfig) {
+    return { ok: false, reason: 'a intenção não tem mensagem de botões (crie-a primeiro)' }
+  }
+  ctx.msg.messageConfig.buttons.push({ id: crypto.randomUUID(), text, description: description || null })
+  if (!Array.isArray(ctx.cond.action.choices)) ctx.cond.action.choices = []
+  ctx.cond.action.choices.push('')
+  touch(intent)
+  return { ok: true }
+}
+
+/** Remove o botão e a escolha na mesma posição (mapeamento posicional). */
+export function removeButton(intent: BotIntent, btnIdx: number): EditResult {
+  const ctx = findChoiceContext(intent)
+  if (!ctx?.msg?.messageConfig?.buttons[btnIdx]) {
+    return { ok: false, reason: 'botão não encontrado na intenção' }
+  }
+  ctx.msg.messageConfig.buttons.splice(btnIdx, 1)
+  if (Array.isArray(ctx.cond.action.choices) && btnIdx < ctx.cond.action.choices.length) {
+    ctx.cond.action.choices.splice(btnIdx, 1)
+  }
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Cria a mensagem BUTTON canônica (body + botões vazios) na condição de
+ * escolha — para nós de escolha recém-criados pela paleta.
+ */
+export function addButtonsMessage(intent: BotIntent, body: string): EditResult {
+  const ctx = findChoiceContext(intent)
+  if (!ctx) return { ok: false, reason: 'a intenção não tem ação de escolha' }
+  if (ctx.msg) return { ok: false, reason: 'a intenção já tem mensagem de botões' }
+  if (!ctx.cond.assistant_says.length) ctx.cond.assistant_says.push({ channel: 'any', messages: [] })
+  ctx.cond.assistant_says[0].messages.push({
+    type: 'BUTTON',
+    content: null,
+    messageConfig: { header: null, title: null, body, footer: null, type: 'text', buttons: [] },
+  })
+  if (!Array.isArray(ctx.cond.action.choices)) ctx.cond.action.choices = []
+  touch(intent)
+  return { ok: true }
+}
+
+/** Atualiza os campos lógicos de uma condição (nome, tipo, variável, valor). */
+export function updateCondition(
+  intent: BotIntent,
+  condIdx: number,
+  fields: { name: string; type: string; variable: string; value: string },
+): EditResult {
+  const cond = intent.conditions[condIdx]
+  if (!cond) return { ok: false, reason: 'condição não encontrada na intenção' }
+  if (!fields.name.trim()) return { ok: false, reason: 'o nome da condição não pode ficar vazio' }
+  cond.name = fields.name.trim()
+  cond.type = fields.type
+  cond.variable = fields.variable.trim() || null
+  cond.value = fields.value.trim() || null
+  touch(intent)
+  return { ok: true }
+}
+
+/** Acrescenta uma condição canônica (action none) ao final da intenção. */
+export function addCondition(intent: BotIntent): EditResult {
+  intent.conditions.push(createConditionTemplate())
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Remove uma condição. A última condição não é removível (intenção sem
+ * condições é inválida na plataforma). As arestas são reconstruídas pelo App
+ * (os IDs posicionais c{idx} das demais condições deslocam).
+ */
+export function removeCondition(intent: BotIntent, condIdx: number): EditResult {
+  if (!intent.conditions[condIdx]) return { ok: false, reason: 'condição não encontrada na intenção' }
+  if (intent.conditions.length === 1) {
+    return { ok: false, reason: 'a intenção precisa de ao menos uma condição' }
+  }
+  intent.conditions.splice(condIdx, 1)
+  touch(intent)
+  return { ok: true }
 }
 
 /** Atualiza nome, categoria e keywords da intenção. */

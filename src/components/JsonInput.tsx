@@ -34,7 +34,7 @@ export function JsonInput({ value, onChange, onSubmit, error, themeToggle }: Jso
       <div>
         <div className="flex items-center gap-2">
           <h1 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>Flow Viewer</h1>
-          <span className={`text-xs font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>v0.8.0</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>v0.9.0</span>
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border ${isDark ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>Beta</span>
           <a
             href="https://github.com/andrewsmartins/Fluxo-Bot"

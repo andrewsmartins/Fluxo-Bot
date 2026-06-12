@@ -94,7 +94,8 @@ export function ExportControls({ onExportJson, onSpacingIncrease, onSpacingDecre
   const spaceTxt = isDark ? 'text-slate-500' : 'text-slate-400'
 
   return (
-    <Panel position="top-right">
+    // top-center: o canto direito fica coberto quando o DetailPanel está aberto
+    <Panel position="top-center">
       <div className={`flex gap-2 border rounded-lg shadow-sm p-1.5 ${panelBg}`}>
         <button
           onClick={() => handleExport('png')}

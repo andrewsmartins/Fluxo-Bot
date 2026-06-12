@@ -4,7 +4,9 @@ import type { BotIntent, BulkUpdateItem, FlowNodeData, NodeKind } from '../types
 import { useTheme } from '../contexts/ThemeContext'
 import {
   listMessages, updateMessageText, addTextMessage, removeMessage,
-  updateButton, updateIntentMeta, updateActionFields, updateSetDataItems,
+  updateButton, addButton, removeButton, addButtonsMessage,
+  updateCondition, addCondition, removeCondition,
+  updateIntentMeta, updateActionFields, updateSetDataItems,
   type EditableMessage, type MessageRef,
 } from '../utils/editIntent'
 
@@ -50,8 +52,20 @@ const CAPTURE_TYPES = [
   { value: 'entity',  label: 'Entidade' },
 ]
 
-const COND_TYPE_LABELS: Record<string, string> = {
-  exists: 'existe', else: 'senão', any: 'qualquer', equals: 'igual',
+const COND_TYPES = [
+  { value: 'any',    label: 'qualquer' },
+  { value: 'equals', label: 'igual a' },
+  { value: 'exists', label: 'existe' },
+  { value: 'else',   label: 'senão' },
+]
+
+interface DraftCondition {
+  name: string
+  type: string
+  variable: string
+  value: string
+  /** Índice em intent.conditions; null = condição nova ainda não aplicada. */
+  originalIdx: number | null
 }
 
 interface Draft {
@@ -61,12 +75,22 @@ interface Draft {
   messages: EditableMessage[]
   newMessages: string[]
   removedRefs: MessageRef[]
-  buttons: { text: string; description: string }[]
+  buttons: { text: string; description: string; originalIdx: number | null }[]
+  removedButtonIdxs: number[]
+  /** Body da nova mensagem de botões (null = não solicitada). */
+  newButtonsBody: string | null
+  conditions: DraftCondition[]
+  removedCondIdxs: number[]
   transferType: string
   transferValue: string
   captureDataType: string
   captureVariable: string
   setDataItems: BulkUpdateItem[]
+}
+
+function hasButtonsMessage(intent: BotIntent): boolean {
+  return intent.conditions.some(c =>
+    c.assistant_says.some(s => s.messages.some(m => (m.type === 'BUTTON' || m.type === 'LIST') && m.messageConfig)))
 }
 
 function buildDraft(intent: BotIntent): Draft {
@@ -85,7 +109,13 @@ function buildDraft(intent: BotIntent): Draft {
     messages: listMessages(intent),
     newMessages: [],
     removedRefs: [],
-    buttons: buttons.map(b => ({ text: b.text, description: b.description ?? '' })),
+    buttons: buttons.map((b, i) => ({ text: b.text, description: b.description ?? '', originalIdx: i })),
+    removedButtonIdxs: [],
+    newButtonsBody: null,
+    conditions: intent.conditions.map((c, i) => ({
+      name: c.name, type: c.type, variable: c.variable ?? '', value: c.value ?? '', originalIdx: i,
+    })),
+    removedCondIdxs: [],
     transferType: transferCond?.action.transferType ?? '',
     transferValue: transferCond?.action.value ?? '',
     captureDataType: captureCond?.action.captureDataType ?? '',
@@ -99,10 +129,11 @@ interface DetailPanelProps {
   node: Node<FlowNodeData>
   intent: BotIntent | null
   onApply: (intentId: string) => void
+  onDelete: (intentId: string) => void
   onClose: () => void
 }
 
-export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps) {
+export function DetailPanel({ node, intent, onApply, onDelete, onClose }: DetailPanelProps) {
   const isDark = useTheme()
   const kind = (node.type ?? 'defaultNode') as NodeKind
   const badge = (isDark ? KIND_LABELS_DARK : KIND_LABELS_LIGHT)[kind]
@@ -118,7 +149,11 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
     setDraft(d => d ? { ...d, [key]: value } : d)
   }, [])
 
-  /** Aplica o rascunho no modelo via patches pequenos; para no primeiro erro. */
+  /**
+   * Aplica o rascunho no modelo via patches pequenos. A ordem importa:
+   * remoções sempre em índice decrescente (endereços deslocam) e remoções de
+   * condição por último (refs de mensagem usam condIdx pré-remoção).
+   */
   function handleApply() {
     if (!intent || !draft) return
     const results = [
@@ -128,13 +163,23 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
         keywords: draft.keywords.split(',').map(k => k.trim()).filter(Boolean),
       }),
       ...draft.messages.map(m => updateMessageText(intent, m.ref, m.text)),
-      // remoções em ordem decrescente de índice para não deslocar as demais
       ...[...draft.removedRefs]
         .sort((a, b) => b.condIdx - a.condIdx || b.sayIdx - a.sayIdx || b.msgIdx - a.msgIdx)
         .map(ref => removeMessage(intent, ref)),
       ...draft.newMessages.filter(t => t.trim()).map(t => addTextMessage(intent, t.trim())),
-      ...draft.buttons.map((b, i) => updateButton(intent, i, b.text, b.description || null)),
     ]
+    if (draft.newButtonsBody !== null && draft.newButtonsBody.trim()) {
+      results.push(addButtonsMessage(intent, draft.newButtonsBody.trim()))
+    }
+    results.push(
+      ...draft.buttons
+        .filter(b => b.originalIdx !== null)
+        .map(b => updateButton(intent, b.originalIdx as number, b.text, b.description || null)),
+      ...[...draft.removedButtonIdxs].sort((a, b) => b - a).map(i => removeButton(intent, i)),
+      ...draft.buttons
+        .filter(b => b.originalIdx === null && b.text.trim())
+        .map(b => addButton(intent, b.text.trim(), b.description || null)),
+    )
     if (kind === 'transferNode') {
       results.push(updateActionFields(intent, 'transfer', { transferType: draft.transferType, value: draft.transferValue }))
     }
@@ -143,6 +188,16 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
     }
     if (kind === 'setDataNode') {
       results.push(updateSetDataItems(intent, draft.setDataItems))
+    }
+    results.push(
+      ...draft.conditions
+        .filter(c => c.originalIdx !== null)
+        .map(c => updateCondition(intent, c.originalIdx as number, c)),
+      ...[...draft.removedCondIdxs].sort((a, b) => b - a).map(i => removeCondition(intent, i)),
+    )
+    for (const added of draft.conditions.filter(c => c.originalIdx === null && c.name.trim())) {
+      const addResult = addCondition(intent)
+      results.push(addResult.ok ? updateCondition(intent, intent.conditions.length - 1, added) : addResult)
     }
     const failed = results.find(r => !r.ok)
     if (failed && !failed.ok) {
@@ -267,24 +322,71 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
               </div>
             </Section>
 
-            {draft.buttons.length > 0 && (
-              <Section title="Opções (texto dos botões)" isDark={isDark}>
+            {(draft.buttons.length > 0 || kind === 'choiceNode') && (
+              <Section title="Opções (botões ↔ escolhas)" isDark={isDark}>
                 <div className="flex flex-col gap-2">
                   {draft.buttons.map((btn, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <input
-                        className={inputCls}
-                        value={btn.text}
-                        onChange={e => set('buttons', draft.buttons.map((b, j) => j === i ? { ...b, text: e.target.value } : b))}
-                      />
+                    <div key={i} className={`flex flex-col gap-1 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          className={inputCls}
+                          value={btn.text}
+                          placeholder="Texto do botão"
+                          onChange={e => set('buttons', draft.buttons.map((b, j) => j === i ? { ...b, text: e.target.value } : b))}
+                        />
+                        {kind === 'choiceNode' && (
+                          <button
+                            className={ghostBtnCls}
+                            title="Remover botão e a escolha correspondente"
+                            onClick={() => setDraft(d => d && ({
+                              ...d,
+                              buttons: d.buttons.filter((_, j) => j !== i),
+                              removedButtonIdxs: btn.originalIdx !== null
+                                ? [...d.removedButtonIdxs, btn.originalIdx]
+                                : d.removedButtonIdxs,
+                            }))}
+                          >×</button>
+                        )}
+                      </div>
                       <input
                         className={inputCls}
                         value={btn.description}
                         placeholder="Descrição (opcional)"
                         onChange={e => set('buttons', draft.buttons.map((b, j) => j === i ? { ...b, description: e.target.value } : b))}
                       />
+                      {btn.originalIdx === null && (
+                        <p className={labelCls}>novo — conecte no canvas após aplicar</p>
+                      )}
                     </div>
                   ))}
+
+                  {kind === 'choiceNode' && !hasButtonsMessage(intent!) && draft.newButtonsBody === null && (
+                    <button
+                      className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                        isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                      }`}
+                      onClick={() => set('newButtonsBody', '')}
+                    >+ Criar mensagem de botões</button>
+                  )}
+                  {draft.newButtonsBody !== null && (
+                    <label className="flex flex-col gap-1">
+                      <span className={labelCls}>Corpo da mensagem de botões (nova)</span>
+                      <textarea
+                        className={`${inputCls} resize-y min-h-[56px]`}
+                        value={draft.newButtonsBody}
+                        placeholder="Texto que acompanha os botões…"
+                        onChange={e => set('newButtonsBody', e.target.value)}
+                      />
+                    </label>
+                  )}
+                  {kind === 'choiceNode' && (hasButtonsMessage(intent!) || draft.newButtonsBody !== null) && (
+                    <button
+                      className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                        isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                      }`}
+                      onClick={() => set('buttons', [...draft.buttons, { text: '', description: '', originalIdx: null }])}
+                    >+ Adicionar botão</button>
+                  )}
                 </div>
               </Section>
             )}
@@ -360,25 +462,64 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
               </Section>
             )}
 
-            {node.data.conditions.length > 0 && (
-              <Section title="Condições (somente leitura)" isDark={isDark}>
-                <div className="flex flex-col gap-1.5">
-                  {node.data.conditions.map((cond, i) => (
-                    <div key={i} className={`border rounded-lg px-3 py-2 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                      <p className={`text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                        {cond.name}
-                        <span className={`ml-1.5 text-[10px] font-normal ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                          {COND_TYPE_LABELS[cond.type] ?? cond.type}
-                        </span>
-                      </p>
-                      {cond.variable && (
-                        <p className={`text-[10px] font-mono mt-1 truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{cond.variable}</p>
-                      )}
+            <Section title="Condições" isDark={isDark}>
+              <div className="flex flex-col gap-2">
+                {draft.conditions.map((cond, i) => (
+                  <div key={i} className={`flex flex-col gap-1 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        className={inputCls}
+                        value={cond.name}
+                        placeholder="Nome da condição"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, name: e.target.value } : c))}
+                      />
+                      <button
+                        className={ghostBtnCls}
+                        title="Remover condição"
+                        onClick={() => setDraft(d => d && ({
+                          ...d,
+                          conditions: d.conditions.filter((_, j) => j !== i),
+                          removedCondIdxs: cond.originalIdx !== null
+                            ? [...d.removedCondIdxs, cond.originalIdx]
+                            : d.removedCondIdxs,
+                        }))}
+                      >×</button>
                     </div>
-                  ))}
-                </div>
-              </Section>
-            )}
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        className={inputCls}
+                        value={cond.type}
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, type: e.target.value } : c))}
+                      >
+                        {COND_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        {!COND_TYPES.some(t => t.value === cond.type) && (
+                          <option value={cond.type}>{cond.type}</option>
+                        )}
+                      </select>
+                      <input
+                        className={`${inputCls} font-mono`}
+                        value={cond.variable}
+                        placeholder="variável"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, variable: e.target.value } : c))}
+                      />
+                      <input
+                        className={inputCls}
+                        value={cond.value}
+                        placeholder="valor"
+                        onChange={e => set('conditions', draft.conditions.map((c, j) => j === i ? { ...c, value: e.target.value } : c))}
+                      />
+                    </div>
+                    {cond.originalIdx === null && <p className={labelCls}>nova — aplicada ao salvar</p>}
+                  </div>
+                ))}
+                <button
+                  className={`text-xs font-medium rounded-lg border border-dashed px-2 py-1.5 transition-colors ${
+                    isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  onClick={() => set('conditions', [...draft.conditions, { name: `Condição ${draft.conditions.length + 1}`, type: 'any', variable: '', value: 'any', originalIdx: null }])}
+                >+ Adicionar condição</button>
+              </div>
+            </Section>
           </>
         )}
       </div>
@@ -393,6 +534,16 @@ export function DetailPanel({ node, intent, onApply, onClose }: DetailPanelProps
             onClick={handleApply}
             className="w-full text-xs font-semibold rounded-lg px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
           >Aplicar alterações</button>
+          {kind !== 'startNode' && (
+            <button
+              onClick={() => intent && onDelete(intent.id)}
+              className={`w-full text-xs font-medium rounded-lg px-3 py-1.5 border transition-colors ${
+                isDark
+                  ? 'text-rose-400 border-rose-900 hover:bg-rose-950'
+                  : 'text-rose-600 border-rose-200 hover:bg-rose-50'
+              }`}
+            >Excluir intenção</button>
+          )}
         </div>
       )}
     </div>

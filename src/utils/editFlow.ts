@@ -89,59 +89,135 @@ function hasNextRef(cond: Condition): boolean {
   return !!cond.next?.intent && typeof cond.next.intent === 'object' && !!cond.next.intent.id
 }
 
+/** Réplica da deduplicação de escolhas usada na renderização (parseFlow.getChoices). */
+function dedupedChoices(choices: unknown): string[] {
+  if (!Array.isArray(choices)) return []
+  const seen = new Set<string>()
+  return choices.filter((id): id is string => {
+    if (!id || seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
 /**
- * Conecta a origem a um novo destino criando a referência `next.intent` na
- * primeira condição livre (sem destino e que não seja de escolha — arestas de
- * escolha nascem de `action.choices`, não de `next`).
- * Retorna o índice da condição usada para que o App construa a aresta com o
- * ID posicional correto.
+ * Conecta a origem a um novo destino, na primeira vaga em ordem de documento:
+ * slot de escolha vazio (botão criado e ainda não conectado) ou condição
+ * não-choice sem referência `next`. Retorna a posição usada — mas o App
+ * reconstrói todas as arestas do modelo após o patch.
  */
 export function applyConnect(
   json: BotFlowJson,
   sourceId: string,
   targetId: string,
-): { ok: true; condIdx: number } | { ok: false; reason: string } {
+): { ok: true; kind: 'next' | 'choice'; condIdx: number } | { ok: false; reason: string } {
   const source = json.list.find(i => i.id === sourceId)
   if (!source) return { ok: false, reason: 'intenção de origem não encontrada no modelo' }
 
   const target = json.list.find(i => i.id === targetId)
   if (!target) return { ok: false, reason: 'o destino não é uma intenção deste fluxo' }
 
-  const condIdx = source.conditions.findIndex(c => c.action.type !== 'choice' && !hasNextRef(c))
-  if (condIdx === -1) {
-    return { ok: false, reason: 'todas as condições da origem já têm destino (reconecte a aresta existente)' }
+  for (let condIdx = 0; condIdx < source.conditions.length; condIdx++) {
+    const cond = source.conditions[condIdx]
+
+    if (cond.action.type === 'choice' && Array.isArray(cond.action.choices)) {
+      const slot = cond.action.choices.findIndex(c => !c)
+      if (slot !== -1) {
+        cond.action.choices[slot] = targetId
+        return { ok: true, kind: 'choice', condIdx }
+      }
+      continue
+    }
+
+    if (cond.action.type !== 'choice' && !hasNextRef(cond)) {
+      cond.next = {
+        ...cond.next,
+        redirect: 'continueFlow',
+        action: 'intent',
+        type: cond.next?.type ?? 'context',
+        intent: { botId: target.botId, id: target.id },
+      }
+      return { ok: true, kind: 'next', condIdx }
+    }
   }
 
-  const cond = source.conditions[condIdx]
-  cond.next = {
-    ...cond.next,
-    redirect: 'continueFlow',
-    action: 'intent',
-    type: cond.next?.type ?? 'context',
-    intent: { botId: target.botId, id: target.id },
-  }
-  return { ok: true, condIdx }
+  return { ok: false, reason: 'a origem não tem vaga livre (adicione um botão ou reconecte uma aresta existente)' }
 }
 
 /**
- * Remove o destino de uma aresta `-next`, restaurando a forma canônica de uma
- * condição sem referência (`{ redirect: 'waitInteraction', type }`).
- * Arestas de escolha não são deletáveis: remover uma choice exigiria remover o
- * botão correspondente (mapeamento posicional) — escopo da Fase 3.
+ * Remove o destino de uma aresta. Para `-next`, restaura a forma canônica sem
+ * referência; para escolhas, esvazia o slot em `action.choices` mantendo o
+ * botão (que pode ser reconectado depois). Externas não são editáveis.
  */
 export function applyEdgeDelete(json: BotFlowJson, edgeId: string): EditResult {
   const ref = parseEdgeId(edgeId)
   if (!ref) return { ok: false, reason: `aresta com ID desconhecido (${edgeId})` }
   if (ref.kind === 'ext') return { ok: false, reason: 'conexões para outros bots não são editáveis' }
-  if (ref.kind === 'choice') {
-    return { ok: false, reason: 'arestas de escolha não podem ser excluídas (o botão correspondente ficaria órfão)' }
-  }
 
   const found = findCondition(json, ref)
   if (!found) return { ok: false, reason: 'intenção ou condição de origem não encontrada no modelo' }
-  if (!hasNextRef(found.cond)) return { ok: false, reason: 'a condição não possui destino para remover' }
 
+  if (ref.kind === 'choice') {
+    // O índice da aresta refere-se à lista deduplicada — esvazia por valor
+    const targetId = dedupedChoices(found.cond.action.choices)[ref.choiceIdx]
+    if (!targetId || !Array.isArray(found.cond.action.choices)) {
+      return { ok: false, reason: 'escolha não encontrada na condição' }
+    }
+    found.cond.action.choices = found.cond.action.choices.map(c => c === targetId ? '' : c)
+    return { ok: true }
+  }
+
+  if (!hasNextRef(found.cond)) return { ok: false, reason: 'a condição não possui destino para remover' }
   found.cond.next = { redirect: 'waitInteraction', type: found.cond.next.type ?? 'context' }
+  return { ok: true }
+}
+
+/**
+ * Exclui uma intenção e limpa todas as referências de entrada nas demais:
+ * `next` volta à forma sem destino, escolhas removem botão+slot na mesma
+ * posição, `error.next` reaponta para o start e fallbacks são filtrados.
+ * A intenção de início não é excluível.
+ */
+export function applyNodeDelete(json: BotFlowJson, nodeId: string): EditResult {
+  const idx = json.list.findIndex(i => i.id === nodeId)
+  if (idx === -1) return { ok: false, reason: 'apenas intenções deste fluxo podem ser excluídas' }
+
+  const intent = json.list[idx]
+  if (intent.category === 'start' || intent.id.endsWith('-start')) {
+    return { ok: false, reason: 'a intenção de início não pode ser excluída' }
+  }
+
+  json.list.splice(idx, 1)
+
+  for (const other of json.list) {
+    for (const cond of other.conditions) {
+      if (cond.next?.intent && typeof cond.next.intent === 'object' && cond.next.intent.id === nodeId) {
+        cond.next = { redirect: 'waitInteraction', type: cond.next.type ?? 'context' }
+      }
+
+      if (Array.isArray(cond.action.choices)) {
+        const buttons = cond.assistant_says
+          .flatMap(s => s.messages)
+          .find(m => m.messageConfig?.buttons?.length)?.messageConfig?.buttons
+        for (let i = cond.action.choices.length - 1; i >= 0; i--) {
+          if (cond.action.choices[i] !== nodeId) continue
+          cond.action.choices.splice(i, 1)
+          buttons?.splice(i, 1)
+        }
+      }
+
+      const errNext = cond.action.error?.next
+      if (errNext && typeof errNext.intent === 'string' && errNext.intent === nodeId) {
+        errNext.intent = `${other.botId}-start`
+        errNext.intentBot = other.botId
+      }
+
+      if (Array.isArray(cond.fallbackIntents) && cond.fallbackIntents.includes(nodeId)) {
+        cond.fallbackIntents = cond.fallbackIntents.filter(id => id !== nodeId)
+      }
+    }
+  }
+
   return { ok: true }
 }
 

@@ -58,6 +58,11 @@ function canonicalError(botId: string): ErrorAction {
   }
 }
 
+/** Condição canônica mínima (action `none` por padrão) — também usada ao adicionar condições no painel. */
+export function createConditionTemplate(actionType = 'none'): Condition {
+  return canonicalCondition(canonicalAction(actionType))
+}
+
 function canonicalCondition(action: Action): Condition {
   return {
     type: 'any',
