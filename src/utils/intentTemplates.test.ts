@@ -70,7 +70,7 @@ describe('applyConnect', () => {
   it('preenche next.intent na primeira condição livre', () => {
     const { json, sourceId, targetId } = freshPair()
     const result = applyConnect(json, sourceId, targetId)
-    expect(result).toEqual({ ok: true, condIdx: 0 })
+    expect(result).toEqual({ ok: true, kind: 'next', condIdx: 0 })
     expect(json.list[0].conditions[0].next).toEqual({
       redirect: 'continueFlow',
       action: 'intent',
@@ -95,7 +95,7 @@ describe('applyConnect', () => {
     expect(applyConnect(json, sourceId, targetId).ok).toBe(true)
     const again = applyConnect(json, sourceId, targetId)
     expect(again.ok).toBe(false)
-    if (!again.ok) expect(again.reason).toContain('já têm destino')
+    if (!again.ok) expect(again.reason).toContain('vaga livre')
   })
 
   it('rejeita origem ou destino inexistentes', () => {
