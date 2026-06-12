@@ -13,6 +13,8 @@ Visualizador de fluxos de chatbot a partir de JSON. Cole ou importe o JSON de co
 - Zoom, pan e minimapa interativos
 - Controle de espaçamento entre nós (botões `−` / `+` no canto superior direito)
 - Exportação do fluxo completo em **PNG** e **SVG** com dimensões calculadas pelos bounds reais dos nós
+- **Edição de conexões** — arraste a ponta de destino de uma aresta para outra intenção; o JSON subjacente é atualizado (`next.intent` ou `action.choices`)
+- **Exportação JSON** — baixa o fluxo (com as edições) no mesmo formato `{ "list": [...] }` aceito pela plataforma, preservando todos os campos não editados
 - **Dark mode** completo — toggle sol/lua na sidebar altera sidebar, nodes, painéis e canvas simultaneamente; preferência salva em `localStorage`
 - Input via textarea (colar JSON) ou upload de arquivo `.json`
 
@@ -42,6 +44,9 @@ npm run dev
 
 # Build de produção
 npm run build
+
+# Testes (Vitest)
+npm test
 ```
 
 O servidor sobe em `http://localhost:5173`.
@@ -55,7 +60,8 @@ O servidor sobe em `http://localhost:5173`.
 2. Clique em **Gerar Fluxo** (ou `Ctrl+Enter`)
 3. Use scroll para zoom e arraste para navegar pelo fluxo
 4. Use os botões **−** / **+** no canto superior direito para ajustar o espaçamento entre os nós
-5. Para exportar, clique em **PNG** ou **SVG** no mesmo painel do canto superior direito
+5. Para **reconectar** uma transição, arraste a ponta de destino (seta) de uma aresta até outro nó — conexões para outros bots não são editáveis
+6. Para exportar, clique em **PNG**, **SVG** ou **JSON** no painel do canto superior direito (o JSON inclui as reconexões feitas)
 
 ---
 
