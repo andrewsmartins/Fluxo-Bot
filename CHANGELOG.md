@@ -15,6 +15,22 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [0.8.0] - 2026-06-11
+
+### Adicionado
+- **Fase 3a do editor: edição de conteúdo no DetailPanel**
+  - O painel de detalhes virou formulário com rascunho local e botão **Aplicar alterações**: nome, categoria, keywords, mensagens (editar/adicionar/remover TEXT, editar body de BUTTON/LIST), texto/descrição dos botões, tipo+destino de transferência, tipo de captura+variável e variáveis do setData (adicionar/remover/editar)
+  - Novo módulo `src/utils/editIntent.ts`: patches pequenos e validados sobre o intent cru (endereçamento estável de mensagens por `{condIdx, sayIdx, msgIdx}`), sempre atualizando `updatedAt`
+  - **Validação no export** (`src/utils/validateFlow.ts`): erros bloqueiam o download (IDs duplicados, intenção sem nome/condições) e avisos informam sem bloquear (refs quebradas, fluxo sem start, botões dessincronizados das escolhas)
+  - Editar texto de botão atualiza o label da aresta de escolha correspondente no canvas
+- Smoke test da Fase 3 (`scripts/smoke-phase3.mjs`): edita nome/mensagem/botão, aplica e valida canvas + JSON exportado + integridade das demais intenções
+
+### Protegido (decisões de segurança do modelo)
+- Mensagens BUTTON/LIST não são removíveis pelo painel (os botões mapeiam posicionalmente para `action.choices`)
+- Remoções de mensagens aplicadas em ordem decrescente de índice para não deslocar os endereços
+
+---
+
 ## [0.7.0] - 2026-06-11
 
 ### Adicionado

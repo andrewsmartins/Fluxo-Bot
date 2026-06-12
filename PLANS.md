@@ -1,7 +1,7 @@
 # PLANS.md — Fluxo: de visualizador a editor de fluxos OmniChat
 
 > Última atualização: 2026-06-11. Este arquivo orienta sessões futuras do Claude Code.
-> Status: **Fases 1 e 2 concluídas (v0.7.0, branch `feat/editor-roundtrip`). Próxima: Fase 3.**
+> Status: **Fases 1, 2 e 3a concluídas (v0.8.0, branch `feat/editor-roundtrip`). Pendências: Fase 3b + Fase 4 (push API).**
 
 ## Contexto
 
@@ -124,12 +124,33 @@ Implementação efetiva:
   REAL do path (`getPointAtLength`) — o centro do bounding box de um
   smoothstep cai fora da linha e seleciona outro elemento.
 
-### Fase 3 — Edição de conteúdo
-- DetailPanel vira formulário: mensagens (TEXT/BUTTON/LIST), botões, condições,
-  tipo de ação, transferType/value, bulkUpdate (setData), captureDataType.
-- Fase mais cara — o schema de conditions/actions tem muita variação.
-- **Teste:** round-trip por tipo de nó; validação de campos obrigatórios antes
-  de exportar (start existe? refs órfãs? IDs duplicados?).
+### Fase 3a — Edição de conteúdo ✅ CONCLUÍDA (v0.8.0)
+
+Implementação efetiva:
+- DetailPanel (`src/components/DetailPanel.tsx`) virou formulário com rascunho
+  local + botão "Aplicar alterações". Edita: nome/categoria/keywords; mensagens
+  (TEXT editar/adicionar/remover; BUTTON/LIST só o body); texto/descrição de
+  botões (id preservado); transferType/value; captureDataType/variable;
+  bulkUpdate do setData. Nós externos (sintéticos) continuam read-only.
+- Patches em `src/utils/editIntent.ts`, endereçamento de mensagem por
+  `{condIdx, sayIdx, msgIdx}`; remoções aplicadas em ordem decrescente de
+  índice (os endereços deslocam); `updatedAt` sempre atualizado.
+- Pós-apply o App refaz `intentToNodeData` do nó e `buildEdges(model)` (labels
+  de aresta acompanham texto de botão) sem relayout.
+- Validação no export (`src/utils/validateFlow.ts`): erros bloqueiam
+  (ID duplicado, sem nome, sem condições); avisos não (ref interna quebrada,
+  sem start, buttons.length ≠ choices.length).
+- Testes: `editIntent.test.ts` (19 casos) + `scripts/smoke-phase3.mjs`.
+
+### Fase 3b — Edição estrutural avançada (PENDENTE)
+- Adicionar/remover botões com sincronia posicional buttons[i] ↔ choices[i]
+  (e a aresta correspondente).
+- Adicionar/remover/editar condições (tipo, variável, valor).
+- Deleção de nós com limpeza de referências de entrada (next refs apontando
+  para o nó deletado → reset; choices → remover botão + escolha).
+- UX: DetailPanel aberto cobre os controles de export (canto sup. direito) —
+  reposicionar controles ou fechar painel ao exportar.
+- Mensagens BUTTON/LIST: criar do zero (hoje só em intents que já as têm).
 
 ### Fase 4 (opcional) — Push direto via API
 - Configuração de token de sessão (nunca persistir em repo; usar campo na UI ou
