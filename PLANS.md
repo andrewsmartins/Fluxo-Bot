@@ -4,7 +4,9 @@
 > Status: **Fases 1–3b, 4a (push CLI) e 5 (a, b, c) concluídas (v0.12.1, branch `feat/visual-editor`).**
 > **Fase 4a PRONTA e validada ponta a ponta** — todos os critérios do protocolo
 > cumpridos, incl. caminhos infelizes e rollback real (ver docs/fase4-resultados.md,
-> Etapa 4, 2026-06-15). Próximo passo em aberto: **Fase 4b** (push pela UI do Fluxo).
+> Etapa 4, 2026-06-15). Próximo passo: **Fase 4b** (push pela UI do Fluxo) —
+> plano de implementação pronto na seção "Fase 4b" abaixo; começar pela extração
+> de `src/utils/pushFlow.ts` testável.
 
 ## Contexto
 
@@ -189,6 +191,74 @@ Implementação efetiva:
 > Fase 4b:** promover "ref interna quebrada" de aviso para ERRO bloqueante em
 > `src/utils/validateFlow.ts` (a plataforma a trata como erro a preencher), já
 > que o Fluxo precisa validar antes do push — o servidor não barra lixo.
+
+#### Fase 4b — Push pela UI do Fluxo (PLANO — pronto para implementar)
+
+> Desenho aprovado pelo Andy em 2026-06-15. Pré-condições satisfeitas: CORS
+> aberto (`*`, sonda da Etapa 0) e Fase 4a validada ponta a ponta. Pré-requisito
+> técnico já feito: ref interna quebrada é ERRO bloqueante no `validateFlow`.
+> **Decisão: a UI CONVIVE com o CLI** (não substitui) — CLI é mais auditável
+> para lote, UI é mais prática no dia a dia.
+
+**Objetivo:** botão "Enviar para OmniChat" na UI que faz o mesmo push do
+`scripts/push-flow.mjs` (2 passadas com remapeamento de IDs), direto do
+navegador, sem exportar JSON + rodar script.
+
+**Por que o ambiente do navegador muda 2 coisas (e só essas):**
+- Backup vira **download `.json`** (não há `samples/` no browser) — baixado
+  antes do primeiro POST.
+- Token fica **só em memória** (estado do componente, campo password); nunca
+  `localStorage`, nunca persistido, some ao recarregar.
+- Observação: a consistência eventual do DELETE NÃO afeta o push — o
+  remapeamento usa o `id` devolvido no corpo do POST, não um GET posterior.
+
+**Ordem de implementação (menor risco primeiro):**
+
+1. **`src/utils/pushFlow.ts` — extração testável do núcleo (FAZER PRIMEIRO).**
+   Funções puras com `fetch` injetável (assinatura tipo `(deps: { fetch })`):
+   - `planPush(flowList, serverIntents)` → `{ creates, updates }` (quem é
+     criação vs. atualização, por presença do id no servidor).
+   - `remapRefs(intent, idMap)` → reaponta `next.intent.id`, `action.choices`,
+     `error.next.intent`, `fallbackIntents` (portar de push-flow.mjs:114-130).
+   - `pushFlow(flow, { fetch, token, botId, onProgress })` → orquestra as 2
+     passadas (cria → captura ids reais → remapeia → atualiza), sequencial com
+     stop-on-first-error, devolve relatório estruturado (por intenção: op,
+     sent, got, status).
+   - O CLI `push-flow.mjs` passa a importar desse módulo (ou fica como está e o
+     módulo é a fonte canônica para a UI — decidir na hora; o CLI já está
+     validado, não regredir).
+   - **Headers/segredos:** o módulo recebe o token por parâmetro; NUNCA loga
+     token nem o inclui no relatório.
+
+2. **Testes Vitest do `pushFlow.ts` com `fetch` mockado** (sem rede):
+   - planejamento criar vs. atualizar;
+   - remapeamento de ids nas 2 passadas (o cerne do achado da Etapa 1 — POST de
+     id novo gera outro id; refs precisam apontar para o id real);
+   - caminho infeliz: erro HTTP no meio → para, reporta o que entrou;
+   - ref/serialização preservadas (não reconstruir do zero).
+
+3. **`src/components/PushDialog.tsx`** — modal com os guardrails:
+   - campo de token (password, só em memória);
+   - confirmação do alvo: **digitar os últimos N caracteres do botId**;
+   - **checkbox "é um bot de testes"** (trava consciente);
+   - botão **dry-run/preview** mostrando creates/updates antes de enviar;
+   - **download do backup** (GET) antes do primeiro POST;
+   - relatório por intenção ao final + botão **"copiar relatório"** sanitizado
+     (sem token).
+
+4. **Botão "Enviar para OmniChat" na TopBar** — habilitado só com fluxo
+   carregado E `validateFlow` sem erros (reusa o `report` que já existe no App).
+
+5. Smoke Playwright opcional do PushDialog (abrir, validar confirmação do botId,
+   dry-run) — **sem tocar a API real**.
+
+**Critério de pronto:** tsc + vitest verdes; push real num bot de testes
+batendo com o resultado do CLI; token nunca persistido/logado (revisar). Versão
+sugerida: minor (0.13.0).
+
+**Guardrails herdados da 4a (repetidos aqui de propósito):** backup-first
+sempre; sequencial com stop-on-first-error; publish FORA de escopo (só
+rascunho); push no bot errado mitigado por confirmação dupla do botId.
 
 #### Histórico do planejamento (REVISADO 2026-06-12)
 
