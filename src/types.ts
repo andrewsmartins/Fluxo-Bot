@@ -105,6 +105,14 @@ export type NodeKind =
   | 'setDataNode'
   | 'externalBotNode'
   | 'defaultNode'
+  // Modelo B (Fase 6) — novos tipos mapeando os 11 ActionTypes da plataforma
+  | 'endNode'         // action.type = endConversation (Terminar conversa)
+  | 'apiCallNode'     // action.type = external      (Chamada externa / API; ≠ externalBotNode)
+  | 'orderNode'       // action.type = order         (Pedido)
+  | 'csatNode'        // action.type = captureCsat   (Captura CSAT)
+  | 'storeNode'       // action.type = store         (Ações sobre a loja física)
+  // Container de agrupamento por intenção (intenções com 2+ condições)
+  | 'intentGroupNode'
 
 export interface ConditionInfo {
   name: string
@@ -112,6 +120,11 @@ export interface ConditionInfo {
   variable: string | null
 }
 
+/**
+ * View-model exibido em cada nó. No Modelo B (Fase 6) representa **uma condição**
+ * (filho de um grupo ou nó solto); o grupo (`intentGroupNode`) reusa a mesma forma
+ * para os campos de cabeçalho da intenção (nome, categoria, prioridade, keywords).
+ */
 export interface FlowNodeData extends Record<string, unknown> {
   name: string
   category: string
@@ -127,4 +140,21 @@ export interface FlowNodeData extends Record<string, unknown> {
   conditions: ConditionInfo[]
   externalBotId?: string
   externalIntentId?: string
+  // ─── Campos do Modelo B (Fase 6) ───────────────────────────────────────
+  /** Rótulo do gatilho da condição (ConditionType), ex.: "Valor contém", "Senão". */
+  triggerLabel?: string
+  /** Prioridade da intenção (0/0.25/0.5/0.75/1) — exibida no cabeçalho do grupo. */
+  priority?: number
+  /** Nº de condições da intenção — usado pelo cabeçalho do grupo. */
+  conditionCount?: number
+  /** A intenção tem `context` (ativa apenas vinda de outra intenção). */
+  hasContext?: boolean
+  /** O `executionDelay` está ativo (bot espera antes de responder). */
+  hasDelay?: boolean
+  /** action.order → tipo do pedido (generateOrder / addToCart). */
+  orderType?: string | null
+  /** action.store → tipo da ação sobre a loja física. */
+  storeType?: string | null
+  /** action.external → nome da API chamada. */
+  apiName?: string | null
 }
