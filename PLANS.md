@@ -1,12 +1,23 @@
 # PLANS.md — Fluxo: de visualizador a editor de fluxos OmniChat
 
 > Última atualização: 2026-06-15. Este arquivo orienta sessões futuras do Claude Code.
-> Status: **Fases 1–3b, 4a (push CLI) e 5 (a, b, c) concluídas (v0.12.1, branch `feat/visual-editor`).**
+> Status: **Fases 1–5 concluídas, incl. 4a (push CLI) e 4b (push + restore pela
+> UI). v0.13.0, branch `feat/visual-editor`.**
 > **Fase 4a PRONTA e validada ponta a ponta** — todos os critérios do protocolo
-> cumpridos, incl. caminhos infelizes e rollback real (ver docs/fase4-resultados.md,
-> Etapa 4, 2026-06-15). Próximo passo: **Fase 4b** (push pela UI do Fluxo) —
-> plano de implementação pronto na seção "Fase 4b" abaixo; começar pela extração
-> de `src/utils/pushFlow.ts` testável.
+> cumpridos, incl. caminhos infelizes e rollback real (docs/fase4-resultados.md,
+> Etapa 4, 2026-06-15).
+> **Fase 4b PRONTA e VALIDADA na plataforma real (2026-06-15)** — push e restore
+> pela UI funcionam ponta a ponta, batendo com o CLI. Push: `pushFlow.ts` +
+> `PushDialog`. Restore COMPLETO (fiel ao backup: exclui + recria com remap +
+> sobrescreve, ordem deletar→recriar, snapshot de segurança antes): `restoreFlow.ts`
+> + `RestoreDialog`. 100 testes Vitest + 2 smokes Playwright (sem API real).
+> Validação manual aprovada pelo Andy (fluxo completo e só-start). Ver
+> docs/fase4-resultados.md (seção "Fase 4b") e seção "Fase 4b" abaixo.
+>
+> **Próximos passos sugeridos (próxima sessão):** (1) merge da `feat/visual-editor`
+> na `main` (abrir PR); (2) avaliar as "Melhorias paralelas" abaixo (trocar dagre,
+> avaliar elkjs); (3) possível recriação de refs órfãs no restore (caveat
+> registrado na seção "Fase 4b"). Publicação (`POST /publish`) segue FORA de escopo.
 
 ## Contexto
 
@@ -214,8 +225,25 @@ navegador, sem exportar JSON + rodar script.
 
 **Ordem de implementação (menor risco primeiro):**
 
-1. **`src/utils/pushFlow.ts` — extração testável do núcleo (FAZER PRIMEIRO).**
-   Funções puras com `fetch` injetável (assinatura tipo `(deps: { fetch })`):
+1. **`src/utils/pushFlow.ts` — extração testável do núcleo ✅ FEITO (2026-06-15).**
+   Implementado com `fetch` injetável e os testes Vitest do passo 2 já verdes
+   (14 casos, sem rede). Desvios/decisões da implementação:
+   - `pushFlow` **clona** `flow.list` (`structuredClone`) antes de remapear — o
+     CLI partia de um `JSON.parse` fresco; na UI o fluxo é o modelo vivo do App,
+     que não pode ser mutado pelo push.
+   - Backup virou o callback `onBackup(backupData)`, **aguardado** antes do 1º
+     POST (a UI baixa o `.json` aí). O GET de estado serve de backup E de base
+     do `planPush`.
+   - Guardas de pré-flight **lançam** (fluxo vazio, botIds misturados, botId que
+     não bate com o alvo, GET de estado falhou); erros HTTP no meio do push NÃO
+     lançam — viram `failed: true` no relatório com o que entrou até parar.
+   - **CLI mantido como está** (validado na 4a, não regredir): `push-flow.mjs`
+     continua sendo a fonte canônica para lote/Node; `pushFlow.ts` é a versão de
+     browser. A duplicação da lógica de remap está documentada no cabeçalho do
+     módulo. Reunificar exigiria build step (CLI é `.mjs` puro) — não compensa.
+   - Relatório (`PushReport`) sanitizado: `{ ok, failed, results[], okCount,
+     idMap }`. O token só aparece nos headers, nunca no retorno (testado).
+   Assinatura original planejada (para referência):
    - `planPush(flowList, serverIntents)` → `{ creates, updates }` (quem é
      criação vs. atualização, por presença do id no servidor).
    - `remapRefs(intent, idMap)` → reaponta `next.intent.id`, `action.choices`,
@@ -230,27 +258,38 @@ navegador, sem exportar JSON + rodar script.
    - **Headers/segredos:** o módulo recebe o token por parâmetro; NUNCA loga
      token nem o inclui no relatório.
 
-2. **Testes Vitest do `pushFlow.ts` com `fetch` mockado** (sem rede):
+2. **Testes Vitest do `pushFlow.ts` com `fetch` mockado** ✅ FEITO (`pushFlow.test.ts`):
    - planejamento criar vs. atualizar;
    - remapeamento de ids nas 2 passadas (o cerne do achado da Etapa 1 — POST de
      id novo gera outro id; refs precisam apontar para o id real);
    - caminho infeliz: erro HTTP no meio → para, reporta o que entrou;
-   - ref/serialização preservadas (não reconstruir do zero).
+   - ref/serialização preservadas (não reconstruir do zero);
+   - extras cobertos: clone não muta o modelo, 200 sem id no corpo = falha,
+     `onBackup` antes do 1º POST, token fora do relatório mas presente nos
+     headers, guardas de pré-flight.
 
-3. **`src/components/PushDialog.tsx`** — modal com os guardrails:
-   - campo de token (password, só em memória);
-   - confirmação do alvo: **digitar os últimos N caracteres do botId**;
-   - **checkbox "é um bot de testes"** (trava consciente);
-   - botão **dry-run/preview** mostrando creates/updates antes de enviar;
-   - **download do backup** (GET) antes do primeiro POST;
-   - relatório por intenção ao final + botão **"copiar relatório"** sanitizado
-     (sem token).
+3. **`src/components/PushDialog.tsx`** ✅ FEITO (2026-06-15) — modal com os guardrails:
+   - campo de token (password, só em memória — `useState`, some ao fechar);
+   - confirmação do alvo: digitar os **últimos 6 caracteres** do botId (`CONFIRM_LEN`);
+   - checkbox "é um bot de testes" (trava consciente);
+   - botão **dry-run/preview** (usa `fetchServerIntents` + `planPush`) mostrando
+     creates/updates antes de enviar;
+   - **download do backup** via callback `onBackup` antes do primeiro POST;
+   - progresso por operação (via `onProgress`) + relatório final com botão
+     **"copiar relatório"** sanitizado (`buildReportText`, sem token).
+   - O `fetch` do browser entra como `browserFetch` (adapta a `FetchLike`).
 
-4. **Botão "Enviar para OmniChat" na TopBar** — habilitado só com fluxo
-   carregado E `validateFlow` sem erros (reusa o `report` que já existe no App).
+4. **Botão "Enviar para OmniChat" na TopBar** ✅ FEITO — botão verde (esmeralda)
+   `Enviar`, habilitado só com `hasFlow && report.errors.length === 0`. Abre o
+   PushDialog passando `model={parsedDataRef.current}` e `report`.
 
-5. Smoke Playwright opcional do PushDialog (abrir, validar confirmação do botId,
-   dry-run) — **sem tocar a API real**.
+5. Smoke Playwright do PushDialog ✅ FEITO (`scripts/smoke-phase4b.mjs`) — roda
+   **sem tocar a API real**: intercepta `window.fetch` via `addInitScript` com um
+   servidor falso (GET devolve o start; POST devolve 200). Cobre gating do botão
+   (token + confirmação do botId + trava), confirmação errada do alvo, dry-run,
+   download do backup antes do envio, relatório final e que o token não vaza na
+   UI. Aprendizado: o mock de `fetch` por `addInitScript` é seguro porque a app é
+   SPA estática (HMR usa WebSocket; módulos carregam por `<script>`, não `fetch`).
 
 **Critério de pronto:** tsc + vitest verdes; push real num bot de testes
 batendo com o resultado do CLI; token nunca persistido/logado (revisar). Versão
@@ -259,6 +298,50 @@ sugerida: minor (0.13.0).
 **Guardrails herdados da 4a (repetidos aqui de propósito):** backup-first
 sempre; sequencial com stop-on-first-error; publish FORA de escopo (só
 rascunho); push no bot errado mitigado por confirmação dupla do botId.
+
+#### Restaurar backup pela UI — restore COMPLETO (✅ FEITO 2026-06-15)
+
+**Por que existe:** o push é só *upsert* (POST cria/atualiza, NUNCA apaga). Depois
+de enviar um fluxo de teste, reimportar+reenviar o backup só atualiza o que está
+no arquivo — o excedente criado no servidor permanece. Faltava "voltar o bot ao
+estado real do backup". (Decisão do Andy 2026-06-15: restore tem que ser fiel ao
+arquivo, **não** delete-only.)
+
+**As 3 operações de um restore fiel:** (1) EXCLUIR o que está no servidor e não no
+backup; (2) RECRIAR o que está no backup e sumiu; (3) SOBRESCREVER o que existe
+nos dois. Recriar cai no achado da Etapa 1 (POST de ID novo → servidor gera
+outro), então exige o **remap de IDs em 2 passadas** — reusamos o `pushFlow`.
+
+**Ordem OBRIGATÓRIA: deletar PRIMEIRO, recriar/atualizar DEPOIS.** Se o push
+rodasse antes, as recriadas ganham IDs que não estão no backup e o passo de
+exclusão as veria como "extras" e apagaria o que acabou de criar. Deletando
+antes, os conjuntos ficam disjuntos (extras nunca são do backup). Há teste
+provando isso (nenhum ID `srv-*` recriado aparece nos DELETEs).
+
+- **`src/utils/restoreFlow.ts`** — núcleo testável:
+  - `planRestore(backupList, serverIntents)` → `{ extras, creates, updates,
+    serverTotal, keepCount }` (classifica em excluir/recriar/sobrescrever;
+    alimenta o dry-run).
+  - `deleteExtras(...)` → laço **deletar → esperar → reverificar** (até
+    `maxRounds`, padrão 6, espera 4s) p/ a consistência EVENTUAL do `DELETE`
+    (Etapa 4 da 4a). `sleep` injetável p/ os testes.
+  - `restoreToBackup(...)` → orquestrador: **snapshot de segurança** do estado
+    atual (`onSafetyBackup`, baixado pela UI antes de destruir) → `deleteExtras`
+    → `pushFlow(backup)` (sem `onBackup`). Relatório combinado
+    `{ ok, deletePhase, pushPhase }`. Guarda de botId no topo, ANTES de destruir.
+  - `deleteIntent(deps, id)` no `pushFlow.ts` (headers/API num lugar só).
+- **`RestoreDialog.tsx`** — file input do `.json`, lê o botId do backup, mesmos
+  guardrails do push + **aviso destrutivo**; dry-run mostra "excluir N · recriar
+  M · sobrescrever K"; baixa o snapshot de segurança (`pre-restore-...json`)
+  antes de executar; botão vermelho "Restaurar para o backup".
+- **Botão "Restaurar" na TopBar** — sempre habilitado; abre o `RestoreDialog`.
+- Testes: `restoreFlow.test.ts` (mock stateful unificado GET/POST/DELETE: restore
+  completo com remap, prova da ordem, consistência eventual, maxRounds, guardas)
+  + smoke `scripts/smoke-phase4b-restore.mjs` (upload + exclusão + recriação +
+  safety backup, sem API real).
+- **Fora de escopo:** publicação. Caveat honesto: se o backup referenciar uma
+  intenção que não está no próprio arquivo (ref órfã), o remap não tem destino —
+  recria como está; é problema do arquivo, não do restore.
 
 #### Histórico do planejamento (REVISADO 2026-06-12)
 

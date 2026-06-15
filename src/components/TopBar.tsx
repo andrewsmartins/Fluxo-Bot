@@ -12,11 +12,15 @@ interface TopBarProps {
   themeToggle: React.ReactNode
   canUndo: boolean
   canRedo: boolean
+  /** Habilita "Enviar para OmniChat": fluxo carregado e sem erros de validação. */
+  canPush: boolean
   onUndo: () => void
   onRedo: () => void
   onImport: () => void
   onNewFlow: () => void
   onExport: (format: ExportFormat) => void
+  onPush: () => void
+  onRestore: () => void
   onSpacingIncrease: () => void
   onSpacingDecrease: () => void
 }
@@ -34,7 +38,7 @@ function useClickOutside(onOutside: () => void) {
   return ref
 }
 
-export function TopBar({ version, hasFlow, report, exporting, themeToggle, canUndo, canRedo, onUndo, onRedo, onImport, onNewFlow, onExport, onSpacingIncrease, onSpacingDecrease }: TopBarProps) {
+export function TopBar({ version, hasFlow, report, exporting, themeToggle, canUndo, canRedo, canPush, onUndo, onRedo, onImport, onNewFlow, onExport, onPush, onRestore, onSpacingIncrease, onSpacingDecrease }: TopBarProps) {
   const isDark = useTheme()
   const [exportOpen, setExportOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -91,6 +95,19 @@ export function TopBar({ version, hasFlow, report, exporting, themeToggle, canUn
             </div>
           )}
         </div>
+
+        <button
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={!canPush}
+          onClick={onPush}
+          title={canPush ? 'Enviar o fluxo para o rascunho do bot na OmniChat' : 'Carregue um fluxo válido (sem erros) para enviar'}
+        >
+          <SendIcon /> Enviar
+        </button>
+
+        <button className={btnCls} onClick={onRestore} title="Restaurar um backup .json (exclui o excedente do bot)">
+          <RestoreIcon /> Restaurar
+        </button>
 
         <div className={`w-px h-5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
 
@@ -185,6 +202,22 @@ function DownloadIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  )
+}
+
+function RestoreIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   )
 }

@@ -115,6 +115,39 @@ bot `2a3859ff-62d5-4c01-ae60-6ae2f812e786`** (endpoints sempre `/v1/{botId}/...`
 quebrada" de aviso para erro bloqueante no `validateFlow` antes de habilitar o
 push pela UI (Fase 4b), já que a plataforma a trata como erro.
 
+## Fase 4b — Push e restore pela UI (validados na plataforma real, 2026-06-15)
+
+A Fase 4b levou o push (e depois o restore) do CLI para a UI do Fluxo. Núcleo em
+`src/utils/pushFlow.ts` e `src/utils/restoreFlow.ts` (funções puras com `fetch`
+injetável), diálogos `PushDialog`/`RestoreDialog` e botões Enviar/Restaurar na
+TopBar. Cobertura automatizada: 100 testes Vitest + 2 smokes Playwright
+(`smoke-phase4b.mjs` e `smoke-phase4b-restore.mjs`) que mockam `window.fetch` —
+**sem tocar a API real**.
+
+### Push pela UI — APROVADO
+
+Andy validou na plataforma real: importou um fluxo no Fluxo e enviou pelo botão
+**Enviar** (token em memória, confirmação dos últimos 6 do botId, trava de bot de
+testes, dry-run, backup baixado antes do 1º POST). A importação no bot ocorreu
+perfeitamente e o fluxo funcionou no simulador da Omni — mesmo resultado do CLI.
+
+### Restore pela UI — APROVADO (restore COMPLETO, fiel ao backup)
+
+Primeiro o restore foi entregue como *delete-only* (só removia o excedente). Andy
+apontou que **restore tem que voltar ao estado real do backup**, não só apagar.
+Reescrito para as 3 operações: **excluir** o excedente, **recriar** o que sumiu
+(com remap de IDs em 2 passadas, reusando o `pushFlow`) e **sobrescrever** o
+resto. Ordem obrigatória **deletar → recriar/atualizar** (recriar antes faria a
+exclusão apagar o que acabou de criar). Snapshot de segurança do estado atual é
+baixado antes de destruir.
+
+Validado na plataforma real: foi possível restaurar tanto um **fluxo completo**
+quanto **só o start** — o restore **remove e adiciona conforme necessário**,
+deixando o bot idêntico ao backup. Confirmado pelo Andy.
+
+**Conclusão: Fase 4b PRONTA.** Push e restore pela UI funcionam ponta a ponta na
+plataforma real, batendo com o CLI. Entregue na v0.13.0.
+
 ## Pendências para validação MANUAL na tela da Omni
 
 O bot de testes está com 4 intenções (resíduo das etapas 1 e 3). Antes/depois

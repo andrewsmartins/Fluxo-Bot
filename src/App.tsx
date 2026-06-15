@@ -4,6 +4,8 @@ import { FlowCanvas }    from './components/FlowCanvas'
 import { TopBar, type ExportFormat } from './components/TopBar'
 import { ImportDialog }  from './components/ImportDialog'
 import { NewFlowDialog } from './components/NewFlowDialog'
+import { PushDialog }    from './components/PushDialog'
+import { RestoreDialog } from './components/RestoreDialog'
 import { DetailPanel }   from './components/DetailPanel'
 import { Toast, type Notice } from './components/Toast'
 import { ThemeToggle }   from './components/ThemeToggle'
@@ -29,6 +31,8 @@ export default function App() {
   const [hasFlow, setHasFlow]           = useState(false)
   const [importOpen, setImportOpen]     = useState(false)
   const [newFlowOpen, setNewFlowOpen]   = useState(false)
+  const [pushOpen, setPushOpen]         = useState(false)
+  const [restoreOpen, setRestoreOpen]   = useState(false)
   const [exporting, setExporting]       = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node<FlowNodeData> | null>(null)
   const [layoutVersion, setLayoutVersion] = useState(0)
@@ -396,12 +400,15 @@ export default function App() {
         exporting={exporting}
         canUndo={hasFlow && historyRef.current.canUndo}
         canRedo={hasFlow && historyRef.current.canRedo}
+        canPush={hasFlow && !!report && report.errors.length === 0}
         onUndo={handleUndo}
         onRedo={handleRedo}
         themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />}
         onImport={() => setImportOpen(true)}
         onNewFlow={() => setNewFlowOpen(true)}
         onExport={handleExport}
+        onPush={() => setPushOpen(true)}
+        onRestore={() => setRestoreOpen(true)}
         onSpacingIncrease={() => handleSpacingChange(SPACING_STEP)}
         onSpacingDecrease={() => handleSpacingChange(-SPACING_STEP)}
       />
@@ -475,6 +482,16 @@ export default function App() {
           onClose={() => setNewFlowOpen(false)}
         />
       )}
+
+      {pushOpen && parsedDataRef.current && report && (
+        <PushDialog
+          model={parsedDataRef.current}
+          report={report}
+          onClose={() => setPushOpen(false)}
+        />
+      )}
+
+      {restoreOpen && <RestoreDialog onClose={() => setRestoreOpen(false)} />}
     </div>
     </ThemeContext.Provider>
   )
