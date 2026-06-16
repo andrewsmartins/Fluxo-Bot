@@ -71,11 +71,14 @@ const CAPTURE_TYPES = [
 const COND_TYPE_OPTIONS = Object.entries(CONDITION_TYPE_LABELS).map(([value, label]) => ({ value, label }))
 
 /** Modo do painel: a forma de edição depende do nó clicado (Modelo B, Marco C). */
-type PanelMode = 'group' | 'condition' | 'solo' | 'externalRO'
+type PanelMode = 'group' | 'condition' | 'solo' | 'externalRO' | 'startRO'
 
 /** Determina o modo e (para filhos) o índice da condição a partir do nó. */
 function resolveMode(node: Node<FlowNodeData>, intent: BotIntent | null): { mode: PanelMode; condIdx: number } {
   if (node.type === 'externalBotNode' || !intent) return { mode: 'externalRO', condIdx: 0 }
+  // O nó de início é somente-leitura: a estrutura da intenção `start` é canônica
+  // e não deve ser editada (a conexão de saída é feita no canvas).
+  if (node.type === 'startNode' || intent.category === 'start') return { mode: 'startRO', condIdx: 0 }
   if (node.type === 'intentGroupNode') return { mode: 'group', condIdx: 0 }
   const m = /::c(\d+)$/.exec(node.id)
   if (m) return { mode: 'condition', condIdx: Number(m[1]) }
@@ -341,11 +344,11 @@ export function DetailPanel({ node, intent, intents, onBeforeApply, onApply, onA
     isDark ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-500 border-slate-300 hover:bg-slate-50'
   }`
 
-  const editable = !!intent && !!draft && mode !== 'externalRO'
+  const editable = !!intent && !!draft && mode !== 'externalRO' && mode !== 'startRO'
   const canDeleteCondition = mode === 'condition' && !!intent && intent.conditions.length > 1
 
   return (
-    <div className={`absolute right-0 top-0 h-full w-96 border-l shadow-xl z-10 flex flex-col ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+    <div data-testid="detail-panel" className={`absolute right-0 top-0 h-full w-96 border-l shadow-xl z-10 flex flex-col ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
       {/* Header */}
       <div className={`flex items-start justify-between px-4 py-3 border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
         <div className="min-w-0 pr-2">
@@ -370,6 +373,7 @@ export function DetailPanel({ node, intent, intents, onBeforeApply, onApply, onA
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
         {mode === 'externalRO' && <ReadOnlyExternal node={node} isDark={isDark} />}
+        {mode === 'startRO' && intent && <ReadOnlyStart intent={intent} isDark={isDark} />}
 
         {editable && draft && (
           <>
@@ -743,6 +747,27 @@ export function DetailPanel({ node, intent, intents, onBeforeApply, onApply, onA
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Visão somente-leitura do nó de início. O start é canônico e imutável aqui — a
+ * única ação estrutural permitida é conectar/remover a aresta de saída no canvas.
+ */
+function ReadOnlyStart({ intent, isDark }: { intent: BotIntent; isDark: boolean }) {
+  const cond = intent.conditions[0]
+  const next = cond?.next?.intent
+  const nextId = next && typeof next === 'object' ? next.id : (typeof next === 'string' ? next : null)
+  return (
+    <Section title="Nó de início (somente leitura)" isDark={isDark}>
+      <p className={`text-[11px] leading-snug mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+        O nó de início não é editável. Para definir por onde o fluxo começa,
+        conecte a aresta de saída a outra intenção no canvas.
+      </p>
+      <InfoRow label="Nome"     value={intent.name || '-'} isDark={isDark} />
+      <InfoRow label="Condição" value={cond?.name || '-'} isDark={isDark} />
+      <InfoRow label="Próximo"  value={nextId ?? '(sem destino — conecte no canvas)'} isDark={isDark} />
+    </Section>
   )
 }
 

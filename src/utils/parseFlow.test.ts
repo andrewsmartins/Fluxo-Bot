@@ -195,6 +195,27 @@ describe('arestas no Modelo B', () => {
     expect(edges[0].source).toBe('origem')
     expect(edges[0].target).toBe('alvo')
   })
+
+  it('arestas de fluxo internas são do tipo "deletable" (botão remover); externas não', () => {
+    const target = makeIntent('alvo', [makeCond({})])
+    const internal = makeIntent('origem', [makeCond({
+      next: { action: 'intent', type: 'context', intent: { botId: BOT, id: 'alvo' } },
+    })])
+    // next para outro bot → nó externo sintético, aresta não removível
+    const external = makeIntent('externa', [makeCond({
+      next: { action: 'bot', type: 'context', intent: { botId: 'outro-bot', id: 'qq' } },
+    })])
+    const { edges } = parseFlow({ list: [internal, target, external] })
+    expect(edges.find(e => e.id === 'origem-c0-next')?.type).toBe('deletable')
+    expect(edges.find(e => e.id === 'externa-c0-ext')?.type).toBe('smoothstep')
+  })
+
+  it('aresta de contexto NÃO é deletable (segue smoothstep, sem botão)', () => {
+    const ctx = makeIntent('menu', [makeCond({})])
+    const sub = makeIntent('sub', [makeCond({})], { context: 'menu' })
+    const ctxEdge = parseFlow({ list: [ctx, sub] }).edges.find(e => e.id === 'ctx-sub')
+    expect(ctxEdge?.type).toBe('smoothstep')
+  })
 })
 
 // ─── Aresta de Contexto (Modelo B, Marco B) ──────────────────────────────────

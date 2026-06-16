@@ -17,6 +17,7 @@ import { OrderNode }       from './nodes/OrderNode'
 import { CsatNode }        from './nodes/CsatNode'
 import { StoreNode }       from './nodes/StoreNode'
 import { IntentGroupNode } from './nodes/IntentGroupNode'
+import { DeletableEdge, EdgeActionsContext } from './edges/DeletableEdge'
 import type { FlowNodeData } from '../types'
 
 const nodeTypes = {
@@ -34,6 +35,10 @@ const nodeTypes = {
   csatNode:        CsatNode,
   storeNode:       StoreNode,
   intentGroupNode: IntentGroupNode,
+}
+
+const edgeTypes = {
+  deletable: DeletableEdge,
 }
 
 const NODE_COLORS: Record<string, string> = {
@@ -71,6 +76,8 @@ interface FlowCanvasProps {
   onCreateNode: (kind: CreatableKind, position: XYPosition) => void
   /** Soltar um tipo da paleta sobre um nó-intenção: adiciona como condição dele (merge). */
   onAddConditionToNode: (intentId: string, kind: CreatableKind) => void
+  /** Remover uma conexão pelo botão "×" da aresta (mesmo caminho do Delete). */
+  onDeleteEdge: (edgeId: string) => void
 }
 
 /**
@@ -100,7 +107,7 @@ export function FlowCanvas(props: FlowCanvasProps) {
   )
 }
 
-function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onNodesChange, onReconnect, onConnect, onEdgesChange, onCreateNode, onAddConditionToNode }: FlowCanvasProps) {
+function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onNodesChange, onReconnect, onConnect, onEdgesChange, onCreateNode, onAddConditionToNode, onDeleteEdge }: FlowCanvasProps) {
   const { screenToFlowPosition } = useReactFlow()
   // Nó atualmente destacado como alvo de merge (manipulado via classe no DOM
   // para não re-renderizar o array controlado de nós a cada dragover).
@@ -144,6 +151,7 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
   }, [nodes, onCreateNode, onAddConditionToNode, screenToFlowPosition, setMergeTarget])
 
   return (
+    <EdgeActionsContext.Provider value={{ onDeleteEdge }}>
     <div className="w-full h-full" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
     <ReactFlow
       nodes={nodes}
@@ -154,6 +162,7 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
       onConnect={onConnect}
       deleteKeyCode={['Backspace', 'Delete']}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodeClick={handleNodeClick}
       // Tolerância de drop ao reconectar: sem isso o usuário precisa acertar
       // exatamente o handle (~6px) no topo do nó e o gesto parece "não pegar"
@@ -174,6 +183,7 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
       <NodePalette />
     </ReactFlow>
     </div>
+    </EdgeActionsContext.Provider>
   )
 }
 

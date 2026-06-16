@@ -591,6 +591,16 @@ dedicado. Faltam 5: `endConversation`, `external` (API), `order`, `captureCsat`,
     + `intentNodeAt`/`onAddConditionToNode` (FlowCanvas). +4 testes + smoke `smoke-phase6-merge.mjs`.
     Build + **197 testes** + 11 smokes verdes. _Escopo B (fundir dois nós EXISTENTES) ficou de fora
     por causa da integridade de refs de entrada (id da origem some) — planejar à parte se necessário._
+  - **Extra (polish): Start read-only, remover conexões, exclusão limpa.** Três ajustes:
+    (1) **Start não-editável** — `DetailPanel` ganhou o modo `startRO` (somente-leitura, espelha
+    `externalRO`); a conexão de saída do start segue editável no canvas. (2) **Remover conexões
+    pelo botão "×"** — aresta customizada `DeletableEdge` (src/components/edges/) com botão no meio,
+    registrada em `edgeTypes`; só arestas internas (`-next`/`-ch`) usam `type: 'deletable'` (externas
+    e de contexto seguem smoothstep, sem botão). O clique cai no mesmo caminho do Delete. (3) **Excluir
+    intenção remove os filhos** — `deleteNode` re-parseia preservando posições em vez de filtrar só o
+    id exato (antes os nós `{id}::c{idx}` ficavam órfãos no canvas). +2 testes (tipos de aresta) + smoke
+    `smoke-phase6-edge-delete.mjs`; smokes 2/3/3b ajustados ao novo label (EdgeLabelRenderer). Build +
+    **199 testes** + 12 smokes verdes.
 
 **Como testar (incl. caminho infeliz):** samples com intenção multi-condição
 (`Confirmar_nome` = choice+captureData), intenção de 1 condição (deve colapsar em nó

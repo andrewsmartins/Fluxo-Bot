@@ -94,10 +94,11 @@ try {
   await page.waitForTimeout(300)
 
   const newNodeId = await newNode.getAttribute('data-id')
+  // O label da aresta de fluxo é renderizado no layer de labels (EdgeLabelRenderer),
+  // fora do <g> da aresta — localiza pelo data-edge-id da DeletableEdge (Fase 6).
   const choiceEdgeLabel = await page.evaluate((srcId) => {
-    const edge = [...document.querySelectorAll('.react-flow__edge')]
-      .find(e => e.getAttribute('data-id') === `${srcId}-c0-ch0`)
-    return edge ? edge.textContent.trim() : null
+    const el = document.querySelector(`[data-edge-id="${srcId}-c0-ch0"] .react-flow__edge-label`)
+    return el ? el.textContent.trim() : null
   }, newNodeId)
   console.log(`aresta de escolha criada com label: "${choiceEdgeLabel}"`)
   if (choiceEdgeLabel !== 'Falar com atendente') fail('conexão do botão não criou aresta com o label esperado')

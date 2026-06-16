@@ -191,7 +191,9 @@ function getNextRef(next: Condition['next']): { id: string; botId: string } | nu
 
 function edgeStyle(external: boolean) {
   return {
-    type: 'smoothstep' as const,
+    // Arestas de fluxo internas usam a aresta customizada com botão "×" (remover
+    // conexão); as externas (outro bot) seguem smoothstep simples e não removíveis.
+    type: external ? 'smoothstep' : 'deletable',
     animated: external,
     // Apenas a ponta de destino é editável: mover a origem mudaria de qual
     // condição a aresta nasce, o que é ambíguo. Arestas externas apontam para

@@ -197,9 +197,15 @@ export default function App() {
       return false
     }
     if (snapshot) historyRef.current.push(snapshot)
-    setNodes(ns => ns.filter(n => n.id !== nodeId))
-    setEdges(buildEdges(model).edges)
-    setSelectedNode(prev => prev?.id === nodeId ? null : prev)
+    // Re-parseia preservando posições em vez de filtrar só o id exato: no Modelo B
+    // uma intenção agrupada tem nós-filhos `{id}::c{idx}` que ficariam órfãos no
+    // canvas se removêssemos apenas o container. Com a intenção fora do modelo, o
+    // parseFlow não emite o grupo nem os filhos — as condições somem junto.
+    const parsed = parseFlow(model, spacingRef.current)
+    const posById = new Map(nodesRef.current.map(n => [n.id, n.position]))
+    setNodes(parsed.nodes.map(n => { const p = posById.get(n.id); return p ? { ...n, position: p } : n }))
+    setEdges(parsed.edges)
+    setSelectedNode(prev => prev ? (parsed.nodes.find(n => n.id === prev.id) ?? null) : null)
     setNotice(null)
     bumpModel()
     return true
@@ -285,6 +291,11 @@ export default function App() {
     if (allowed.length) setEdges(eds => applyEdgeChanges(allowed, eds))
     if (removed) bumpModel()
   }, [fail, bumpModel, takeSnap])
+
+  /** Remove uma conexão pelo botão "×" da aresta — mesmo caminho do Delete. */
+  const handleDeleteEdge = useCallback((edgeId: string) => {
+    handleEdgesChange([{ type: 'remove', id: edgeId }])
+  }, [handleEdgesChange])
 
   /** Cria uma intenção nova (template canônico) na posição do drop da paleta. */
   const handleCreateNode = useCallback((kind: CreatableKind, position: XYPosition) => {
@@ -467,6 +478,7 @@ export default function App() {
               onEdgesChange={handleEdgesChange}
               onCreateNode={handleCreateNode}
               onAddConditionToNode={handleAddConditionToNode}
+              onDeleteEdge={handleDeleteEdge}
             />
             {selectedNode && (
               <DetailPanel
