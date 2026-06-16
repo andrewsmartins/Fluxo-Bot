@@ -8,22 +8,30 @@ Editor visual de fluxos de chatbot OmniChat. Importe o JSON do bot (ou crie um f
 
 ## Funcionalidades
 
-- Geração automática de fluxograma a partir de JSON
-- Layout hierárquico top-down calculado pelo [Dagre](https://github.com/dagrejs/dagre)
-- 10 tipos de nó com cores distintas (veja tabela abaixo)
-- Rótulos nas arestas com o texto dos botões de escolha
-- Zoom, pan e minimapa interativos
-- Controle de espaçamento entre nós (botões `−` / `+` no canto superior direito)
-- Exportação do fluxo completo em **PNG** e **SVG** com dimensões calculadas pelos bounds reais dos nós
-- **Criação de nós** — paleta no canto superior esquerdo: arraste um tipo (Mensagem, Escolha, Captura, Transferência, Espera, Definir dados) para o canvas para criar uma intenção nova com template canônico
-- **Edição de conexões** — arraste a ponta de destino de uma aresta para outra intenção; conecte nós arrastando do handle inferior; delete arestas com Delete/Backspace; o JSON subjacente é atualizado (`next.intent` ou `action.choices`)
-- **Edição de conteúdo** — clique num nó para abrir o painel: edite nome, categoria, keywords, mensagens, botões (adicionar/remover, com sincronia automática das escolhas), condições, transferência, captura e variáveis; **Aplicar alterações** grava no modelo
+### Visualização
+- Geração automática de fluxograma a partir do JSON do bot
+- Layout hierárquico top-down calculado pelo [Dagre](https://github.com/dagrejs/dagre), com controle de espaçamento (botões `−` / `+` na toolbar)
+- **Modelo B** — um nó por **condição**, tipado pela ação dela; intenções com 2+ condições viram um **grupo** (container) com os nós-condição como filhos; cada um dos 11 `ActionType` da plataforma tem nó dedicado
+- 13 tipos de nó com cores distintas (veja [Tipos de nó](#tipos-de-nó))
+- Arestas tipadas: **fluxo** (cinza, com tag de rótulo + botão de remover), **contexto** (tracejada violeta) e **redirect a outro bot** (âmbar, animada)
+- Zoom, pan e minimapa interativos; **dark mode** completo (toggle sol/lua salvo em `localStorage`)
+
+### Edição
+- **Criação de nós** — paleta no canto superior esquerdo (grupos **Fluxo** e **Avançado**): arraste um dos 11 tipos para o canvas e crie uma intenção nova com template canônico; soltar **sobre um nó existente** adiciona o tipo como **nova condição** daquela intenção (vira grupo)
+- **Edição de conexões** — arraste a ponta de destino de uma aresta para outra intenção; conecte arrastando do handle inferior; remova pela **tag "×"** da aresta ou com Delete/Backspace; o JSON subjacente é atualizado (`next.intent` ou `action.choices`)
+- **Edição de conteúdo** — o painel abre em modo conforme o nó: **grupo** (meta da intenção: nome, categoria, keywords, prioridade, contexto + lista de condições), **condição** (gatilho, mensagens, botões e ação só daquela condição) ou **nó solto** (editor completo); **Aplicar alterações** grava no modelo
 - **Exclusão de intenções** — botão no painel ou tecla Delete; todas as referências de entrada são limpas automaticamente
-- **Validação no export** — erros estruturais bloqueiam o download; inconsistências prováveis aparecem como aviso
-- **Exportação JSON** — baixa o fluxo (com as edições) no mesmo formato `{ "list": [...] }` aceito pela plataforma, preservando todos os campos não editados
-- **Dark mode** completo — toggle sol/lua na sidebar altera sidebar, nodes, painéis e canvas simultaneamente; preferência salva em `localStorage`
-- Input via textarea (colar JSON) ou upload de arquivo `.json`
-- **Push para a plataforma (UI)** — botão **Enviar** envia o fluxo para o **rascunho** do bot direto do navegador, com remapeamento automático de IDs em 2 passadas; guardrails: token só em memória, confirmação do botId, trava de bot de testes, dry-run e backup baixado antes do envio; a publicação continua manual na plataforma
+- **Undo/redo** — **Ctrl+Z** desfaz e **Ctrl+Shift+Z** / **Ctrl+Y** refazem qualquer edição (botões ↶ ↷ na toolbar); histórico de até 30 passos
+- O nó de **início** (`category: "start"`) é somente-leitura no painel; a conexão de saída dele continua editável no canvas
+
+### Entrada e saída
+- Input via **modal de importação** (colar JSON da aba Network ou upload de `.json`) ou **Novo fluxo** a partir do botId
+- **Validação no export** — erros estruturais bloqueiam o download; inconsistências prováveis aparecem como aviso (indicador vivo na toolbar)
+- **Exportação JSON** — baixa o fluxo (com as edições) no formato `{ "list": [...] }` aceito pela plataforma, preservando todos os campos não editados (*preserve-and-patch*)
+- **Exportação de imagem** — PNG e SVG do fluxo completo, com dimensões calculadas pelos bounds reais dos nós
+
+### Sincronização com a plataforma
+- **Push (UI)** — botão **Enviar** envia o fluxo para o **rascunho** do bot direto do navegador, com remapeamento automático de IDs em 2 passadas; guardrails: token só em memória, confirmação do botId, trava de bot de testes, dry-run e backup baixado antes do envio; a publicação continua manual na plataforma
 - **Restaurar backup (UI)** — botão **Restaurar** sobe um backup `.json` e restaura o bot ao estado do arquivo (exclui o excedente, recria o que falta com remap e sobrescreve o resto), baixando um snapshot de segurança antes
 - **Push/restore via CLI** — `scripts/push-flow.mjs` e `scripts/rollback-bot.mjs` para uso em lote/auditável (mesma lógica do `pushFlow.ts`/`restoreFlow.ts`), com dry-run por padrão e backup automático
 
@@ -39,6 +47,8 @@ Editor visual de fluxos de chatbot OmniChat. Importe o JSON do bot (ou crie um f
 | [Dagre](https://github.com/dagrejs/dagre) | Algoritmo de layout automático |
 | [html-to-image](https://github.com/bubkoo/html-to-image) | Exportação PNG/SVG |
 | [Tailwind CSS](https://tailwindcss.com) | Estilização |
+| [Vitest](https://vitest.dev) | Testes unitários |
+| [Playwright](https://playwright.dev) | Smoke tests no browser (`scripts/smoke-*.mjs`) |
 
 ---
 
@@ -59,6 +69,8 @@ npm test
 ```
 
 O servidor sobe em `http://localhost:5173`.
+
+> 🧪 **[Testes automatizados](docs/TESTES-AUTOMATIZADOS.md)** — os 199 testes unitários e os 13 smokes documentados, com o que cada um cobre.
 
 ---
 
@@ -200,54 +212,88 @@ Há duas formas de definir o próximo nó:
 ```
 src/
 ├── types.ts                    Interfaces TypeScript do JSON do bot
+├── App.tsx                     Layout principal, estado dos nós e undo/redo
+├── main.tsx                    Entry point
+├── contexts/
+│   └── ThemeContext.tsx        Distribui isDark via React Context (dark mode)
 ├── utils/
-│   └── parseFlow.ts            Converte JSON → nodes + edges + layout Dagre
+│   ├── parseFlow.ts            Converte JSON → nodes + edges + layout Dagre (Modelo B)
+│   ├── nodeMeta.ts             Mapa ActionType→nó, rótulos de gatilho e prioridade
+│   ├── editFlow.ts             Reconectar/conectar/deletar arestas + serializar fluxo
+│   ├── editIntent.ts           Patches de conteúdo do intent (mensagens, botões, ação)
+│   ├── intentTemplates.ts      Templates canônicos por tipo (criação de nó/condição)
+│   ├── validateFlow.ts         Validação no export (erros bloqueiam, avisos informam)
+│   ├── exportImage.ts          Exportação PNG/SVG (bounds reais, ciente de grupos)
+│   ├── history.ts              Pilha de undo/redo (até 30 snapshots)
+│   ├── pushFlow.ts             Núcleo do push para o rascunho (2 passadas + remap)
+│   └── restoreFlow.ts          Restauração a partir de backup (deletar→recriar→sobrescrever)
 ├── components/
+│   ├── TopBar.tsx              Toolbar: importar, exportar, enviar, restaurar, undo/redo, validação
 │   ├── FlowCanvas.tsx          Canvas React Flow com todos os providers
-│   ├── JsonInput.tsx           Painel de entrada (textarea, upload, legenda)
-│   ├── ExportControls.tsx      Botões de exportação PNG/SVG e controle de espaçamento
+│   ├── NodePalette.tsx         Paleta de criação (grupos Fluxo / Avançado)
+│   ├── DetailPanel.tsx         Painel de edição (modos: grupo / condição / solo / read-only)
+│   ├── ImportDialog.tsx        Modal de importação (colar JSON / upload)
+│   ├── NewFlowDialog.tsx       Modal "Novo fluxo" (a partir do botId)
+│   ├── PushDialog.tsx          Diálogo de envio ao rascunho (guardrails + dry-run)
+│   ├── RestoreDialog.tsx       Diálogo de restauração de backup
+│   ├── Toast.tsx               Toasts de erro/aviso no rodapé do canvas
+│   ├── ThemeToggle.tsx         Botão sol/lua do dark mode
+│   ├── edges/
+│   │   └── DeletableEdge.tsx       Aresta de fluxo com tag (rótulo + botão "×")
 │   └── nodes/
-│       ├── StartNode.tsx           Nó de início (verde)
-│       ├── ChoiceNode.tsx          Nó de escolha com botões (azul)
-│       ├── CaptureNode.tsx         Nó de captura de dados (roxo)
-│       ├── TransferNode.tsx        Nó de transferência para atendente (vermelho)
-│       ├── WaitNode.tsx            Nó de espera por interação (ciano)
-│       ├── SetDataNode.tsx         Nó de atribuição de variáveis (índigo)
-│       ├── ExternalBotNode.tsx     Nó de redirecionamento externo (âmbar)
-│       ├── EndConversationNode.tsx Nó de encerramento de conversa (vermelho escuro)
-│       ├── ApiCallNode.tsx         Nó de chamada de API externa (verde-azulado)
-│       └── DefaultNode.tsx         Nó padrão (cinza)
-├── App.tsx                     Layout principal e gerenciamento de estado
-└── main.tsx                    Entry point
+│       ├── IntentGroupNode.tsx     Container de intenção com 2+ condições (Modelo B)
+│       ├── StartNode.tsx           Início (verde)
+│       ├── ChoiceNode.tsx          Escolha com botões (azul)
+│       ├── CaptureNode.tsx         Captura de dados (roxo)
+│       ├── TransferNode.tsx        Transferência para atendente (vermelho)
+│       ├── WaitNode.tsx            Espera por interação (ciano)
+│       ├── SetDataNode.tsx         Atribuição de variáveis (índigo)
+│       ├── EndNode.tsx             Encerramento de conversa (vermelho escuro)
+│       ├── ApiCallNode.tsx         Chamada de API externa (verde-azulado)
+│       ├── OrderNode.tsx           Pedido (laranja)
+│       ├── CsatNode.tsx            Captura CSAT (rosa)
+│       ├── StoreNode.tsx           Loja física (verde-limão)
+│       ├── ExternalBotNode.tsx     Redirecionamento a outro bot (âmbar)
+│       └── DefaultNode.tsx         Mensagem / encadeamento sem ação (cinza)
+└── scripts/                    CLIs e smoke tests (push, rollback, smoke-phase*.mjs)
 ```
 
 ### Fluxo de dados
 
 ```
-JSON (textarea / arquivo)
+JSON (modal de importação / arquivo / Novo fluxo)
   └─▶ parseFlow(json, spacing?)
-        ├─▶ getNodeKind()        detecta tipo de cada nó
-        ├─▶ extrai arestas       via action.choices ou next.intent.id
-        └─▶ dagreLayout()        calcula posições x/y com ranksep/nodesep configuráveis
-              └─▶ ReactFlow      renderiza canvas interativo
-                    └─▶ ExportControls  exportação PNG/SVG + controle de espaçamento
+        ├─▶ um nó por condição    tipado por actionToNodeKind() (Modelo B)
+        ├─▶ agrupa por intenção    2+ condições → intentGroupNode + filhos
+        ├─▶ extrai arestas         fluxo (choices/next), contexto e redirect externo
+        └─▶ dagreLayout()          posiciona os nós-macro (ranksep/nodesep configuráveis)
+              └─▶ ReactFlow        canvas interativo (edição in-place)
+                    ├─▶ serializeFlow()   JSON de volta (preserve-and-patch)
+                    ├─▶ exportImage()     PNG/SVG (bounds reais)
+                    └─▶ pushFlow()        envio ao rascunho da plataforma
 ```
 
 ---
 
 ## Tipos de nó
 
-| Cor | Tipo | Condição de detecção |
-|---|---|---|
-| Verde | Início | `category === "start"` |
-| Vermelho | Transferência | Qualquer condição com `action.type === "transfer"` |
-| Ciano | Espera | Qualquer condição com `action.type === "waitForInteraction"` |
-| Azul | Escolha | Qualquer condição com `action.type === "choice"` |
-| Roxo | Captura | Qualquer condição com `action.type === "captureData"` |
-| Índigo | Atribuição | Qualquer condição com `action.type === "setData"` |
-| Vermelho escuro | Encerramento | Qualquer condição com `action.type === "endConversation"` |
-| Verde-azulado | API externa | Qualquer condição com `action.type === "external"` |
-| Âmbar | Bot externo | Nó gerado para redirecionamentos a outro botId |
-| Cinza | Padrão | Demais casos |
+No **Modelo B**, cada **condição** vira um nó, tipado pela `action` dela (`actionToNodeKind` em [src/utils/nodeMeta.ts](src/utils/nodeMeta.ts)). Os 11 `ActionType` da plataforma têm nó dedicado, além do nó de início, do redirect a outro bot e do container de grupo.
 
-A prioridade de detecção é: **Início > Transferência > Espera > Escolha > Captura > Atribuição > Encerramento > API > Padrão**.
+| Cor | Tipo | Detecção (`action.type`) |
+|---|---|---|
+| Verde | Início | `category === "start"` da intenção |
+| Azul | Escolha | `choice` |
+| Roxo | Captura | `captureData` |
+| Vermelho | Transferência | `transfer` |
+| Ciano | Espera | `waitForInteraction` |
+| Índigo | Atribuição | `setData` |
+| Vermelho escuro | Encerramento | `endConversation` |
+| Verde-azulado | Chamada de API | `external` |
+| Laranja | Pedido | `order` |
+| Rosa | Captura CSAT | `captureCsat` |
+| Verde-limão | Loja física | `store` |
+| Cinza | Padrão | `none` ou ação ausente (só mensagens / encadeamento) |
+| Âmbar | Bot externo | nó sintético gerado para redirecionamentos a outro botId |
+| — | Grupo de intenção | container de uma intenção com 2+ condições (`intentGroupNode`) |
+
+> **Nota:** a "Chamada de API" (`external`, verde-azulado) é distinta do "Bot externo" (âmbar) — a primeira é uma chamada HTTP; o segundo é redirecionamento para outro bot da plataforma.

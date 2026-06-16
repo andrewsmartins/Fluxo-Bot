@@ -13,6 +13,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Não lançado]
 
+### Adicionado
+- **Documentação dos testes automatizados** ([docs/TESTES-AUTOMATIZADOS.md](docs/TESTES-AUTOMATIZADOS.md)) — lista os **199 testes unitários** (Vitest, 9 arquivos) e os **13 scripts de smoke** (Playwright), cada um com uma breve explicação do que cobre, agrupados por arquivo/describe e por fase/marco. Inclui como rodar (suíte, arquivo único, caso único, smokes), uma tabela-resumo por arquivo e a filosofia de cobertura (caminho feliz + infeliz + invariantes de segurança). Linkado a partir do README
+
+### Alterado
+- **README atualizado para o estado atual (Fase 6 / Modelo B)** — `Funcionalidades` reorganizada por tema (Visualização, Edição, Entrada/saída, Sincronização) refletindo Modelo B, undo/redo, tags de aresta e os 11 tipos da paleta; `Stack` ganhou Vitest e Playwright; `Estrutura do projeto` reescrita conforme os arquivos reais (removidas refs a `JsonInput`/`ExportControls`, adicionados `nodeMeta`, `editFlow`, `pushFlow`, `restoreFlow`, diálogos e os 5 nós novos); `Tipos de nó` expandida para os 13 nós + container de grupo, com as cores corretas dos tipos da Fase 6 (Pedido laranja, CSAT rosa, Loja verde-limão); diagrama de fluxo de dados atualizado para `actionToNodeKind`/grupos/serialize/export/push
+
 ## [0.14.0] - 2026-06-15
 
 ### Adicionado
