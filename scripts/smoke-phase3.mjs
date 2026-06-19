@@ -8,7 +8,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow, exportJson } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5174/FlowViewer/'
 const sample = readFileSync(new URL('../samples/sample01.json', import.meta.url), 'utf-8')
 
 function fail(msg) {
@@ -39,7 +39,7 @@ try {
   const nameInput = page.locator('label:has-text("Nome") input').first()
   await nameInput.fill('editado_pelo_fluxo')
   const firstMsg = page.locator('[data-testid="detail-panel"] textarea').first()
-  await firstMsg.fill('Mensagem editada pelo Fluxo!')
+  await firstMsg.fill('Mensagem editada pelo FlowViewer!')
 
   await page.getByRole('button', { name: 'Aplicar alterações' }).click()
   await page.waitForTimeout(400)
@@ -56,7 +56,7 @@ try {
   if (edited?.name !== 'editado_pelo_fluxo') fail('nome não está no export')
 
   const texts = JSON.stringify(edited)
-  if (!texts.includes('Mensagem editada pelo Fluxo!')) fail('mensagem editada não está no export')
+  if (!texts.includes('Mensagem editada pelo FlowViewer!')) fail('mensagem editada não está no export')
 
   // Demais intenções intactas
   const original = JSON.parse(sample)

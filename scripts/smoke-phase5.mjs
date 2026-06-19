@@ -7,7 +7,7 @@
 import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5174/FlowViewer/'
 const BOT_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 
 function fail(msg) {

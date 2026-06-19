@@ -11,7 +11,7 @@
  */
 import { chromium } from 'playwright'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5174/FlowViewer/'
 const BOT_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 const TAIL = BOT_ID.slice(-6)
 const TOKEN = 'r:SMOKE_SECRET_TOKEN_NAO_DEVE_VAZAR'

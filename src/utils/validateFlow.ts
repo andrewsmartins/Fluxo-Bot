@@ -10,7 +10,7 @@ export interface ValidationReport {
 // Por que ref interna quebrada é ERRO (e não aviso): a API aceita silenciosamente
 // um `next.intent` apontando para um ID inexistente (HTTP 200), mas a tela da Omni
 // marca o campo "Próximo Fluxo" como erro a preencher e o simulador cai no Start.
-// Como o servidor não barra lixo, o Fluxo precisa barrar antes do push.
+// Como o servidor não barra lixo, o FlowViewer precisa barrar antes do push.
 // Validado na Etapa 2 da Fase 4 — ver docs/fase4-resultados.md (2026-06-15).
 
 function getRefIds(json: BotFlowJson): { id: string; botId: string; from: string }[] {

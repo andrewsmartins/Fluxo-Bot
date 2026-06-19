@@ -13,7 +13,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5173/FlowViewer/'
 const sample = readFileSync(new URL('../samples/sample01-v2.json', import.meta.url), 'utf-8')
 const MESSAGE_NODE = '56de7e03-b998-4bad-972f-a4d829b2715c' // nó solo com mensagem TEXT (aguardar_atendente)
 const token = process.env.OMNI_TOKEN

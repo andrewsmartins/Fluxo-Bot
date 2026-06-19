@@ -1,4 +1,4 @@
-# PLANS.md — Fluxo: de visualizador a editor de fluxos OmniChat
+# PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 > Última atualização: 2026-06-18 (Fase 11 — Repaginação visual "cara de Omni" PLANEJADA; ver seção "Fase 11" no fim). Este arquivo orienta sessões futuras do Claude Code.
 > **Fase 7 (Duplicação de nós)** concluída e **Fase 8 (Painel de edição alinhado à plataforma)** em andamento — ambas na branch `feat/duplicate-nodes`, ainda não mergeadas. Ver as seções "Fase 7" e "Fase 8" abaixo. package.json em 0.15.0.
@@ -39,13 +39,13 @@
 
 ## Contexto
 
-O Fluxo hoje é um **visualizador read-only**: importa o JSON de intenções de um bot
+O FlowViewer hoje é um **visualizador read-only**: importa o JSON de intenções de um bot
 OmniChat, parseia em `src/utils/parseFlow.ts` e renderiza com `@xyflow/react` (React
 Flow 12) + layout automático via Dagre. A plataforma OmniChat **não tem editor visual
 nem importador/exportador de arquivo** — só uma tela Angular que edita intenção por
 intenção.
 
-Objetivo do projeto: evoluir o Fluxo para um **editor visual** (criar nós, conectar,
+Objetivo do projeto: evoluir o FlowViewer para um **editor visual** (criar nós, conectar,
 editar conteúdo) capaz de gerar JSON válido e, opcionalmente, enviar direto para a
 plataforma via API.
 
@@ -209,7 +209,7 @@ Implementação efetiva:
 > remapeamento de IDs em 2 passadas (POST com ID novo é ignorado pelo servidor
 > — ver docs/fase4-resultados.md). Validado: cadeia íntegra no servidor, tela
 > da Omni abre/salva as intenções, simulador percorre o fluxo, publicado
-> intocado. Decisão pendente: Fase 4b (mesmo push pela UI do Fluxo — CORS
+> intocado. Decisão pendente: Fase 4b (mesmo push pela UI do FlowViewer — CORS
 > permite) ou manter só CLI.
 >
 > **Fechamento do protocolo (2026-06-15):** caminhos infelizes da Etapa 2 e
@@ -219,9 +219,9 @@ Implementação efetiva:
 > consistência eventual (rollback agora reverifica em laço). **Pré-requisito da
 > Fase 4b:** promover "ref interna quebrada" de aviso para ERRO bloqueante em
 > `src/utils/validateFlow.ts` (a plataforma a trata como erro a preencher), já
-> que o Fluxo precisa validar antes do push — o servidor não barra lixo.
+> que o FlowViewer precisa validar antes do push — o servidor não barra lixo.
 
-#### Fase 4b — Push pela UI do Fluxo (PLANO — pronto para implementar)
+#### Fase 4b — Push pela UI do FlowViewer (PLANO — pronto para implementar)
 
 > Desenho aprovado pelo Andy em 2026-06-15. Pré-condições satisfeitas: CORS
 > aberto (`*`, sonda da Etapa 0) e Fase 4a validada ponta a ponta. Pré-requisito
@@ -372,7 +372,7 @@ Decisões do redesenho seguro:
   Motivos: CORS pode bloquear o navegador (a API atende `app.omni.chat`;
   sonda confirma), e um script com flags explícitas (`--only <id>`,
   `--dry-run`) é mais auditável que um botão.
-- **Fase 4b (UI no Fluxo) só se**: CORS permitir E a 4a se provar estável.
+- **Fase 4b (UI no FlowViewer) só se**: CORS permitir E a 4a se provar estável.
   Guardrails da UI: token em memória (nunca localStorage), digitar os últimos
   caracteres do botId para confirmar, checkbox de bot de testes, backup
   automático (GET) antes do primeiro POST, relatório por intenção com botão
@@ -380,7 +380,7 @@ Decisões do redesenho seguro:
 - **Backup-first sempre**: nenhuma escrita sem GET prévio salvo em samples/.
 - **Push sequencial com stop-on-first-error** e relatório do que entrou.
 - **CONFIRMADO pelo Andy (2026-06-12): salvar via API altera só o RASCUNHO.**
-  A publicação é um botão manual na plataforma e fica FORA do escopo do Fluxo
+  A publicação é um botão manual na plataforma e fica FORA do escopo do FlowViewer
   (decisão: não implementar `POST /publish`). Risco de afetar canal ao vivo
   durante push é estruturalmente baixo.
 - Riscos mapeados: push no bot errado (mitigado por confirmação explícita do
@@ -411,7 +411,7 @@ morto. O JSON deixa de ser visível — vira só entrada (modal) e saída (expor
 
 #### 5a — Toolbar + canvas cheio + modal de importação
 - **TopBar** (`src/components/TopBar.tsx`), barra fina no topo:
-  título "Fluxo" + versão + badge Beta; botões **Novo fluxo**, **Importar**,
+  título "FlowViewer" + versão + badge Beta; botões **Novo fluxo**, **Importar**,
   **Exportar ▾** (dropdown JSON/PNG/SVG — sai do canvas); indicador de
   validação (✓ verde / ⚠ N avisos / ✖ N erros, clicável → lista); link
   Documentação; ThemeToggle.
@@ -965,7 +965,7 @@ que itens; round-trip contra a amostra (10 itens / 2 choices); arestas batem com
 
 ## Fase 11 — Repaginação visual ("cara de Omni") — PLANO (aprovado p/ planejar 2026-06-18)
 
-> Objetivo: aproximar o visual do Fluxo do **construtor de campanhas da OmniChat**,
+> Objetivo: aproximar o visual do FlowViewer do **construtor de campanhas da OmniChat**,
 > a partir de uma print do produto real (analisada com o Andy em 2026-06-18).
 > **Escopo escolhido pelo Andy: COMPLETO (A+B+C+D, incluindo o rail lateral).**
 > **Direção do fluxo: MANTER vertical (cima→baixo).** Virar horizontal (L→R, como a
@@ -984,7 +984,7 @@ que itens; round-trip contra a amostra (10 itens / 2 choices); arestas batem com
 > iniciais**, ajustáveis na 1ª comparação visual lado a lado. A coluna **Tailwind** é o que
 > de fato usaremos no código (o projeto é todo classe Tailwind); o hex é só a referência.
 
-| Papel | Hex (est.) | Tailwind mais próximo | Onde aparece na Omni | Uso no Fluxo |
+| Papel | Hex (est.) | Tailwind mais próximo | Onde aparece na Omni | Uso no FlowViewer |
 |---|---|---|---|---|
 | **Âmbar (primária/marca)** | `~#F5A623` | entre `amber-400 #FBBF24` e `amber-500 #F59E0B` → **token custom `omni-amber`** | nav ativa, aba ativa, botão primário, barra "Enviadas" | trocar a primária atual `blue-500` (ex.: botão "Importar JSON" em `App.tsx:836`) |
 | **Violeta/Índigo (seleção)** | `~#6D28D9` | `violet-700 #6D28D9` | **borda do nó selecionado**, barra "Cliques" | borda de **seleção** do nó (hoje não há destaque de seleção dedicado) |

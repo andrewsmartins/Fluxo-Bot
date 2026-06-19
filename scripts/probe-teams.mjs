@@ -45,7 +45,7 @@ function sessionHeaders() {
   }
 }
 
-/** Preflight OPTIONS como o navegador faria a partir do Fluxo. */
+/** Preflight OPTIONS como o navegador faria a partir do FlowViewer. */
 async function checkCors(url) {
   console.log(`\nCORS (preflight OPTIONS) em ${url.replace(API, '…')}`)
   for (const origin of ORIGINS_TO_TEST) {

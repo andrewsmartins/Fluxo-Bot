@@ -1,4 +1,4 @@
-# Guia de uso — Fluxo Bot
+# Guia de uso — FlowViewer
 
 Guia do editor visual de fluxos de chatbot OmniChat. Atualizado para a **v0.14.0 (Fase 6 — Modelo B)**.
 
@@ -139,7 +139,7 @@ O **indicador na toolbar** recalcula a cada edição:
 | ⚠ | Avisos (fluxo sem start, botões dessincronizados das escolhas) — não bloqueiam |
 | ✕ | Erros (IDs duplicados, intenção sem nome/condições, **referência interna quebrada**) — **bloqueiam o export e o envio** |
 
-Clique no indicador para ver a lista completa. Uma referência `next` apontando para um ID inexistente é **erro bloqueante**: a plataforma a aceita silenciosamente, mas trata como erro a preencher e o simulador cai no Start — então o Fluxo barra antes do envio.
+Clique no indicador para ver a lista completa. Uma referência `next` apontando para um ID inexistente é **erro bloqueante**: a plataforma a aceita silenciosamente, mas trata como erro a preencher e o simulador cai no Start — então o FlowViewer barra antes do envio.
 
 ---
 

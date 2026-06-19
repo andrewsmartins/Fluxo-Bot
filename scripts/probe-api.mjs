@@ -1,7 +1,7 @@
 /**
  * Sonda READ-ONLY da API da OmniChat — passo 0 da Fase 4.
  * Não faz nenhuma escrita. Três verificações:
- *   1. CORS: a API aceitaria chamadas do navegador a partir do Fluxo?
+ *   1. CORS: a API aceitaria chamadas do navegador a partir do FlowViewer?
  *   2. Autenticação: o token de sessão funciona num GET?
  *   3. Backup: salva o estado atual do bot em samples/ (fora do git).
  *
@@ -32,7 +32,7 @@ if (!token) {
 
 const url = `${API}/v1/${botId}/intents?fullObject=true`
 
-// ── 1. CORS: preflight como o navegador faria a partir do Fluxo ─────────────
+// ── 1. CORS: preflight como o navegador faria a partir do FlowViewer ─────────────
 console.log('1) Verificando CORS (preflight OPTIONS)…')
 for (const origin of ORIGINS_TO_TEST) {
   try {

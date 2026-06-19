@@ -73,7 +73,7 @@ export function Sidebar(props: SidebarProps) {
   return (
     <nav className="flex flex-col items-center gap-1 w-14 shrink-0 py-3 bg-zinc-950 rounded-r-2xl shadow-lg shadow-black/40 z-20">
       {/* Identidade */}
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-400 text-zinc-900 mb-1" title="Fluxo" aria-hidden>
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-400 text-zinc-900 mb-1" title="FlowViewer" aria-hidden>
         <FlowMark />
       </div>
 
@@ -193,7 +193,7 @@ export function Sidebar(props: SidebarProps) {
         </div>
 
         <a
-          href="https://github.com/andrewsmartins/Fluxo-Bot"
+          href="https://github.com/andrewsmartins/FlowViewer"
           target="_blank"
           rel="noopener noreferrer"
           title="Documentação"

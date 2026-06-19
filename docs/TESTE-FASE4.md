@@ -27,7 +27,7 @@ A sonda responde três perguntas que definem o resto da fase:
 
 | Pergunta | Resultado | Consequência |
 |---|---|---|
-| CORS permite navegador? | `NAVEGADOR OK` | Push pode ir para a UI do Fluxo (Fase 4b) |
+| CORS permite navegador? | `NAVEGADOR OK` | Push pode ir para a UI do FlowViewer (Fase 4b) |
 | | `BLOQUEADO` | Push será **só via script CLI** (Fase 4a) — sem mudança de plano, o CLI já é o começo |
 | Token autentica? | `status 200` | Seguimos |
 | Backup salvo? | arquivo em `samples/` | É o nosso ponto de restauração |
@@ -36,7 +36,7 @@ A sonda responde três perguntas que definem o resto da fase:
 
 Com o script de push (a ser construído após a Etapa 0 — `scripts/push-flow.mjs`):
 
-1. No Fluxo: **Novo fluxo** com o botId de testes → crie **um** nó Mensagem,
+1. No FlowViewer: **Novo fluxo** com o botId de testes → crie **um** nó Mensagem,
    edite o texto → **Exportar JSON**.
 2. Push de **uma única intenção** (o script aceita `--only <intentId>`).
 3. Verificação na plataforma (é ela quem valida de verdade o schema):
@@ -65,7 +65,7 @@ Testar os erros de propósito para conhecer as respostas da API:
 1. Push de um fluxo de ~5 nós (start + escolha com botões + transferência).
 2. ~~Pergunta-chave~~ **Confirmado (2026-06-12)**: o push altera só o
    *rascunho*; publicar é um botão manual na plataforma e está fora do escopo
-   do Fluxo. Sanity check nesta etapa: confirmar visualmente que o rascunho
+   do FlowViewer. Sanity check nesta etapa: confirmar visualmente que o rascunho
    mudou e o publicado não.
 3. Teste de restauração: a tela de versões da Omni permite voltar ao estado
    do backup? Se sim, é nosso plano B oficial de rollback.

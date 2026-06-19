@@ -9,7 +9,7 @@
 import { chromium } from 'playwright'
 import { loadFlow } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5173/FlowViewer/'
 const BOT = '2a3859ff-62d5-4c01-ae60-6ae2f812e786'
 
 function cond(type = 'none') {

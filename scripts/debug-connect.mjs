@@ -3,7 +3,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5174/FlowViewer/'
 const sample = readFileSync(new URL('../samples/sample01.json', import.meta.url), 'utf-8')
 
 const browser = await chromium.launch()

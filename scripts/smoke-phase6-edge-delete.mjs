@@ -9,7 +9,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow, exportJson } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5173/FlowViewer/'
 const sample = readFileSync(new URL('../samples/sample01.json', import.meta.url), 'utf-8')
 
 function fail(msg) {

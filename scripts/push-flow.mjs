@@ -1,6 +1,6 @@
 /**
  * Push de fluxo para a OmniChat — Fase 4a (CLI).
- * Envia intenções de um fluxo.json exportado pelo Fluxo para o RASCUNHO do
+ * Envia intenções de um fluxo.json exportado pelo FlowViewer para o RASCUNHO do
  * bot. A publicação continua manual na plataforma.
  *
  * Comportamento da API descoberto na Etapa 1 (2026-06-12):

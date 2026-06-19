@@ -1,6 +1,6 @@
 /**
  * Etapa 1 do protocolo da Fase 4: monta o fluxo de teste usando o PRÓPRIO
- * Fluxo (novo fluxo com o botId de testes → nó de mensagem → texto via
+ * FlowViewer (novo fluxo com o botId de testes → nó de mensagem → texto via
  * painel → export) e salva o JSON em samples/etapa1-fluxo.json.
  * Não toca a API — só gera o arquivo para o push-flow.mjs.
  *
@@ -11,7 +11,7 @@ import { readFileSync, copyFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const botId = process.argv[2]
-const baseUrl = process.argv[3] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[3] ?? 'http://localhost:5174/FlowViewer/'
 if (!botId) { console.error('Uso: node scripts/etapa1-build-flow.mjs <botId>'); process.exit(1) }
 
 const browser = await chromium.launch()
@@ -45,7 +45,7 @@ try {
   await page.waitForSelector('text=Aplicar alterações')
   await page.getByRole('button', { name: '+ Adicionar Resposta' }).click()
   await page.getByRole('button', { name: 'Texto' }).click()
-  await page.getByPlaceholder('Texto da mensagem…').fill('Olá! Esta é uma mensagem de teste enviada pelo Fluxo (Etapa 1 da Fase 4). 🤖')
+  await page.getByPlaceholder('Texto da mensagem…').fill('Olá! Esta é uma mensagem de teste enviada pelo FlowViewer (Etapa 1 da Fase 4). 🤖')
   await page.getByRole('button', { name: 'Aplicar alterações' }).click()
   await page.waitForTimeout(300)
   await page.getByLabel('Fechar', { exact: true }).click()

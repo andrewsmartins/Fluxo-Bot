@@ -10,7 +10,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5173/FlowViewer/'
 const sample = readFileSync(new URL('../samples/sample01-v2.json', import.meta.url), 'utf-8')
 const CONFIRMAR_NOME = '0138d0b0-74c8-432d-b33a-5553456c2195' // grupo, 2 condições
 

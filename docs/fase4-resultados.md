@@ -11,7 +11,7 @@ Bot de testes: `2a3859ff-62d5-4c01-ae60-6ae2f812e786` (sandbox, sem canais de cl
 | GET autenticado | HTTP 200, 1 intenção (só o start) |
 | Backup | salvo em `samples/` |
 
-**Consequência:** CORS é aberto (`*`), então a Fase 4b (push pela UI do Fluxo)
+**Consequência:** CORS é aberto (`*`), então a Fase 4b (push pela UI do FlowViewer)
 é tecnicamente viável no futuro. Por ora seguimos com o CLI (`push-flow.mjs`).
 
 ## Etapa 1 — Push de uma intenção (2026-06-12)
@@ -48,7 +48,7 @@ antes de escrever). Resultado da API + validação manual na tela da Omni:
 | **Ref `next` quebrada** (UUID inexistente) | HTTP 200 — **aceita e armazena** a ref fantasma (confirmado via GET) | Formulário abre; o campo **"Próximo Fluxo" sinaliza erro e fica vazio, exigindo preenchimento**. No simulador, a intenção envia a mensagem e **volta ao Start** (fallback padrão do sistema) |
 
 **Conclusão para a Fase 4b:** a API aceita payloads inválidos silenciosamente
-(sem `conditions`, refs quebradas). Logo o **Fluxo precisa ser o validador antes
+(sem `conditions`, refs quebradas). Logo o **FlowViewer precisa ser o validador antes
 do push** — não dá para confiar no servidor para barrar. Reforça a decisão de
 bloquear o push na UI quando `validateFlow` acusar **erros** (ID duplicado, sem
 nome, sem condições). Ref interna quebrada hoje é só *aviso* no `validateFlow`;
@@ -66,7 +66,7 @@ erro bloqueante** antes de habilitar o push pela UI.
 ## Confirmado sobre rascunho vs. publicação
 
 Push altera somente o **rascunho** (confirmado pelo Andy + comportamento
-observado). Publicar é botão manual na plataforma — fora do escopo do Fluxo.
+observado). Publicar é botão manual na plataforma — fora do escopo do FlowViewer.
 
 ## Validação manual na tela da Omni — APROVADA (2026-06-12)
 
@@ -117,7 +117,7 @@ push pela UI (Fase 4b), já que a plataforma a trata como erro.
 
 ## Fase 4b — Push e restore pela UI (validados na plataforma real, 2026-06-15)
 
-A Fase 4b levou o push (e depois o restore) do CLI para a UI do Fluxo. Núcleo em
+A Fase 4b levou o push (e depois o restore) do CLI para a UI do FlowViewer. Núcleo em
 `src/utils/pushFlow.ts` e `src/utils/restoreFlow.ts` (funções puras com `fetch`
 injetável), diálogos `PushDialog`/`RestoreDialog` e botões Enviar/Restaurar na
 TopBar. Cobertura automatizada: 100 testes Vitest + 2 smokes Playwright
@@ -126,7 +126,7 @@ TopBar. Cobertura automatizada: 100 testes Vitest + 2 smokes Playwright
 
 ### Push pela UI — APROVADO
 
-Andy validou na plataforma real: importou um fluxo no Fluxo e enviou pelo botão
+Andy validou na plataforma real: importou um fluxo no FlowViewer e enviou pelo botão
 **Enviar** (token em memória, confirmação dos últimos 6 do botId, trava de bot de
 testes, dry-run, backup baixado antes do 1º POST). A importação no bot ocorreu
 perfeitamente e o fluxo funcionou no simulador da Omni — mesmo resultado do CLI.

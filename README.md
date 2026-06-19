@@ -1,4 +1,4 @@
-# Fluxo Bot
+# FlowViewer
 
 Editor visual de fluxos de chatbot OmniChat. Importe o JSON do bot (ou crie um fluxo do zero a partir do botId), edite nós, conexões e conteúdo no canvas, e exporte de volta no formato aceito pela plataforma.
 

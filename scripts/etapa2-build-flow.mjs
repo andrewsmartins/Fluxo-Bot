@@ -10,7 +10,7 @@ import { readFileSync, copyFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const botId = process.argv[2]
-const baseUrl = process.argv[3] ?? 'http://localhost:5174/Fluxo-Bot/'
+const baseUrl = process.argv[3] ?? 'http://localhost:5174/FlowViewer/'
 if (!botId) { console.error('Uso: node scripts/etapa2-build-flow.mjs <botId>'); process.exit(1) }
 
 async function dropNode(page, kind, fx, fy) {

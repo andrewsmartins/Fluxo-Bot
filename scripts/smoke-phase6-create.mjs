@@ -16,7 +16,7 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { loadFlow, exportJson, readToast } from './lib/loadFlow.mjs'
 
-const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
+const baseUrl = process.argv[2] ?? 'http://localhost:5173/FlowViewer/'
 // sample01-v2 tem intenções multi-condição → grupos (exercita o fix de export).
 const sample = readFileSync(new URL('../samples/sample01-v2.json', import.meta.url), 'utf-8')
 

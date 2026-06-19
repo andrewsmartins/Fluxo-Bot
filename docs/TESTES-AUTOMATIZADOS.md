@@ -1,6 +1,6 @@
 # Testes automatizados
 
-Documentação da suíte de testes do Fluxo Bot: **251 testes unitários** (Vitest, 12 arquivos) e **15 scripts de smoke** (Playwright, browser real).
+Documentação da suíte de testes do FlowViewer: **251 testes unitários** (Vitest, 12 arquivos) e **15 scripts de smoke** (Playwright, browser real).
 
 - **Unitários** (`npm test`) — rápidos, sem rede e sem browser; rodam sobre os módulos puros de `src/utils/`. São a rede de segurança do dia a dia.
 - **Smokes** (`node scripts/smoke-*.mjs`) — exercitam o app inteiro num browser headless contra o dev server. Os que tocam a plataforma usam um **`fetch` falso** (nunca a API real). São a prova de que a feature funciona ponta a ponta na UI.
@@ -21,7 +21,7 @@ npx vitest run -t "agrupamento"
 
 # Smoke (precisa do dev server rodando: npm run dev)
 node scripts/smoke-phase6.mjs            # usa a URL padrão
-node scripts/smoke-phase6.mjs http://localhost:5173/Fluxo-Bot/
+node scripts/smoke-phase6.mjs http://localhost:5173/FlowViewer/
 ```
 
 Os smokes que falam com a plataforma (`smoke-phase4b*`) interceptam `window.fetch` via `addInitScript` e respondem com um servidor falso — **não tocam a API real** e não precisam de token.
