@@ -16,9 +16,10 @@
 import type { FetchLike } from './pushFlow'
 
 const API = 'https://k0yowczqxg.execute-api.us-east-1.amazonaws.com/prod'
-const PARSE = 'https://api-private2.omni.chat/parse'
+/** Base do Parse — reusada pelo `collections.ts` (mesma loja, mesmo app). */
+export const PARSE = 'https://api-private2.omni.chat/parse'
 // ID público do app Parse (visível a qualquer navegador na plataforma — não é segredo).
-const APP_ID = 'UCeS99itvZg1tsea2OSoyKvpLbKddhoVAPotIQOy'
+export const APP_ID = 'UCeS99itvZg1tsea2OSoyKvpLbKddhoVAPotIQOy'
 
 /** Time da loja — só os campos que a variável `@team.{id}` precisa. */
 export interface Team {
@@ -29,13 +30,13 @@ export interface Team {
 }
 
 /** Dependências comuns dos fetchs (token de sessão + fetch injetável). */
-interface Deps {
+export interface Deps {
   fetch: FetchLike
   token: string
 }
 
 /** Headers de sessão — iguais aos do push (Bearer + session-token + app-id). */
-function sessionHeaders(token: string): Record<string, string> {
+export function sessionHeaders(token: string): Record<string, string> {
   return {
     accept: 'application/json',
     authorization: `Bearer ${token}`,

@@ -18,6 +18,7 @@ import { CsatNode }        from './nodes/CsatNode'
 import { StoreNode }       from './nodes/StoreNode'
 import { IntentGroupNode } from './nodes/IntentGroupNode'
 import { DeletableEdge, EdgeActionsContext } from './edges/DeletableEdge'
+import { nodeColor } from '../utils/nodeVisual'
 import type { FlowNodeData } from '../types'
 
 const nodeTypes = {
@@ -39,23 +40,6 @@ const nodeTypes = {
 
 const edgeTypes = {
   deletable: DeletableEdge,
-}
-
-const NODE_COLORS: Record<string, string> = {
-  startNode:       '#10b981',
-  choiceNode:      '#3b82f6',
-  captureNode:     '#8b5cf6',
-  transferNode:    '#f43f5e',
-  waitNode:        '#06b6d4',
-  setDataNode:     '#6366f1',
-  externalBotNode: '#f59e0b',
-  defaultNode:     '#64748b',
-  endNode:         '#dc2626',
-  apiCallNode:     '#0d9488',
-  orderNode:       '#ea580c',
-  csatNode:        '#db2777',
-  storeNode:       '#65a30d',
-  intentGroupNode: '#cbd5e1',
 }
 
 function MiniMapNodeRect({ x, y, width, height, color }: MiniMapNodeProps) {
@@ -207,10 +191,15 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
       maxZoom={2}
       proOptions={{ hideAttribution: true }}
     >
-      <Background gap={20} color={isDark ? '#1e293b' : '#e2e8f0'} />
-      <Controls />
+      <Background
+        gap={22}
+        size={2}
+        bgColor={isDark ? '#020617' : '#ffffff'}
+        color={isDark ? '#334155' : '#b6bfcc'}
+      />
+      <Controls position="bottom-center" showInteractive={false} />
       <MiniMap
-        nodeColor={node => NODE_COLORS[node.type ?? 'defaultNode'] ?? '#64748b'}
+        nodeColor={node => nodeColor(node.type)}
         maskColor={isDark ? 'rgba(15,23,42,0.75)' : 'rgba(248,250,252,0.7)'}
         nodeComponent={MiniMapNodeRect}
       />

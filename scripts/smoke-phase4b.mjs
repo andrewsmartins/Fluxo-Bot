@@ -44,12 +44,12 @@ try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
   // 1. Fluxo novo do zero (start válido, sem erros → botão Enviar habilitado)
-  await page.locator('header').getByRole('button', { name: 'Novo fluxo' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Novo fluxo' }).click()
   await page.getByPlaceholder('8df3c1e7-a8c9-4bad-ac5a-2855462da840').fill(BOT_ID)
   await page.getByRole('button', { name: 'Criar fluxo' }).click()
   await page.waitForSelector('.react-flow__node')
 
-  const topPush = page.locator('header').getByRole('button', { name: 'Enviar' })
+  const topPush = page.locator('nav').getByRole('button', { name: 'Enviar' })
   if (await topPush.isDisabled()) fail('botão Enviar deveria habilitar com fluxo válido')
 
   // 2. Abre o diálogo

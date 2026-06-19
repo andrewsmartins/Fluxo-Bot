@@ -90,6 +90,12 @@ export interface BotMessage {
   content?: string | null
   fileName?: string
   messageConfig?: ButtonMessageConfig
+  /**
+   * Referência da coleção/catálogo da resposta `COLLECTION` (Adicionar resposta →
+   * Coleção). É o `objectId` da classe Parse `Collection`. A plataforma grava o
+   * id AQUI (não em `content`) e manda `fileName: ""` junto.
+   */
+  collectionId?: string
 }
 
 export interface ButtonMessageConfig {

@@ -15,7 +15,7 @@ import { loadFlow } from './lib/loadFlow.mjs'
 
 const baseUrl = process.argv[2] ?? 'http://localhost:5173/Fluxo-Bot/'
 const sample = readFileSync(new URL('../samples/sample01-v2.json', import.meta.url), 'utf-8')
-const CHOICE_NODE = '28616bc1-1df5-48b9-b88e-1c800f1c5953' // nó com mensagem (choice)
+const MESSAGE_NODE = '56de7e03-b998-4bad-972f-a4d829b2715c' // nó solo com mensagem TEXT (aguardar_atendente)
 const token = process.env.OMNI_TOKEN
 
 let failed = false
@@ -34,17 +34,17 @@ try {
   await loadFlow(page, baseUrl, sample)
 
   // ── Token GLOBAL na barra ──────────────────────────────────────────────────
-  await page.locator('header').getByRole('button', { name: 'Token' }).click()
-  await page.locator('header input[type="password"]').fill(token)
-  if (!(await page.locator('header input[type="password"]').inputValue())) fail('token não preencheu')
+  await page.locator('nav').getByRole('button', { name: 'Token' }).click()
+  await page.locator('nav input[type="password"]').fill(token)
+  if (!(await page.locator('nav input[type="password"]').inputValue())) fail('token não preencheu')
   // Fecha o popover clicando fora
   await page.locator('.react-flow__pane').click({ position: { x: 900, y: 700 } })
   await page.waitForTimeout(150)
 
   // ── Abre o painel do nó e o picker numa mensagem ────────────────────────────
-  await page.locator(`.react-flow__node[data-id="${CHOICE_NODE}"]`).click()
+  await page.locator(`.react-flow__node[data-id="${MESSAGE_NODE}"]`).click()
   await page.waitForTimeout(250)
-  const ta = page.locator('.absolute.right-0 textarea').first()
+  const ta = page.locator('[data-testid="detail-panel"] textarea').first()
   if (await ta.count() === 0) fail('nó não expôs textarea de mensagem')
   await ta.focus()
   await ta.type('@')

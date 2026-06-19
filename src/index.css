@@ -9,6 +9,52 @@ body { margin: 0; }
   pointer-events: none;
 }
 
+/* Controles de zoom estilo "cara de Omni" (Fase 11C): pill branco flutuante,
+   horizontal, no rodapé central — em vez da pilha vertical padrão do React Flow.
+   O tema escuro usa `.dark` (classe no <html>, controlada pelo ThemeContext). */
+/* `.react-flow__panel.react-flow__controls` (2 classes) supera o estilo padrão do
+   React Flow (`.react-flow__controls`, 1 classe) sem depender da ordem de import. */
+.react-flow__panel.react-flow__controls {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.10);
+}
+.react-flow__controls .react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #475569;
+  transition: background-color 0.15s, color 0.15s;
+}
+.react-flow__controls .react-flow__controls-button:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.react-flow__controls .react-flow__controls-button svg {
+  fill: currentColor;
+  max-width: 14px;
+  max-height: 14px;
+}
+.dark .react-flow__panel.react-flow__controls {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.40);
+}
+.dark .react-flow__controls .react-flow__controls-button {
+  color: #cbd5e1;
+}
+.dark .react-flow__controls .react-flow__controls-button:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
 /* Handles maiores para facilitar mirar ao reconectar arestas */
 .react-flow__handle {
   width: 10px;
@@ -43,7 +89,7 @@ body { margin: 0; }
   content: '';
   position: absolute;
   inset: -3px;
-  border-radius: 12px;
+  border-radius: 16px;
   pointer-events: none;
   z-index: 5;
   background-image:

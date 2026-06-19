@@ -7,7 +7,7 @@ import {
   updateButton, updateIntentMeta, updateActionFields, updateSetDataItems,
   addCondition, sanitizeIntentName, collectCategories, updateCondition,
   addButtonListMessage, addChoice, removeChoice, setChoiceDestination, setChoices,
-  replaceButtonListMessage,
+  replaceButtonListMessage, addCollectionMessage, updateCollectionMessage,
 } from './editIntent'
 import { validateFlow } from './validateFlow'
 import { createIntentTemplate } from './intentTemplates'
@@ -70,6 +70,52 @@ describe('addTextMessage / removeMessage', () => {
     const btnMsg = listMessages(intent).find(m => m.type === 'BUTTON' || m.type === 'LIST')!
     const result = removeMessage(intent, btnMsg.ref)
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('addCollectionMessage', () => {
+  it('serializa COLLECTION com collectionId + fileName vazio e expõe o id no listMessages', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    expect(addCollectionMessage(intent, 'g5hRHfEmuWp3')).toEqual({ ok: true })
+    const raw = intent.conditions[0].assistant_says[0].messages[0]
+    expect(raw).toEqual({ type: 'COLLECTION', fileName: '', collectionId: 'g5hRHfEmuWp3' })
+    const msg = listMessages(intent).find(m => m.type === 'COLLECTION')!
+    expect(msg.collectionId).toBe('g5hRHfEmuWp3')
+  })
+
+  it('rejeita collectionId vazio (não cria mensagem)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    expect(addCollectionMessage(intent, '   ').ok).toBe(false)
+    expect(listMessages(intent).filter(m => m.type === 'COLLECTION')).toHaveLength(0)
+  })
+
+  it('permite remover uma resposta COLLECTION (não é botão/lista)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addCollectionMessage(intent, 'abc123')
+    const msg = listMessages(intent).find(m => m.type === 'COLLECTION')!
+    expect(removeMessage(intent, msg.ref)).toEqual({ ok: true })
+    expect(listMessages(intent).filter(m => m.type === 'COLLECTION')).toHaveLength(0)
+  })
+})
+
+describe('updateCollectionMessage', () => {
+  it('troca o collectionId de uma coleção salva preservando fileName', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addCollectionMessage(intent, 'antigo')
+    const msg = listMessages(intent).find(m => m.type === 'COLLECTION')!
+    expect(updateCollectionMessage(intent, msg.ref, 'novo')).toEqual({ ok: true })
+    const raw = intent.conditions[0].assistant_says[0].messages[0]
+    expect(raw).toEqual({ type: 'COLLECTION', fileName: '', collectionId: 'novo' })
+  })
+
+  it('rejeita id vazio e mensagem que não é coleção', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addCollectionMessage(intent, 'abc')
+    const collRef = listMessages(intent).find(m => m.type === 'COLLECTION')!.ref
+    expect(updateCollectionMessage(intent, collRef, '  ').ok).toBe(false)
+    addTextMessage(intent, 'oi')
+    const textRef = listMessages(intent).find(m => m.type === 'TEXT')!.ref
+    expect(updateCollectionMessage(intent, textRef, 'x').ok).toBe(false)
   })
 })
 

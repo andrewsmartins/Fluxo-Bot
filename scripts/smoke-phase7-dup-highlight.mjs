@@ -37,7 +37,7 @@ try {
   // ── (a) Botão "Duplicar intenção" destaca a cópia; clicar limpa ─────────────
   await page.locator(`.react-flow__node[data-id="${soloA.id}"]`).click()
   await page.waitForSelector('[data-testid="detail-panel"]')
-  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar intenção', exact: true }).click()
+  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar Intenção', exact: true }).click()
   await page.waitForTimeout(400)
 
   const highlighted = page.locator('.react-flow__node.fluxo-dup')

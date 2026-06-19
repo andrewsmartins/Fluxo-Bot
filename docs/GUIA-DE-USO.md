@@ -97,6 +97,16 @@ As mudanças ficam num rascunho local até clicar em **Aplicar alterações**.
 
 > O nó de **início** abre o painel em modo **somente-leitura** (mostra nome, condição e destino, sem formulário). A conexão de saída dele continua editável no canvas — é como o fluxo começa.
 
+### Tipos de resposta (+ Adicionar Resposta)
+
+Na seção **Mensagens**, o botão **+ Adicionar Resposta** abre o menu de tipos:
+
+- **Texto** — mensagem de texto (com picker de `@` para variáveis).
+- **Imagem / PDF / Vídeo** — mídia por **Link** (URL) ou **Upload** (envia o arquivo à OmniChat; exige token de sessão).
+- **Coleção** — envia um **catálogo/coleção de produtos** da loja. Abre uma **caixa de busca + lista** das coleções disponíveis (carregadas com o token de sessão, igual à variável `@team`) e, ao lado, um **preview** com a **imagem de capa, o nome e o ID** da coleção. Escolha uma e clique em **Salvar coleção** para recolher num cartão compacto; o botão **editar** reabre a busca para trocar a coleção (inclusive depois de já salva no fluxo). A resposta guarda o `collectionId`; se a lista ainda não foi carregada ao reabrir, o cartão mostra só o ID.
+
+> **Botão/Lista** não fica neste menu — é exclusivo do nó de **Escolha** (seção "Menu").
+
 ### Duplicar nós
 
 Há três formas de duplicar, todas **cópias fiéis** — as conexões de saída (`next`, escolhas, `error.next`, contexto) são preservadas, e os **IDs dos botões são regenerados** para não colidir. O nó de **início nunca é duplicado**.

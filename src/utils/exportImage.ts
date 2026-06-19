@@ -28,7 +28,7 @@ function triggerDownload(dataUrl: string, format: 'png' | 'svg'): void {
 /**
  * Captura o viewport do React Flow e baixa como PNG/SVG, com dimensões
  * calculadas pelos bounds reais dos nós (2× para nitidez, cap de 8000 px).
- * Movido do antigo ExportControls — agora é disparado pela TopBar.
+ * Movido do antigo ExportControls — agora é disparado pelo rail lateral (Sidebar).
  */
 export async function exportFlowImage(nodes: Node[], format: 'png' | 'svg'): Promise<void> {
   if (!nodes.length) return

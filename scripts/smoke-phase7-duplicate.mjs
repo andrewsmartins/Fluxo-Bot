@@ -47,7 +47,7 @@ try {
   // ── (a) Duplicar dentro da intenção (nó solto → grupo) ──────────────────────
   await page.locator(`.react-flow__node[data-id="${soloA.id}"]`).click()
   await page.waitForSelector('[data-testid="detail-panel"]')
-  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar dentro da intenção' }).click()
+  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar Condição' }).click()
   await page.waitForTimeout(400)
   const afterIn = await exportJson(page)
   if (afterIn.list.length !== before.list.length) fail('(a) duplicar-dentro criou intenção nova')
@@ -58,7 +58,7 @@ try {
   // ── (b) Duplicar fora da intenção (condição-filha → intenção nova) ──────────
   await page.locator(`.react-flow__node[data-id="${soloA.id}::c1"]`).click()
   await page.waitForSelector('[data-testid="detail-panel"]')
-  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar fora da intenção' }).click()
+  await page.locator('[data-testid="detail-panel"]').getByRole('button', { name: 'Duplicar Intenção', exact: true }).click()
   await page.waitForTimeout(400)
   const afterOut = await exportJson(page)
   console.log(`(b) intenções: ${afterIn.list.length} -> ${afterOut.list.length} (esperado +1)`)

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { reconnectEdge, applyEdgeChanges, applyNodeChanges, type Connection, type Node, type Edge, type EdgeChange, type NodeChange, type XYPosition } from '@xyflow/react'
 import { FlowCanvas }    from './components/FlowCanvas'
-import { TopBar, type ExportFormat } from './components/TopBar'
+import { Sidebar, type ExportFormat } from './components/Sidebar'
 import { ImportDialog }  from './components/ImportDialog'
 import { NewFlowDialog } from './components/NewFlowDialog'
 import { PushDialog }    from './components/PushDialog'
@@ -12,6 +12,7 @@ import { ThemeToggle }   from './components/ThemeToggle'
 import { ThemeContext }  from './contexts/ThemeContext'
 import { TeamsContext, type TeamsStatus } from './contexts/TeamsContext'
 import { fetchStoreTeams, type Team } from './utils/teams'
+import { fetchStoreCollections, type Collection } from './utils/collections'
 import { uploadMedia, type UploadMediaType } from './utils/uploadMedia'
 import type { FetchLike } from './utils/pushFlow'
 import { parseFlow, intentToNodeData, buildEdges } from './utils/parseFlow'
@@ -71,6 +72,10 @@ export default function App() {
   const [teams, setTeams]               = useState<Team[]>([])
   const [teamsStatus, setTeamsStatus]   = useState<TeamsStatus>('idle')
   const [teamsError, setTeamsError]     = useState<string | null>(null)
+  // Coleções da loja (resposta COLLECTION) — carregadas sob demanda pelo picker.
+  const [collections, setCollections]             = useState<Collection[]>([])
+  const [collectionsStatus, setCollectionsStatus] = useState<TeamsStatus>('idle')
+  const [collectionsError, setCollectionsError]   = useState<string | null>(null)
   // IDs de nó com destaque "duplicando / recém-duplicado" (borda esmeralda animada).
   // Estado transitório de UI — nunca entra no modelo nem no histórico.
   const [highlightIds, setHighlightIds] = useState<Set<string>>(() => new Set())
@@ -650,11 +655,14 @@ export default function App() {
 
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
-  // Trocar o token (outra conta) invalida os times já carregados.
+  // Trocar o token (outra conta) invalida os times E as coleções já carregados.
   useEffect(() => {
     setTeams([])
     setTeamsStatus('idle')
     setTeamsError(null)
+    setCollections([])
+    setCollectionsStatus('idle')
+    setCollectionsError(null)
   }, [sessionToken])
 
   // Carrega os times da loja sob demanda (picker @team). Usa o token global e o
@@ -690,6 +698,41 @@ export default function App() {
   }, [sessionToken])
 
   const teamsById = useMemo(() => new Map(teams.map(t => [t.objectId, t.name])), [teams])
+
+  // Carrega as coleções da loja sob demanda (picker da resposta COLLECTION). Mesmo
+  // padrão do loadTeams: token global + botId do fluxo, ref anti-concorrência, sem
+  // logar o token. `search` filtra por nome (regex no servidor).
+  const collectionsLoadingRef = useRef(false)
+  const loadCollections = useCallback(async (search?: string) => {
+    if (collectionsLoadingRef.current) return
+    const token = sessionToken.trim()
+    const botId = botIdOf(parsedDataRef.current)
+    if (!token) {
+      setCollectionsStatus('error')
+      setCollectionsError('Defina o token de sessão (botão de chave na barra) para carregar as coleções.')
+      return
+    }
+    if (!botId) {
+      setCollectionsStatus('error')
+      setCollectionsError('Fluxo sem botId — não dá para descobrir a loja.')
+      return
+    }
+    collectionsLoadingRef.current = true
+    setCollectionsStatus('loading')
+    setCollectionsError(null)
+    try {
+      const list = await fetchStoreCollections({ fetch: browserFetch, token, botId, search })
+      setCollections(list)
+      setCollectionsStatus('loaded')
+    } catch (e) {
+      setCollectionsStatus('error')
+      setCollectionsError(e instanceof Error ? e.message : 'Falha ao carregar as coleções.')
+    } finally {
+      collectionsLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  const collectionsById = useMemo(() => new Map(collections.map(c => [c.objectId, c])), [collections])
   const requestToken = useCallback(() => setTokenOpen(true), [])
   const hasToken = !!sessionToken.trim()
   const uploadFile = useCallback(async (file: File, type: UploadMediaType) => {
@@ -698,18 +741,24 @@ export default function App() {
     return uploadMedia(file, type, token)
   }, [sessionToken])
   const teamsValue = useMemo(
-    () => ({ teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken, byId: teamsById, uploadFile }),
-    [teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile],
+    () => ({
+      teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken, byId: teamsById, uploadFile,
+      collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
+    }),
+    [
+      teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile,
+      collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
+    ],
   )
 
   return (
     <ThemeContext.Provider value={isDark}>
     <TeamsContext.Provider value={teamsValue}>
-    <div className={`flex flex-col h-screen transition-colors duration-200 ${isDark ? 'bg-slate-950' : 'bg-slate-100'}`}>
-      <TopBar
+    <div className={`flex h-screen transition-colors duration-200 ${isDark ? 'bg-slate-950' : 'bg-slate-100'}`}>
+      <Sidebar
         version={pkg.version}
-        hasFlow={hasFlow}
         report={report}
+        hasFlow={hasFlow}
         exporting={exporting}
         sessionToken={sessionToken}
         onSessionTokenChange={setSessionToken}
@@ -730,7 +779,7 @@ export default function App() {
         onSpacingDecrease={() => handleSpacingChange(-SPACING_STEP)}
       />
 
-      <main className="flex-1 relative overflow-hidden">
+      <main className="flex-1 relative overflow-hidden min-w-0">
         {hasFlow ? (
           <>
             <FlowCanvas
@@ -784,7 +833,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setImportOpen(true)}
-              className="py-2 px-4 text-xs font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+              className="py-2 px-4 text-xs font-semibold text-slate-900 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors"
             >
               Importar JSON
             </button>

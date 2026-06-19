@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Team } from '../utils/teams'
+import type { Collection } from '../utils/collections'
 import type { UploadMediaType } from '../utils/uploadMedia'
 
 /** Estado do carregamento dos times da loja (variável `@team`). */
@@ -29,6 +30,16 @@ export interface TeamsContextValue {
    * Lança Error se não houver token ou se o upload falhar.
    */
   uploadFile: (file: File, type: UploadMediaType) => Promise<{ content: string; fileName: string }>
+  // ─── Coleções (resposta COLLECTION) — mesmo padrão dos times ──────────────
+  /** Coleções da loja para o picker da resposta "Coleção". */
+  collections: Collection[]
+  collectionsStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `collectionsStatus === 'error'`. */
+  collectionsError: string | null
+  /** Dispara o carregamento das coleções; `search` filtra por nome (regex). */
+  loadCollections: (search?: string) => void
+  /** Mapa collectionId→coleção, para o resumo mostrar nome/imagem do que foi salvo. */
+  collectionsById: ReadonlyMap<string, Collection>
 }
 
 const EMPTY: TeamsContextValue = {
@@ -40,6 +51,11 @@ const EMPTY: TeamsContextValue = {
   requestToken: () => {},
   byId: new Map(),
   uploadFile: () => Promise.reject(new Error('sem token de sessão')),
+  collections: [],
+  collectionsStatus: 'idle',
+  collectionsError: null,
+  loadCollections: () => {},
+  collectionsById: new Map(),
 }
 
 export const TeamsContext = createContext<TeamsContextValue>(EMPTY)

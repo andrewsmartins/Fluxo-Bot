@@ -1,8 +1,9 @@
 # PLANS.md — Fluxo: de visualizador a editor de fluxos OmniChat
 
-> Última atualização: 2026-06-17 (Fase 7 concluída + Fase 8 em andamento, branch `feat/duplicate-nodes`). Este arquivo orienta sessões futuras do Claude Code.
+> Última atualização: 2026-06-18 (Fase 11 — Repaginação visual "cara de Omni" PLANEJADA; ver seção "Fase 11" no fim). Este arquivo orienta sessões futuras do Claude Code.
 > **Fase 7 (Duplicação de nós)** concluída e **Fase 8 (Painel de edição alinhado à plataforma)** em andamento — ambas na branch `feat/duplicate-nodes`, ainda não mergeadas. Ver as seções "Fase 7" e "Fase 8" abaixo. package.json em 0.15.0.
 > **Fase 8 — progresso 2026-06-17:** tipos de mensagem IMAGE/FILE/VIDEO implementados no painel de edição. Botão "+ Adicionar Resposta" com dropdown, editor por tipo (aba Link + aba Upload via API presigned URL OmniChat), renderização de mensagens existentes de mídia (ícone + fileName + remover). Utilitário `uploadMedia.ts` + `uploadFile` no TeamsContext. 251 testes + tsc verdes. **ATENÇÃO:** os campos da resposta presigned URL (`uploadUrl` e `url`) são supostos — validar na primeira testada com upload real e ajustar `uploadMedia.ts:PresignedUrlResponse` se necessário.
+> **Resposta "Coleção" (COLLECTION) — 2026-06-18, branch `feat/collection-response`:** nova opção no "+ Adicionar Resposta" que envia um catálogo de produtos. Serialização confirmada por export real: `{ type: 'COLLECTION', fileName: '', collectionId: '<objectId>' }` (campo `collectionId` novo em `BotMessage`). Service `collections.ts` espelha `teams.ts` (mesmo token de sessão, 2 passos, classe Parse `Collection` filtrada por `retailer` Pointer + `name` regex; `sessionHeaders`/`PARSE`/`APP_ID` agora exportados de `teams.ts`). UI no `DetailPanel`: `CollectionMessageEditor` (busca + lista + preview capa/nome/ID em TAG) e `CollectionSummary`. Contexto/estado de coleções no `TeamsContext`/`App.tsx` (espelha `@team`). 289 testes + tsc + build verdes. **ATENÇÃO:** o nome do campo da imagem de capa no objeto `Collection` ainda não foi validado contra um objeto real — `extractImageUrl` (em `collections.ts`) cobre `image`/`coverImage`/`cover`/`photo`/`thumbnail` (string, `{url}` ou Parse File); ajustar se a plataforma usar outro nome.
 > Status: **Fases 1–5 concluídas, incl. 4a (push CLI) e 4b (push + restore pela
 > UI). v0.13.0, MERGEADO NA `main`.**
 > **MERGE NA MAIN CONCLUÍDO (2026-06-15):** a `feat/visual-editor` (v0.13.0) está
@@ -958,6 +959,176 @@ de times. **Resultado decide a Fase 2.**
 
 **Testes:** `choices` posicional com `''`; `setChoiceDestination` grava o ID certo; menos choices
 que itens; round-trip contra a amostra (10 itens / 2 choices); arestas batem com os índices.
+
+## Fase 11 — Repaginação visual ("cara de Omni") — PLANO (aprovado p/ planejar 2026-06-18)
+
+> Objetivo: aproximar o visual do Fluxo do **construtor de campanhas da OmniChat**,
+> a partir de uma print do produto real (analisada com o Andy em 2026-06-18).
+> **Escopo escolhido pelo Andy: COMPLETO (A+B+C+D, incluindo o rail lateral).**
+> **Direção do fluxo: MANTER vertical (cima→baixo).** Virar horizontal (L→R, como a
+> Omni) exigiria refatorar Dagre (`rankdir`), os handles (Top/Bottom→Left/Right) e
+> todas as arestas — esforço alto e ganho estético baixo: a "cara de Omni" vem ~90%
+> do estilo dos cards e da paleta, não da direção.
+>
+> **Regra de theming (NÃO violar):** este projeto NÃO usa `dark:` do Tailwind — o tema
+> é `ThemeContext` (`isDark: boolean`) + classes condicionais. Toda cor nova entra como
+> par claro/escuro nas classes, igual ao restante. Ver [[feedback-dark-mode-theming]].
+
+### Tokens extraídos da print (hex ESTIMADOS visualmente — sem DevTools; usar como ponto de partida)
+
+> **Aviso:** o Andy só tem a print (sem acesso ao DevTools do produto nesta sessão). Os hex
+> abaixo são a melhor aproximação a olho — a print comprime cor, então tratar como **valores
+> iniciais**, ajustáveis na 1ª comparação visual lado a lado. A coluna **Tailwind** é o que
+> de fato usaremos no código (o projeto é todo classe Tailwind); o hex é só a referência.
+
+| Papel | Hex (est.) | Tailwind mais próximo | Onde aparece na Omni | Uso no Fluxo |
+|---|---|---|---|---|
+| **Âmbar (primária/marca)** | `~#F5A623` | entre `amber-400 #FBBF24` e `amber-500 #F59E0B` → **token custom `omni-amber`** | nav ativa, aba ativa, botão primário, barra "Enviadas" | trocar a primária atual `blue-500` (ex.: botão "Importar JSON" em `App.tsx:836`) |
+| **Violeta/Índigo (seleção)** | `~#6D28D9` | `violet-700 #6D28D9` | **borda do nó selecionado**, barra "Cliques" | borda de **seleção** do nó (hoje não há destaque de seleção dedicado) |
+| Azul | `~#2F7FF6` | `blue-500 #3B82F6` | "Entregues" | acentos secundários |
+| Verde | `~#22C55E` | `green-500 #22C55E` (≈ `emerald-500` já usado) | "Lidas", pill "Ativa" | cor de "novo"/sucesso; manter |
+| Teal/Ciano | `~#17B6C4` | `cyan-500 #06B6D4` | logo, "Comprar agora" | acento |
+| Rosa/Vermelho | `~#F04438` | `red-500 #EF4444` (≈ `rose-500` já usado) | "Falhas", badge "135" | erro; manter |
+| Sidebar (rail) | `~#0F1626` | `slate-900 #0F172A` | rail vertical | fundo do rail (Fase D) |
+| Texto título | `~#1E2433` | `slate-800 #1E293B` | títulos de card/seção | manter família slate |
+| Texto subtítulo | `~#6B7280` | `slate-500 #64748B` | subtítulos/legendas | — |
+| Borda de card | `~#E8EAED` | `slate-200 #E2E8F0` | contorno suave dos cards | bordas |
+| Trilho de barra | `~#EEF0F3` | `slate-100 #F1F5F9` | fundo das barras de progresso | — |
+| Canvas (fundo / pontos) | `~#FCFCFD` / pontos `~#E2E5EA` | branco + pontos `slate-200` | grade pontilhada | `Background` em `FlowCanvas.tsx:210` |
+| Chip lavanda (bg / texto) | `~#EEF0FF` / `~#6366F1` | `indigo-50 #EEF2FF` / `indigo-500 #6366F1` | "Lançamento de coleção", "Clique no site" | chips de tag/categoria no nó |
+
+**Decisão de token (única não-óbvia):** o âmbar da Omni cai **entre** `amber-400` e `amber-500`
+do Tailwind — nenhum bate exato. Para fidelidade, adicionar um **token custom `omni-amber: #F5A623`**
+no `tailwind.config` (em 11A) em vez de torcer um dos dois. As demais cores têm classe Tailwind
+suficientemente próxima — não vale criar token custom pra elas.
+
+**Chips de métrica do card (padrão de cor — pill claro + texto da cor):** âmbar (`amber-50`/`amber-600`),
+azul (`blue-50`/`blue-600`), verde (`green-50`/`green-600`), violeta (`violet-50`/`violet-600`),
+vermelho (`red-50`/`red-600`). No tema escuro, espelhar com o par `*-950`/`*-300` (mesmo padrão já
+usado no badge de captura, `CaptureNode.tsx:40`).
+
+### O que a print muda no nosso visual atual
+
+- **Nós (maior impacto).** Hoje cada nó tem uma **faixa sólida colorida no topo**
+  (`bg-violet-500`, `bg-slate-500`, etc. — ver `DefaultNode.tsx:13`, `CaptureNode.tsx:27`).
+  A Omni NÃO usa faixa: usa **chip-ícone colorido** (quadradinho `rounded-xl`) à esquerda +
+  **título bold** + **subtítulo cinza**, em card branco `rounded-2xl` com sombra suave. É o
+  que mais "denuncia" que não é Omni.
+- **Chips/badges em pill** (`rounded-full`), fundo claro + texto da cor (já fazemos algo
+  parecido no badge de captura — `CaptureNode.tsx:40`; padronizar todos assim).
+- **Seleção = borda violeta 2px + sombra elevada** (hoje só temos esmeralda p/ duplicação
+  e índigo tracejado p/ merge — a seleção em si não tem destaque).
+- **Controles de zoom** como pill branco flutuante (hoje `<Controls>` padrão do React Flow).
+- **Chrome:** header minimalista + (Fase D) rail vertical escuro à esquerda.
+
+### Sub-fases (ordem de menor risco → maior)
+
+- **11A — Tokens & paleta (base). ✅ CONCLUÍDA (2026-06-18).** Implementado:
+  - **`src/utils/nodeVisual.ts` (NOVO):** `NODE_COLORS: Record<NodeKind, string>` + `nodeColor(type)`
+    (fallback slate-500). Unificou as DUAS tabelas duplicadas — `NODE_COLORS` do `FlowCanvas`
+    (canvas + minimap) e `KIND_COLORS` do `NodePalette` (bolinha) —, que agora a consomem (incl. a
+    legenda Início/Outro Bot via `nodeColor('startNode')`/`nodeColor('externalBotNode')`).
+  - **Decisão (Andy): usar `amber-400` direto, SEM token custom.** Contraste: `amber-400` com texto
+    branco falha — os CTAs usam **`bg-amber-400 text-slate-900 hover:bg-amber-500`** (texto escuro).
+  - **CTAs trocados** (filled azul → âmbar): "Importar JSON" (`App.tsx`), "Gerar fluxo"
+    (`ImportDialog`), "Criar fluxo" (`NewFlowDialog`), "Fechar" (`PushDialog`/`RestoreDialog`),
+    "Aplicar alterações" (`DetailPanel`). **Preservados:** azul do `choiceNode` (identidade de tipo)
+    e vermelho do "Restaurar" (destrutivo).
+  - **Deixado para depois (não são CTAs):** focus-rings `focus:ring-blue-500` dos inputs e links
+    `text-blue-500` — sweep de acento secundário, baixo valor, fazer junto da 11C/polish.
+  - **Sem mudança visual estrutural.** Critério atingido: **291 testes** + tsc + build verdes (apresentação pura).
+- **11B — Redesign dos nós (≈80% da "cara Omni"). ✅ CONCLUÍDA (2026-06-18).** Implementado:
+  - **`src/components/nodes/NodeShell.tsx` (NOVO):** moldura comum — card branco `rounded-2xl` +
+    sombra, **chip-ícone** colorido (cor via `nodeVisual.ts`, com alpha por `style`), título +
+    subtítulo, slot de corpo (`empty:hidden` colapsa o espaço quando não há preview/chips), **anel
+    violeta** na seleção (`selected ? ring-2 ring-violet-500 shadow-lg`), handles cinza padronizados
+    e flags `hasTarget`/`hasSource`/`dashed`/`icon`. Helpers exportados: `NodePreview`, `NodePill`
+    (pill tingido pela cor do tipo), `NodeNote`.
+  - **`src/components/nodes/nodeIcons.tsx` (NOVO):** registro único de SVGs *stroke* 24×24 por
+    `NodeKind` (reúne os existentes + cria Mensagem/Captura/Transferência, que não tinham ícone);
+    `nodeIcon(kind)` + `listIcon()` (variante do Escolha em modo lista).
+  - **12 nós migrados** para o `NodeShell`: Default, Choice, Capture, Transfer, Wait, SetData, End,
+    ApiCall, Order, Csat, Store, ExternalBot. Terminais (Transfer/End/Externo) com `hasSource={false}`;
+    Externo com `dashed`. **`StartNode` (pílula) e `IntentGroupNode` (container) preservados** —
+    estruturalmente distintos, não entram no card.
+  - **Apresentação pura:** não tocou em `parseFlow`/`editFlow`/IDs/`FlowNodeData`. **291 testes** +
+    tsc + build verdes (sem alterar testes); validado por screenshot (claro + escuro + anel de
+    seleção num nó-card). CSS caiu ~51,6 → ~45,2 kB (menos classes de cor por nó).
+  - **GOTCHA corrigido:** o card NÃO pode ter `position: relative` — isso reposiciona os `Handle`
+    (absolutos) do React Flow e **quebra a criação de conexão por arraste** (renderiza ok, mas
+    arrastar de um handle não cria aresta). O `NodeShell` saiu com `relative` por engano; removido.
+    Pego pelo `smoke-phase2` e isolado por bisseção (`git stash`). **Se algum nó-card precisar de
+    posicionamento absoluto interno no futuro, NÃO usar `relative` no card raiz.**
+  - **Polish já feito na 11C:** bump do `border-radius` do `.fluxo-dup::after` (12 → 16px) para casar
+    com o card `rounded-2xl`.
+- **11C — Canvas. ✅ CONCLUÍDA (2026-06-18).** Implementado:
+  - **`<Controls>` como pill branco flutuante horizontal** no rodapé central (`position="bottom-center"`,
+    `showInteractive={false}`). CSS em `index.css` com especificidade `.react-flow__panel.react-flow__controls`
+    (supera o padrão do React Flow sem depender da ordem de import); tema escuro via `.dark` (classe no `<html>`).
+  - **Grade de pontos** afinada (`FlowCanvas` Background): `bgColor` quase-branco (claro) / quase-preto (escuro)
+    + pontos sutis (`gap 22`, `size 1.2`).
+  - **Polish:** `.fluxo-dup::after` border-radius 12 → 16px (casa com `rounded-2xl`).
+  - MiniMap já consumia `nodeColor` desde a 11A. **291 testes** + tsc + build verdes; validado por screenshot
+    (controles + grade nos dois temas).
+- **11D — Chrome (rail lateral + header enxuto). ✅ CONCLUÍDA (2026-06-18).** Decisão do Andy:
+  **rail FUNCIONAL** (move as ações para o rail, esvaziando o header). Implementado:
+  - **`src/components/Sidebar.tsx` (NOVO):** `<nav>` escuro estreito (`w-14`, sempre escuro,
+    independe do tema — como a plataforma) com as ações como ícones (tooltip + `aria-label`):
+    logo âmbar; Novo/Importar/Exportar(dropdown→direita)/Restaurar; **Enviar** (esmeralda, destaque);
+    Desfazer/Refazer; espaçamento −/+; rodapé com Token (popover→direita, dot de status),
+    Documentação e toggle de tema. Popovers Exportar/Token via `useTheme` (NUNCA `dark:` — [[dark-mode-theming-fluxo]]).
+  - **`src/components/TopBar.tsx` (REESCRITO):** header fino — título + versão + Beta + pill de
+    status de validação (dropdown de erros/avisos). Perdeu todas as ações (foram pro rail).
+  - **`App.tsx`:** layout raiz de coluna única → **`flex` com rail + coluna (`TopBar`+`main`)**;
+    `ExportFormat` agora vem do `Sidebar`.
+  - **Smokes:** `locator('header')` → `locator('nav')` em 8 scripts (botões migraram pro rail,
+    nomes acessíveis preservados; `nav` mantém a desambiguação que o `header` dava).
+  - **291 testes** + tsc + build verdes; verificado por screenshot (rail + header + popover de
+    Token nos dois temas).
+  - **Bateria de smokes — TODA VERDE (2026-06-18, contra dev server): 18/18 PASS.** Inclui
+    `smoke-test`, `phase2`, `phase5`, toda a família `phase6*`, `phase4b`/`phase4b-restore`,
+    `phase7-*`, `phase9-teams` (toca API real, token via `flow-viewer.env`) e `etapa1/2-build-flow`.
+  - **7 smokes que estavam quebrados (drift das Fases 8/10c, NÃO da Fase 11 — confirmado via
+    `git stash`) foram ATUALIZADOS aos seletores/rótulos atuais:** `phase7-duplicate`/`phase7-dup-highlight`
+    (rótulos → "Duplicar Condição"/"Duplicar Intenção"); `phase3` (retargetado a um nó solo com
+    mensagem TEXT + textarea `[data-testid="detail-panel"] textarea`; partes de botão/aresta obsoletas
+    removidas); `etapa1/2-build-flow` (fluxo de mensagem → "+ Adicionar Resposta" → "Texto"); `phase9-teams`
+    (nó-alvo passou a um solo+TEXT + seletor de textarea do painel); **`phase3b` reescrito ao modelo
+    Fase 10c** — Menu (Botão/Lista) + seção "Escolhas" com destino pelo `<select>` `IntentSelect`
+    (`selectOption`), em vez do antigo "Criar mensagem de botões" + arraste.
+- **11E — Barra superior eliminada + start como card. ✅ CONCLUÍDA (2026-06-18).** Pedido do Andy:
+  levar a versão para o pé do rail e remover a barra superior; reestilizar o start.
+  - **`TopBar.tsx` REMOVIDO.** O canvas ocupa a altura toda (`App`: `flex` com rail + `main`, sem
+    coluna intermediária). `ExportFormat` já vinha do `Sidebar`.
+  - **`Sidebar`:** ganhou `version` e `report`. No pé: **indicador de validação** (ícone ✓/⚠/✕ colorido
+    + contador + popover à direita com erros/avisos) e a **versão** (`v{version}`) abaixo do toggle de tema.
+  - **`StartNode` reescrito** para usar o `NodeShell` (chip *play* esmeralda + título + "Início do fluxo",
+    `hasTarget={false}`). Saiu a pílula esmeralda. textContent do título segue `data.name` ("start"),
+    então os smokes que localizam o start por texto/`data-id` continuam válidos.
+  - **291 testes** + tsc + build verdes; **smokes 18/18 PASS** (incl. os que conectam do start); validado
+    por screenshot.
+
+### Como testar (visual + regressão)
+
+- **Regressão automática primeiro:** 11A/11B/11C são apresentação — os 289 testes Vitest +
+  tsc + os smokes Playwright devem **seguir verdes sem alteração** (não tocam parse/edit/push).
+  Se um smoke quebrar, é sinal de que mexemos em estrutura sem querer.
+- **Caminho infeliz visual:** nó sem `messagePreview` (card só com cabeçalho), título/subtítulo
+  longos (truncamento), nó selecionado + duplicado ao mesmo tempo (borda violeta de seleção vs.
+  esmeralda de duplicação — não podem brigar), grupo com muitos filhos, tema claro **e** escuro
+  (cada cor nova precisa do par claro/escuro), export PNG/SVG do novo card (o `exportImage` lê o
+  DOM — conferir que a sombra/borda não corta no bounds).
+- **Comparação visual:** abrir um sample real ao lado da print e iterar até bater (cards, chips,
+  seleção). 11D: conferir o rail nos dois temas e que nenhum botão de ação sumiu.
+
+### Riscos
+
+- **11B é amplo** (13 componentes). Mitigar com o `NodeShell` (1 fonte de verdade) e migrando
+  um nó por vez, validando no app a cada um.
+- **11D mexe no layout raiz** — maior risco de regressão de layout/responsividade; só depois de
+  11A–C. Se o custo/benefício do rail não compensar na prática, é o item natural a cortar.
+- Confirmar os **hex exatos** no DevTools do produto real antes de fechar a paleta — a print
+  comprime cor (ver conversa: print dá aproximação, DevTools dá o valor + estados).
 
 ## Melhorias paralelas (independentes das fases)
 

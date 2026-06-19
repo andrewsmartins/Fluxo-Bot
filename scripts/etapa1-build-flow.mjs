@@ -21,7 +21,7 @@ try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
   // Novo fluxo com o botId de testes
-  await page.locator('header').getByRole('button', { name: 'Novo fluxo' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Novo fluxo' }).click()
   await page.getByPlaceholder('8df3c1e7-a8c9-4bad-ac5a-2855462da840').fill(botId)
   await page.getByRole('button', { name: 'Criar fluxo' }).click()
   await page.waitForSelector('.react-flow__node')
@@ -43,7 +43,8 @@ try {
   // Texto via painel
   await page.locator('.react-flow__node', { hasText: 'nova_intencao_1' }).click()
   await page.waitForSelector('text=Aplicar alterações')
-  await page.getByRole('button', { name: '+ Adicionar mensagem de texto' }).click()
+  await page.getByRole('button', { name: '+ Adicionar Resposta' }).click()
+  await page.getByRole('button', { name: 'Texto' }).click()
   await page.getByPlaceholder('Texto da mensagem…').fill('Olá! Esta é uma mensagem de teste enviada pelo Fluxo (Etapa 1 da Fase 4). 🤖')
   await page.getByRole('button', { name: 'Aplicar alterações' }).click()
   await page.waitForTimeout(300)
@@ -51,7 +52,7 @@ try {
 
   // Export
   const downloadPromise = page.waitForEvent('download')
-  await page.locator('header').getByRole('button', { name: 'Exportar' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Exportar' }).click()
   await page.getByRole('button', { name: 'JSON (plataforma)' }).click()
   const download = await downloadPromise
   const out = fileURLToPath(new URL('../samples/etapa1-fluxo.json', import.meta.url))

@@ -22,7 +22,7 @@ try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
   // 1. Novo fluxo do zero
-  await page.locator('header').getByRole('button', { name: 'Novo fluxo' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Novo fluxo' }).click()
   await page.getByPlaceholder('8df3c1e7-a8c9-4bad-ac5a-2855462da840').fill(BOT_ID)
   await page.getByRole('button', { name: 'Criar fluxo' }).click()
   await page.waitForSelector('.react-flow__node')
@@ -54,7 +54,7 @@ try {
   if (afterUndo !== 1) fail('Ctrl+Z não desfez a criação')
 
   // 4. Redo via botão da toolbar repõe o nó
-  await page.locator('header').getByRole('button', { name: 'Refazer' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Refazer' }).click()
   await page.waitForTimeout(300)
   const afterRedo = await page.locator('.react-flow__node').count()
   console.log(`nós após Refazer: ${afterRedo}`)
@@ -62,7 +62,7 @@ try {
 
   // 5. Exporta e valida o modelo
   const downloadPromise = page.waitForEvent('download')
-  await page.locator('header').getByRole('button', { name: 'Exportar' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Exportar' }).click()
   await page.getByRole('button', { name: 'JSON (plataforma)' }).click()
   const exported = JSON.parse(readFileSync(await (await downloadPromise).path(), 'utf-8'))
   console.log(`export: ${exported.list.length} intenções, start=${exported.list[0]?.id}`)

@@ -291,7 +291,7 @@ export function RestoreDialog({ token, onTokenChange, onClose }: RestoreDialogPr
             ) : (
               <button
                 onClick={onClose}
-                className="flex-1 py-2 px-3 text-xs font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+                className="flex-1 py-2 px-3 text-xs font-semibold text-slate-900 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors"
               >
                 Fechar
               </button>

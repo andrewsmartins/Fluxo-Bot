@@ -67,7 +67,7 @@ try {
 
   // 3. Exportar PNG de um fluxo COM grupos — não pode quebrar (fix de bounds)
   const pngDownload = page.waitForEvent('download', { timeout: 15000 }).catch(() => null)
-  await page.locator('header').getByRole('button', { name: 'Exportar' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Exportar' }).click()
   await page.getByRole('button', { name: 'Imagem PNG' }).click()
   const png = await pngDownload
   console.log(`download PNG: ${png ? png.suggestedFilename() : 'NENHUM'}`)

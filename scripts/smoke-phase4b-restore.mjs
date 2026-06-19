@@ -71,7 +71,7 @@ try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
   // 1. Abre o diálogo de restore (independe de fluxo carregado)
-  await page.locator('header').getByRole('button', { name: 'Restaurar' }).click()
+  await page.locator('nav').getByRole('button', { name: 'Restaurar' }).click()
   const dialog = page.getByRole('dialog', { name: 'Restaurar backup' })
   await dialog.waitFor()
 

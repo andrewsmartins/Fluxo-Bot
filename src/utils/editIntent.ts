@@ -22,6 +22,8 @@ export interface EditableMessage {
   text: string
   /** Nome do arquivo original — presente em IMAGE, FILE e VIDEO. */
   fileName: string
+  /** objectId da coleção — presente só em COLLECTION (resolve nome/imagem no resumo). */
+  collectionId?: string
 }
 
 function touch(intent: BotIntent): void {
@@ -41,7 +43,10 @@ export function listMessages(intent: BotIntent): EditableMessage[] {
         const text = msg.type === 'TEXT' || msg.type === 'IMAGE' || msg.type === 'FILE' || msg.type === 'VIDEO'
           ? msg.content ?? ''
           : msg.messageConfig?.body ?? ''
-        result.push({ ref: { condIdx, sayIdx, msgIdx }, type: msg.type, text, fileName: msg.fileName ?? '' })
+        result.push({
+          ref: { condIdx, sayIdx, msgIdx }, type: msg.type, text, fileName: msg.fileName ?? '',
+          ...(msg.type === 'COLLECTION' ? { collectionId: msg.collectionId ?? '' } : {}),
+        })
       })
     })
   })
@@ -109,6 +114,36 @@ export function addMediaMessage(
   if (!cond) return { ok: false, reason: 'intenção sem condições' }
   if (!cond.assistant_says.length) cond.assistant_says.push({ channel: 'any', messages: [] })
   cond.assistant_says[0].messages.push({ type, content, fileName })
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Acrescenta uma mensagem COLLECTION (resposta "Coleção") ao final de uma condição.
+ * Espelha o formato exportado pela plataforma: `collectionId` carrega o objectId da
+ * coleção e `fileName` vai como string vazia (não usa `content`).
+ */
+export function addCollectionMessage(intent: BotIntent, collectionId: string, condIdx = 0): EditResult {
+  const cond = intent.conditions[condIdx]
+  if (!cond) return { ok: false, reason: 'intenção sem condições' }
+  if (!collectionId.trim()) return { ok: false, reason: 'selecione uma coleção antes de salvar' }
+  if (!cond.assistant_says.length) cond.assistant_says.push({ channel: 'any', messages: [] })
+  cond.assistant_says[0].messages.push({ type: 'COLLECTION', fileName: '', collectionId })
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Atualiza a coleção de uma resposta COLLECTION já salva (edição in-place pelo
+ * endereço). Usado quando o usuário troca a coleção no "Editar" do painel. Mantém
+ * `fileName` como string vazia (padrão da plataforma).
+ */
+export function updateCollectionMessage(intent: BotIntent, ref: MessageRef, collectionId: string): EditResult {
+  const msg = getMessage(intent, ref)
+  if (!msg) return { ok: false, reason: 'mensagem não encontrada na intenção' }
+  if (msg.type !== 'COLLECTION') return { ok: false, reason: `mensagem do tipo ${msg.type} não é uma coleção` }
+  if (!collectionId.trim()) return { ok: false, reason: 'selecione uma coleção antes de salvar' }
+  msg.collectionId = collectionId
   touch(intent)
   return { ok: true }
 }

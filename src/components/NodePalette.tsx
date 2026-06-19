@@ -1,25 +1,10 @@
 import { Panel } from '@xyflow/react'
 import { useTheme } from '../contexts/ThemeContext'
 import { CREATABLE_KIND_LABELS as KIND_LABELS, type CreatableKind } from '../utils/intentTemplates'
+import { nodeColor } from '../utils/nodeVisual'
 
 /** MIME type interno usado no drag & drop da paleta para o canvas. */
 export const PALETTE_DRAG_TYPE = 'application/fluxo-node-kind'
-
-// Cores espelham as do FlowCanvas (KIND_COLORS) para a bolinha da paleta bater
-// com o nó criado.
-const KIND_COLORS: Record<CreatableKind, string> = {
-  defaultNode:  '#64748b',
-  choiceNode:   '#3b82f6',
-  captureNode:  '#8b5cf6',
-  transferNode: '#f43f5e',
-  waitNode:     '#06b6d4',
-  setDataNode:  '#6366f1',
-  endNode:      '#dc2626',
-  apiCallNode:  '#0d9488',
-  orderNode:    '#ea580c',
-  csatNode:     '#db2777',
-  storeNode:    '#65a30d',
-}
 
 /**
  * A paleta agrupa os 11 tipos em dois blocos: "Fluxo" (os 6 do dia a dia) e
@@ -63,7 +48,7 @@ export function NodePalette() {
                 }`}
                 title={`Arraste para o canvas para criar um nó de ${KIND_LABELS[kind]}`}
               >
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: KIND_COLORS[kind] }} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: nodeColor(kind) }} />
                 {KIND_LABELS[kind]}
               </div>
             ))}
@@ -72,7 +57,7 @@ export function NodePalette() {
 
         {/* Tipos que existem no fluxo mas não são criáveis — papel de legenda */}
         <div className={`flex flex-col gap-1 pt-1 mt-0.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-          {[{ color: '#10b981', label: 'Início' }, { color: '#f59e0b', label: 'Outro Bot' }].map(item => (
+          {[{ color: nodeColor('startNode'), label: 'Início' }, { color: nodeColor('externalBotNode'), label: 'Outro Bot' }].map(item => (
             <div key={item.label} className={`flex items-center gap-2 px-2 py-0.5 text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
               {item.label}

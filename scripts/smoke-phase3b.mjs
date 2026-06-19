@@ -1,7 +1,9 @@
 /**
- * Smoke test da Fase 3b: cria nó de escolha, monta mensagem de botões + botão
- * pelo painel, conecta o botão a um nó, e exclui uma intenção pelo painel
- * validando a limpeza de referências no JSON exportado.
+ * Smoke test da Fase 3b (atualizado p/ Fase 10c): cria nó de Escolha, monta o
+ * Menu (Botão/Lista) com 1 item, define o destino da Escolha pelo dropdown da
+ * seção "Escolhas" (liga por ordem ao item do menu), confere a aresta de escolha
+ * resultante no canvas, e exclui uma intenção pelo painel validando a limpeza de
+ * referências no JSON exportado.
  *
  * Uso: node scripts/smoke-phase3b.mjs [url]
  */
@@ -23,13 +25,23 @@ try {
   page.on('pageerror', err => console.log('[pageerror]', err.message))
   await loadFlow(page, baseUrl, sample)
 
-  // 1. Cria nó de escolha num espaço livre (canto inferior direito)
+  // Alvos calculados a partir do sample: a vítima (tem refs de entrada, ≠ start) e
+  // o destino da Escolha (≠ vítima, ≠ start) — para a exclusão não derrubar a aresta.
+  const original = JSON.parse(sample)
+  const inboundIds = new Set()
+  for (const i of original.list)
+    for (const c of i.conditions)
+      if (c.next?.intent?.id) inboundIds.add(c.next.intent.id)
+  const victimId = [...inboundIds].find(id => original.list.some(i => i.id === id && i.category !== 'start'))
+  const targetId = original.list.find(i => i.category !== 'start' && !i.id.endsWith('-start') && i.id !== victimId)?.id
+  if (!victimId || !targetId) { fail('sample sem vítima/destino adequados'); throw new Error('sem alvos') }
+
+  // 1. Cria nó de escolha num espaço livre (centro-inferior)
   await page.evaluate(() => {
     const dt = new DataTransfer()
     dt.setData('application/fluxo-node-kind', 'choiceNode')
     const canvas = document.querySelector('.react-flow')
     const r = canvas.getBoundingClientRect()
-    // centro-inferior: livre de MiniMap (canto inf. direito) e Controls (inf. esquerdo)
     canvas.dispatchEvent(new DragEvent('drop', {
       bubbles: true, cancelable: true, dataTransfer: dt,
       clientX: r.x + r.width * 0.45, clientY: r.y + r.height - 160,
@@ -37,13 +49,19 @@ try {
   })
   await page.waitForTimeout(300)
 
-  // 2. Abre o painel e monta mensagem de botões + botão
-  await page.locator('.react-flow__node', { hasText: 'nova_intencao_1' }).click()
+  // 2. Abre o painel: cria o Menu (Botão/Lista) com 1 item e uma Escolha com destino
+  const newNode = page.locator('.react-flow__node', { hasText: 'nova_intencao_1' })
+  await newNode.click()
   await page.waitForSelector('text=Aplicar alterações')
-  await page.getByRole('button', { name: '+ Criar mensagem de botões' }).click()
-  await page.getByPlaceholder('Texto que acompanha os botões…').fill('Escolha uma opção:')
-  await page.getByRole('button', { name: '+ Adicionar botão' }).click()
-  await page.getByPlaceholder('Texto do botão').fill('Falar com atendente')
+  // Menu (Fase 10c): nasce com 1 item; corpo é obrigatório.
+  await page.getByRole('button', { name: '+ Criar menu Botão/Lista' }).click()
+  await page.getByPlaceholder('Mensagem principal (obrigatório)').fill('Escolha uma opção:')
+  await page.getByPlaceholder('Texto do item').first().fill('Falar com atendente')
+  // Escolha: "+ Adicionar Escolha" cria o slot ligado ao 1º item; destino via dropdown.
+  await page.getByRole('button', { name: '+ Adicionar Escolha' }).click()
+  // O IntentSelect da Escolha é o único <select> com a opção "Sem destino (palavra-chave)".
+  const choiceSelect = page.locator('select').filter({ has: page.locator('option:has-text("Sem destino (palavra-chave)")') }).first()
+  await choiceSelect.selectOption(targetId)
   await page.getByRole('button', { name: 'Aplicar alterações' }).click()
   await page.waitForTimeout(300)
   const panelErr = await page.evaluate(() =>
@@ -51,57 +69,14 @@ try {
   if (panelErr) fail(`painel: ${panelErr}`)
   await page.getByLabel('Fechar').click()
 
-  // A vítima da exclusão é escolhida ANTES para o connect não apontar para ela
-  const original = JSON.parse(sample)
-  const inboundIds = new Set()
-  for (const i of original.list) {
-    for (const c of i.conditions) {
-      if (c.next?.intent?.id) inboundIds.add(c.next.intent.id)
-    }
-  }
-  const victimId = [...inboundIds].find(id => original.list.some(i => i.id === id && i.category !== 'start'))
-
-  // 3. Conecta o botão (slot vazio) a um nó livre (≠ vítima)
-  const newNode = page.locator('.react-flow__node', { hasText: 'nova_intencao_1' })
-  const srcHandle = await newNode.locator('.react-flow__handle.source').boundingBox()
-  const targetHandle = await page.evaluate((excludeId) => {
-    const nodes = [...document.querySelectorAll('.react-flow__node')]
-    const fresh = nodes.find(el => el.textContent.includes('nova_intencao'))
-    const fr = fresh.getBoundingClientRect()
-    const overlaps = r => !(r.right < fr.left - 20 || r.left > fr.right + 20 || r.bottom < fr.top - 20 || r.top > fr.bottom + 20)
-    for (const el of nodes) {
-      const id = el.getAttribute('data-id')
-      if (el === fresh || id === excludeId || id?.startsWith('ext-')) continue
-      const h = el.querySelector('.react-flow__handle.target')
-      if (!h) continue
-      if (overlaps(el.getBoundingClientRect())) continue
-      const hr = h.getBoundingClientRect()
-      if (hr.y < 60) continue
-      return { x: hr.x + hr.width / 2, y: hr.y + hr.height / 2, node: id }
-    }
-    return null
-  }, victimId)
-  await page.mouse.move(srcHandle.x + srcHandle.width / 2, srcHandle.y + srcHandle.height / 2)
-  await page.mouse.down()
-  for (let i = 1; i <= 10; i++) {
-    await page.mouse.move(
-      srcHandle.x + (targetHandle.x - srcHandle.x) * (i / 10),
-      srcHandle.y + (targetHandle.y - srcHandle.y) * (i / 10),
-    )
-    await page.waitForTimeout(20)
-  }
-  await page.mouse.up()
-  await page.waitForTimeout(300)
-
+  // 3. A aresta de escolha (slot 0) deve existir com o label do item do menu
   const newNodeId = await newNode.getAttribute('data-id')
-  // O label da aresta de fluxo é renderizado no layer de labels (EdgeLabelRenderer),
-  // fora do <g> da aresta — localiza pelo data-edge-id da DeletableEdge (Fase 6).
   const choiceEdgeLabel = await page.evaluate((srcId) => {
     const el = document.querySelector(`[data-edge-id="${srcId}-c0-ch0"] .react-flow__edge-label`)
     return el ? el.textContent.trim() : null
   }, newNodeId)
   console.log(`aresta de escolha criada com label: "${choiceEdgeLabel}"`)
-  if (choiceEdgeLabel !== 'Falar com atendente') fail('conexão do botão não criou aresta com o label esperado')
+  if (choiceEdgeLabel !== 'Falar com atendente') fail('escolha não criou aresta com o label esperado')
 
   // 4. Exclui uma intenção que tem referências de entrada, pelo painel
   console.log('vítima:', victimId)
@@ -120,8 +95,8 @@ try {
   const btns = choiceIntent?.conditions[0]?.assistant_says[0]?.messages[0]?.messageConfig?.buttons ?? []
   const choices = choiceIntent?.conditions[0]?.action?.choices ?? []
   console.log(`export: botões=${btns.map(b => b.text)}, choices=${JSON.stringify(choices)}`)
-  if (btns[0]?.text !== 'Falar com atendente') fail('botão não está no export')
-  if (choices[0] !== targetHandle.node) fail('choice não aponta para o nó conectado')
+  if (btns[0]?.text !== 'Falar com atendente') fail('item do menu não está no export')
+  if (choices[0] !== targetId) fail('choice não aponta para o destino selecionado')
 
   if (exported.list.some(i => i.id === victimId)) fail('vítima ainda está no export')
   if (JSON.stringify(exported).includes(victimId)) fail('ainda há referências à vítima no export')
