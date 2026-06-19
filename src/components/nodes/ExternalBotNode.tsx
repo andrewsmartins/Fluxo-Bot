@@ -5,7 +5,7 @@ function truncate(str: string, len = 22) {
   return str.length > len ? str.slice(0, len) + '…' : str
 }
 
-/** Nó sintético de redirecionamento para outro bot (read-only, borda tracejada, sem saída). */
+/** Nó sintético de redirecionamento para outro bot (read-only, cinza, sem saída). */
 export function ExternalBotNode({ data, selected }: { data: FlowNodeData; selected?: boolean }) {
   const botId    = data.externalBotId    ?? ''
   const intentId = data.externalIntentId ?? ''
@@ -17,7 +17,6 @@ export function ExternalBotNode({ data, selected }: { data: FlowNodeData; select
       subtitle="Redirecionamento externo"
       selected={selected}
       hasSource={false}
-      dashed
     >
       <div className="flex flex-col gap-0.5">
         <NodeNote>Bot ID</NodeNote>

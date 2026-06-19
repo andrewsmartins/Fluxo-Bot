@@ -1,5 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import type { NodeKind } from '../../types'
 import { useTheme } from '../../contexts/ThemeContext'
 import { nodeColor } from '../../utils/nodeVisual'
@@ -27,22 +27,42 @@ interface NodeShellProps {
   hasTarget?: boolean
   /** Handle de saída (base). Padrão: true. Nós terminais (Transfer/End/Externo) passam false. */
   hasSource?: boolean
-  /** Borda tracejada (nó sintético "Outro Bot"). */
-  dashed?: boolean
   children?: ReactNode
 }
 
-export function NodeShell({ kind, title, subtitle, selected, icon, hasTarget = true, hasSource = true, dashed = false, children }: NodeShellProps) {
+export function NodeShell({ kind, title, subtitle, selected, icon, hasTarget = true, hasSource = true, children }: NodeShellProps) {
   const isDark = useTheme()
   const color = nodeColor(kind)
   const handleCls = isDark ? '!bg-slate-500' : '!bg-slate-400'
 
+  // Publica a cor do tipo como CSS var no WRAPPER do React Flow (ancestral do
+  // card). É lá que vive o `::after` da seleção (marching ants) — que herda a
+  // variável e a usa, mantendo a fonte única de cor em `nodeVisual.ts` em vez de
+  // duplicar a tabela no CSS. `closest` é robusto a aninhamento futuro da lib.
+  const cardRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const wrapper = cardRef.current?.closest('.react-flow__node') as HTMLElement | null
+    wrapper?.style.setProperty('--node-color', color)
+  }, [color])
+
+  // Sombra tingida com a cor do tipo (estilo construtor da Omni). Selecionado:
+  // anel violeta (composto no box-shadow porque o `ring` do Tailwind também é
+  // box-shadow e seria sobrescrito pelo inline) + sombra mais forte da cor.
+  // Os 2 últimos dígitos hex são o alpha (mais opaco no escuro para a cor "pegar").
+  // Contorno fino (1px) na cor do nó + sombra tingida. A SELEÇÃO em si é uma
+  // borda violeta pontilhada animada (CSS `.react-flow__node.selected::after`);
+  // aqui o estado selecionado só reforça a sombra (contorno da cor mantido).
+  const boxShadow = selected
+    ? `0 0 0 1px ${color}${isDark ? 'a6' : '80'}, 0 10px 28px ${color}${isDark ? '66' : '4d'}`
+    : isDark
+      ? `0 0 0 1px ${color}a6, 0 1px 2px ${color}40, 0 6px 16px ${color}33`
+      : `0 0 0 1px ${color}80, 0 1px 2px ${color}29, 0 6px 16px ${color}24`
+
   return (
     <div
-      className={`w-[240px] rounded-2xl overflow-hidden border transition-shadow ${dashed ? 'border-2 border-dashed' : ''} ${
-        selected ? 'ring-2 ring-violet-500 shadow-lg' : 'shadow-sm'
-      } ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
-      style={dashed ? { borderColor: color } : undefined}
+      ref={cardRef}
+      className={`w-[240px] rounded-2xl overflow-hidden border transition-shadow ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+      style={{ boxShadow }}
     >
       {hasTarget && <Handle type="target" position={Position.Top} className={handleCls} />}
 
@@ -64,6 +84,14 @@ export function NodeShell({ kind, title, subtitle, selected, icon, hasTarget = t
       <div className="px-3 pb-2.5 flex flex-col gap-1.5 empty:hidden">{children}</div>
 
       {hasSource && <Handle type="source" position={Position.Bottom} className={handleCls} />}
+
+      {/* Handles laterais EXCLUSIVOS da aresta de Contexto (esquerda = entrada,
+          direita = saída). Renderizados DEPOIS dos de fluxo (topo/base, sem id)
+          porque a lib usa o 1º handle de cada tipo quando a aresta não informa
+          handleId — assim o fluxo continua grudando no topo/base. São âncoras
+          (`isConnectable={false}`): criar contexto pelo canvas é Marco C. */}
+      <Handle id="ctx-target" type="target" position={Position.Left} isConnectable={false} className="!bg-slate-300 !w-2 !h-2 !border-0" />
+      <Handle id="ctx-source" type="source" position={Position.Right} isConnectable={false} className="!bg-slate-300 !w-2 !h-2 !border-0" />
     </div>
   )
 }

@@ -102,3 +102,26 @@ body { margin: 0; }
   background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
   animation: fluxo-marching 0.6s linear infinite;
 }
+
+/* Seleção: borda pontilhada "andando" (marching ants) NA COR DO NÓ, mesmo
+   mecanismo do destaque de duplicação (em esmeralda), na classe `.selected` que
+   o React Flow injeta no wrapper do nó — não no card, que tem overflow-hidden e
+   recortaria o anel. A cor vem da CSS var `--node-color`, publicada por
+   `NodeShell` a partir do `nodeVisual.ts` (fallback violeta se ausente). */
+.react-flow__node.selected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 5;
+  background-image:
+    repeating-linear-gradient(90deg, var(--node-color, #8b5cf6) 0 8px, transparent 8px 16px),
+    repeating-linear-gradient(90deg, var(--node-color, #8b5cf6) 0 8px, transparent 8px 16px),
+    repeating-linear-gradient(0deg,  var(--node-color, #8b5cf6) 0 8px, transparent 8px 16px),
+    repeating-linear-gradient(0deg,  var(--node-color, #8b5cf6) 0 8px, transparent 8px 16px);
+  background-size: 16px 2px, 16px 2px, 2px 16px, 2px 16px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  animation: fluxo-marching 0.6s linear infinite;
+}

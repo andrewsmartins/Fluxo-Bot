@@ -209,26 +209,29 @@ function edgeStyle(external: boolean) {
 
 // ─── Aresta de Contexto (Modelo B, Marco B) ─────────────────────────────────
 
-/** Violeta — distinta do fluxo (cinza `#94a3b8`) e do redirect externo (âmbar `#f59e0b`). */
-const CONTEXT_EDGE_COLOR = '#a855f7'
+/** Cinza claro (slate-300) — discreto, distinto do fluxo (cinza `#94a3b8`) e do
+ * redirect externo (âmbar `#f59e0b`); o movimento (marching ants) é que a destaca. */
+const CONTEXT_EDGE_COLOR = '#cbd5e1'
 
 /**
- * Estilo da aresta de CONTEXTO: tracejada, com seta, NÃO editável e NÃO
- * deletável nesta fase (a edição de contexto é o Marco C). O `data.kind` marca
- * a aresta para que o `collapseEdges` a exclua do layout — contexto é uma
- * anotação cruzada entre intenções, não a hierarquia principal do fluxo.
+ * Estilo da aresta de CONTEXTO: tracejada e ANIMADA (marching ants via `animated`
+ * do React Flow — anima o `stroke-dashoffset` preservando nosso `strokeDasharray`),
+ * com seta, NÃO editável e NÃO deletável nesta fase (a edição de contexto é o
+ * Marco C). O `data.kind` marca a aresta para que o `collapseEdges` a exclua do
+ * layout — contexto é uma anotação cruzada entre intenções, não a hierarquia
+ * principal do fluxo.
  */
 function contextEdgeStyle() {
   return {
     type: 'smoothstep' as const,
-    animated: false,
+    animated: true,
     reconnectable: false as const,
     deletable: false,
     data: { kind: 'context' as const },
     markerEnd: { type: MarkerType.ArrowClosed, color: CONTEXT_EDGE_COLOR, width: 16, height: 16 },
     style: { stroke: CONTEXT_EDGE_COLOR, strokeDasharray: '6 4', strokeWidth: 1.5 },
-    labelStyle: { fontSize: 10, fill: CONTEXT_EDGE_COLOR, fontWeight: 600 },
-    labelBgStyle: { fill: '#faf5ff', fillOpacity: 0.9 },
+    labelStyle: { fontSize: 10, fill: '#94a3b8', fontWeight: 600 },
+    labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.9 },
     labelBgPadding: [3, 5] as [number, number],
     labelBgBorderRadius: 4,
   }
@@ -257,6 +260,11 @@ function buildContextEdges(intents: BotIntent[], intentIds: Set<string>): Edge[]
       id: `ctx-${intent.id}`,
       source: ctxId,
       target: intent.id,
+      // Handles laterais dedicados (saída à direita do contexto → entrada à
+      // esquerda desta intenção), separando visualmente o contexto do fluxo
+      // (topo/base). Os ids casam com os <Handle> de NodeShell/IntentGroupNode.
+      sourceHandle: 'ctx-source',
+      targetHandle: 'ctx-target',
       label: 'contexto',
       ...contextEdgeStyle(),
     })

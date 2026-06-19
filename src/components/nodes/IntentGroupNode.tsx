@@ -16,9 +16,12 @@ export function IntentGroupNode({ data }: { data: FlowNodeData }) {
   return (
     <div className={`h-full w-full rounded-2xl border-2 shadow-sm ${isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50/80 border-slate-300'}`}>
       <Handle type="target" position={Position.Top} className={isDark ? '!bg-slate-400' : '!bg-slate-500'} />
-      {/* Origem usada só pela aresta de Contexto (Modelo B): o grupo pode ser a
-          intenção-de-contexto de outra. As arestas de fluxo saem dos filhos. */}
-      <Handle type="source" position={Position.Bottom} className={isDark ? '!bg-slate-400' : '!bg-slate-500'} />
+      {/* Handles laterais EXCLUSIVOS da aresta de Contexto (Modelo B): o grupo
+          pode ter contexto próprio (entrada à esquerda) ou ser a intenção-de-
+          contexto de outra (saída à direita). As arestas de fluxo entram pelo
+          topo e saem dos filhos — o container não é origem de fluxo. */}
+      <Handle id="ctx-target" type="target" position={Position.Left} isConnectable={false} className="!bg-slate-300 !w-2 !h-2 !border-0" />
+      <Handle id="ctx-source" type="source" position={Position.Right} isConnectable={false} className="!bg-slate-300 !w-2 !h-2 !border-0" />
 
       <div className="px-3 pt-2.5 pb-2">
         <div className="flex items-start justify-between gap-2">
