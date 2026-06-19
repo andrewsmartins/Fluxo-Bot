@@ -18,6 +18,7 @@ import { CsatNode }        from './nodes/CsatNode'
 import { StoreNode }       from './nodes/StoreNode'
 import { IntentGroupNode } from './nodes/IntentGroupNode'
 import { DeletableEdge, EdgeActionsContext } from './edges/DeletableEdge'
+import { OmniWatermark } from './OmniWatermark'
 import { nodeColor } from '../utils/nodeVisual'
 import type { FlowNodeData } from '../types'
 
@@ -170,8 +171,19 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
 
   return (
     <EdgeActionsContext.Provider value={{ onDeleteEdge, isDark }}>
-    <div className="w-full h-full" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    {/* `relative` ancora a marca-d'água; a cor sólida do fundo vive aqui (e não
+        mais no <Background>) para que a logo apareça ATRÁS da grade de pontos. */}
+    <div
+      className="relative w-full h-full"
+      style={{ backgroundColor: isDark ? '#020617' : '#ffffff' }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+    <OmniWatermark isDark={isDark} />
     <ReactFlow
+      // z-10 mantém o React Flow (grade + nós) acima da marca-d'água (z-0).
+      style={{ zIndex: 10 }}
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
@@ -195,10 +207,11 @@ function FlowCanvasInner({ nodes, edges, layoutVersion, isDark, onNodeClick, onN
       maxZoom={2}
       proOptions={{ hideAttribution: true }}
     >
+      {/* Sem bgColor (transparente): a cor de fundo e a marca-d'água ficam no
+          container, então a grade de pontos é desenhada por cima da logo. */}
       <Background
         gap={22}
         size={2}
-        bgColor={isDark ? '#020617' : '#ffffff'}
         color={isDark ? '#334155' : '#b6bfcc'}
       />
       <ZoomControls onSpacingIncrease={onSpacingIncrease} onSpacingDecrease={onSpacingDecrease} />

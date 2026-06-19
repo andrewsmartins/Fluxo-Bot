@@ -237,6 +237,7 @@ src/
 ├── components/
 │   ├── TopBar.tsx              Toolbar: importar, exportar, enviar, restaurar, undo/redo, validação
 │   ├── FlowCanvas.tsx          Canvas React Flow com todos os providers
+│   ├── OmniWatermark.tsx       Marca-d'água da logo Omni no fundo (sutil, segue o tema)
 │   ├── NodePalette.tsx         Paleta de criação (grupos Fluxo / Avançado)
 │   ├── DetailPanel.tsx         Painel de edição (modos: grupo / condição / solo / read-only)
 │   ├── ImportDialog.tsx        Modal de importação (colar JSON / upload)
