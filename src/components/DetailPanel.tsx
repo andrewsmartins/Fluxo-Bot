@@ -14,6 +14,7 @@ import {
 import { acceptFor, type UploadMediaType } from '../utils/uploadMedia'
 import { VARIABLE_GROUPS, variableDisplay, entityFieldItems, type VariableItem } from '../utils/variables'
 import type { VariableGroup } from '../utils/variables'
+import { computeMenuLeft, MENU_COLUMN_WIDTH, MENU_MARGIN } from '../utils/menuPosition'
 import { useTeams } from '../contexts/TeamsContext'
 import type { Collection } from '../utils/collections'
 import { templateVarCount, type MessageTemplate } from '../utils/messageTemplates'
@@ -488,6 +489,34 @@ interface VariableMenuProps {
 }
 
 /**
+ * Linha de item no menu de variáveis (coluna de campos). Ramo (com subitens) mostra
+ * "›" e NAVEGA no clique; item com modificadores GRAVA A BASE no clique e ganha um
+ * botão "#" estreito que abre a coluna de modificadores; folha/prefixo apenas grava.
+ * (Fase 13 — fim do duplo-clique: a base vem em 1 clique e o "#" é opcional.)
+ */
+function ItemRow({ item, active, rowCls, modCls, onMain, onModifiers }: {
+  item: VariableItem
+  active: boolean
+  rowCls: (active: boolean) => string
+  modCls: (active: boolean) => string
+  onMain: () => void
+  onModifiers: () => void
+}) {
+  const isBranch = !!item.children?.length
+  const hasComponents = !!item.components?.length
+  return (
+    <li className="flex items-stretch">
+      <button type="button" className={`${rowCls(active)} flex-1`} onClick={onMain}>
+        {item.label}{isBranch ? ' ›' : ''}
+      </button>
+      {hasComponents && (
+        <button type="button" title="Modificadores (#)" aria-label="Abrir modificadores" className={modCls(active)} onClick={onModifiers}>#</button>
+      )}
+    </li>
+  )
+}
+
+/**
  * Dropdown navegável de variáveis (até 4 níveis): Categoria → Item → subitem
  * (ramo, ex.: dias) → Modificador. Reutilizado pelo `VariablePicker` (campo de
  * condição) e pelo `VariableTextArea` (mensagens). É flutuante (`fixed` via portal),
@@ -501,25 +530,33 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
   const [activeChild, setActiveChild] = useState<VariableItem | null>(null)
   // Time selecionado (grupo dinâmico): abre a coluna de campos `@team.{id}.…`.
   const [activeTeam, setActiveTeam] = useState<{ objectId: string; name: string } | null>(null)
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const { teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken } = useTeams()
 
-  // Mantém alinhado à direita do campo e logo abaixo dele; reposiciona ao rolar/redimensionar.
-  const updatePos = useCallback(() => {
+  // Posiciona logo abaixo do campo, ancorado pela ESQUERDA (caixa MÓVEL): cresce para
+  // a direita conforme abre coluna e só desliza para a esquerda quando estouraria a
+  // viewport, usando a largura REAL renderizada. O guarda evita re-render em laço.
+  const place = useCallback(() => {
     const r = anchorRef.current?.getBoundingClientRect()
-    if (r) setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    if (!r) return
+    const width = panelRef.current?.offsetWidth || MENU_COLUMN_WIDTH
+    const left = computeMenuLeft(r, window.innerWidth, width, MENU_MARGIN)
+    const top = r.bottom + 4
+    setPos(prev => (prev && prev.left === left && prev.top === top) ? prev : { top, left })
   }, [anchorRef])
 
-  useLayoutEffect(() => {
-    updatePos()
-    window.addEventListener('resize', updatePos)
-    window.addEventListener('scroll', updatePos, true) // capture: pega o scroll interno do painel
+  // Após cada render (inclui abrir/fechar coluna) remede a largura e reposiciona.
+  useLayoutEffect(() => { place() })
+
+  useEffect(() => {
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true) // capture: pega o scroll interno do painel
     return () => {
-      window.removeEventListener('resize', updatePos)
-      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
     }
-  }, [updatePos])
+  }, [place])
 
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {
@@ -550,13 +587,18 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
     setActiveItem(null); setActiveChild(null)
     setActiveTeam(team)
   }
-  const onItemClick = (it: VariableItem) => {
+  // Item da coluna de campos (categoria ou time). Ramo (subitens) NAVEGA; item com
+  // modificadores GRAVA A BASE no clique (1 clique p/ o caso comum) — o "#" abre os
+  // modificadores como passo opcional; folha/prefixo grava (Fase 13: sem duplo-clique).
+  const onItemMain = (it: VariableItem) => {
     setActiveChild(null)
-    if (it.children?.length || it.components?.length) setActiveItem(it) // abre próxima coluna
-    else onPick(it.value ?? '', it.prefix)                             // sem componente / prefixo
+    if (it.children?.length) setActiveItem(it)   // ramo (ex.: "Horário de Abertura") → navega
+    else onPick(it.value ?? '', it.prefix)       // base com modificadores / folha / prefixo → grava
   }
-  const onChildClick = (child: VariableItem) => {
-    if (child.components?.length) setActiveChild(child)
+  const onItemModifiers = (it: VariableItem) => { setActiveChild(null); setActiveItem(it) } // "#" abre coluna de #
+  // Subitem (ex.: dia da semana): grava a base; "#" abre os modificadores de hora.
+  const onChildMain = (child: VariableItem) => {
+    if (child.children?.length) setActiveChild(child)
     else onPick(child.value ?? '', child.prefix)
   }
   // Campos de um time selecionado: mesmo schema do Bot, base `@team.{id}`.
@@ -567,7 +609,7 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
   )
 
   // Largura fixa por coluna (não encolhe): comporta o rótulo mais longo
-  // ("Apenas Horário com Minutos") sem quebrar e cresce para a esquerda sobre o canvas.
+  // ("Apenas Horário com Minutos") sem quebrar e cresce para a DIREITA sobre o canvas.
   const panelCls = `fixed z-50 flex rounded-lg border shadow-lg ${
     isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   }`
@@ -579,10 +621,16 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
       ? (isDark ? 'bg-slate-700 text-slate-100' : 'bg-slate-100 text-slate-800')
       : (isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-100')
   }`
+  // Afford. "#": botão estreito à direita da linha que abre a coluna de modificadores.
+  const modCls = (active: boolean) => `shrink-0 px-2 text-xs font-semibold border-l ${borderCls} transition-colors ${
+    active
+      ? (isDark ? 'bg-slate-700 text-blue-300' : 'bg-slate-100 text-blue-600')
+      : (isDark ? 'text-slate-500 hover:bg-slate-700 hover:text-blue-300' : 'text-slate-400 hover:bg-slate-100 hover:text-blue-600')
+  }`
 
   if (!pos) return null
   return createPortal(
-    <div ref={panelRef} className={panelCls} style={{ top: pos.top, right: pos.right }}>
+    <div ref={panelRef} className={panelCls} style={{ top: pos.top, left: pos.left }}>
       <ul className={colCls}>
         {VARIABLE_GROUPS.map(g => (
           <li key={g.key}>
@@ -591,26 +639,23 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
               className={rowCls(g.key === activeGroup)}
               onMouseEnter={() => { if (g.items || g.key === 'team') { setActiveGroup(g.key); setActiveItem(null); setActiveChild(null); setActiveTeam(null) } }}
               onClick={() => onCategoryClick(g)}
-              onDoubleClick={() => onPick(`@${g.key}`, true)} // duplo clique grava o namespace cru (@customer)
             >{g.label}{g.items || g.key === 'team' ? ' ›' : ''}</button>
           </li>
         ))}
       </ul>
       {group?.items && (
         <ul className={`${colCls} border-l ${borderCls}`}>
-          {group.items.map((it: VariableItem) => {
-            const branch = !!(it.children?.length || it.components?.length)
-            return (
-              <li key={it.value ?? it.label}>
-                <button
-                  type="button"
-                  className={rowCls(activeItem === it)}
-                  onClick={() => onItemClick(it)}
-                  onDoubleClick={() => { if (it.value) onPick(it.value, it.prefix) }} // grava a base, pulando componentes
-                >{it.label}{branch ? ' ›' : ''}</button>
-              </li>
-            )
-          })}
+          {group.items.map((it: VariableItem) => (
+            <ItemRow
+              key={it.value ?? it.label}
+              item={it}
+              active={activeItem === it}
+              rowCls={rowCls}
+              modCls={modCls}
+              onMain={() => onItemMain(it)}
+              onModifiers={() => onItemModifiers(it)}
+            />
+          ))}
         </ul>
       )}
       {/* Grupo dinâmico Time: coluna dos times da loja (carregados sob demanda). */}
@@ -654,33 +699,32 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
       {/* Coluna de campos do time selecionado (mesmo schema do Bot). */}
       {activeTeam && (
         <ul className={`${colCls} border-l ${borderCls}`}>
-          {teamFieldItems.map(it => {
-            const branch = !!(it.children?.length || it.components?.length)
-            return (
-              <li key={it.value ?? it.label}>
-                <button
-                  type="button"
-                  className={rowCls(activeItem === it)}
-                  onClick={() => onItemClick(it)}
-                  onDoubleClick={() => { if (it.value) onPick(it.value, it.prefix) }}
-                >{it.label}{branch ? ' ›' : ''}</button>
-              </li>
-            )
-          })}
+          {teamFieldItems.map(it => (
+            <ItemRow
+              key={it.value ?? it.label}
+              item={it}
+              active={activeItem === it}
+              rowCls={rowCls}
+              modCls={modCls}
+              onMain={() => onItemMain(it)}
+              onModifiers={() => onItemModifiers(it)}
+            />
+          ))}
         </ul>
       )}
       {/* 3ª coluna: subitens-ramo (ex.: dias) OU componentes (#) diretos do item */}
       {activeItem?.children?.length && (
         <ul className={`${colCls} border-l ${borderCls}`}>
           {activeItem.children.map(child => (
-            <li key={child.value ?? child.label}>
-              <button
-                type="button"
-                className={rowCls(activeChild === child)}
-                onClick={() => onChildClick(child)}
-                onDoubleClick={() => { if (child.value) onPick(child.value, child.prefix) }} // grava a base, pulando componentes
-              >{child.label}{child.components?.length ? ' ›' : ''}</button>
-            </li>
+            <ItemRow
+              key={child.value ?? child.label}
+              item={child}
+              active={activeChild === child}
+              rowCls={rowCls}
+              modCls={modCls}
+              onMain={() => onChildMain(child)}
+              onModifiers={() => setActiveChild(child)}
+            />
           ))}
         </ul>
       )}

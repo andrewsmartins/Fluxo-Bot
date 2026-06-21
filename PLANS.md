@@ -1260,6 +1260,71 @@ real em 2026-06-21 (89 modelos no retailer `5rFc8fXg1G`, 1 com Flow):
   teste com `fetch` mockado + a 1ª captura real são a rede de segurança.
 - **Versão sugerida:** minor (próximo após a atual 0.15.x).
 
+### Fase 13 — UX do picker de variáveis (@): fim do alvo móvel + sem duplo-clique ✅ CONCLUÍDA (v0.17.0, branch `feat/template-message`)
+
+> **Implementação (2026-06-21):** entregue conforme o plano abaixo. Resumo do que ficou no código:
+> - **Posição (REVISADA p/ caixa MÓVEL — pedido do Andy):** `src/utils/menuPosition.ts` (NOVO) — `computeMenuLeft(fieldRect, viewportWidth, width, margin)` puro (clamp p/ caber na viewport) + constantes (`MENU_COLUMN_WIDTH=192`, `MENU_MARGIN=8`). `VariableMenu` (DetailPanel) trocou `pos.right` por `pos.left`. **A 1ª versão fixava o menu reservando a largura máxima (5 colunas) → em telas com o painel à direita ele abria longe do campo ("muito pra direita/esquerda").** Trocado por **móvel ancorado no campo**: `place()` mede a largura REAL (`panelRef.offsetWidth`) e roda em `useLayoutEffect(() => place())` a cada render (+ scroll/resize), com guarda anti-loop no `setPos`. O menu cresce para a direita e só desliza p/ caber. Δleft≈0 do campo (verificado no smoke).
+> - **Cliques:** removidos todos os `onDoubleClick`. Novo componente `ItemRow` (módulo, reusado pelas colunas de categoria/time/dias): ramo → navega (mostra "›"); item com `components` → grava a base no clique + botão **`#`** estreito (`modCls`) que abre a coluna de modificadores; folha/prefixo → grava. Handlers `onItemMain`/`onItemModifiers`/`onChildMain` (substituíram `onItemClick`/`onChildClick`). Categorias e namespace livre já estavam corretos no clique — só caiu o duplo-clique que gravava `@{key}` cru.
+> - **Testes:** `menuPosition.test.ts` (7 casos) + smoke `scripts/smoke-phase13-variable-picker.mjs` (6 verificações, sem API, incl. âncora no campo). Build + tsc + **315 testes** + **16 smokes** verdes.
+> - **Pendências honestas:** overflow vertical (campo no rodapé) segue fora de escopo, como planejado.
+
+#### Plano original (interrogado e aprovado 2026-06-21)
+
+**Objetivo (1 frase):** tornar a escolha de variáveis no menu `@` confiável, eliminando o
+duplo-clique e impedindo que o painel "ande" ao expandir colunas — hoje o 1º clique do
+duplo-clique abre a próxima coluna, o painel desloca, e o 2º clique cai no lugar errado.
+
+**Componente:** `VariableMenu` em [DetailPanel.tsx:498](src/components/DetailPanel.tsx#L498)
+(menu em cascata multi-coluna, portal `fixed`, hoje alinhado pela DIREITA → cresce para a
+esquerda e move as colunas já abertas). Catálogo em [variables.ts](src/utils/variables.ts).
+
+**Causa-raiz:** o painel é `right: pos.right` (borda direita fixa); ao adicionar coluna, a
+largura cresce e a borda esquerda anda → o alvo foge do cursor entre os dois cliques.
+
+**Decisões (interrogatório 2026-06-21):**
+1. **Ancorar para NÃO mover.** Trocar a âncora da direita para a **esquerda fixa**: as colunas
+   passam a crescer para a DIREITA sem deslocar as já abertas. A posição `left` é **computada
+   por uma função pura** com clamp para a viewport, de modo que a expansão MÁXIMA caiba na tela
+   (campo colado na borda direita → empurra `left` para a esquerda). `left` recomputa só em
+   scroll/resize (posição do campo), **nunca** ao mudar de coluna. `top = field.bottom + 4`
+   mantido. Vertical overflow (campo no rodapé) fica como risco conhecido, fora de escopo.
+2. **Sem duplo-clique em lugar nenhum.** Remover todos os `onDoubleClick`.
+3. **Categoria COM campos** (`@customer`, `@bot`, `@store`, `@order`, `@chat`): clique **só
+   navega**. Decisão: gravar o namespace cru dessas (só `@customer`) "praticamente nunca" se usa
+   → **sem botão "+"**, sem escape hatch. (Confirmado pelo Andy.)
+4. **Namespace livre** (`@api`, `@custom`, `@flow`, `@entity`, `@team`): clique **grava** (mantido
+   — não têm campos; `@team` é o dinâmico que abre a coluna de times).
+5. **Item com modificadores (#)** (ex.: `@customer.name`): clique **grava a base direto** (vira o
+   caso comum em 1 clique); um afford. **`#`** na linha abre a coluna de modificadores como passo
+   OPCIONAL (antes a base só vinha por duplo-clique; o clique simples abria os #).
+6. **Item-ramo sem valor próprio** ("Horário de Abertura" → dias): clique **navega**.
+7. **Hover mantido** abrindo a próxima coluna (navegação rápida) — agora estável, pois o painel
+   não se move mais.
+
+**Resumo do clique por tipo de linha (modelo final):**
+| Tipo de linha | Clique simples | Afford. secundário |
+|---|---|---|
+| Categoria-folha / namespace livre (`@api`, `@flow`…) | grava o token | — |
+| Categoria dinâmica (`@team`) | abre coluna de times | — |
+| Categoria com campos (`@customer`…) | navega (abre campos) | — (sem "+") |
+| Item com modificadores (`@customer.name`) | **grava a base** | **`#`** abre modificadores |
+| Item-ramo ("Horário de Abertura") | navega | — |
+| Item folha / prefixo (`@customer.ddd`, "Campo personalizado…") | grava | — |
+| Modificador (`#normalizeQuery`) | grava `base+suffix` | — |
+
+**Testes (decisão: função pura + smoke novo):**
+- **Vitest (função pura de posição):** extrair `computeMenuLeft(fieldRect, viewportWidth,
+  maxWidth, margin)` → cobre caminho infeliz (campo colado na borda direita → clamp; nunca
+  estoura à direita; nunca `left < margin`; estável independente do nº de colunas).
+- **Smoke Playwright novo** (`smoke-phase13-variable-picker.mjs`): clique em item-com-# grava a
+  **base** (regressão central — antes exigia duplo-clique); `#` abre modificadores; hover navega;
+  categoria-com-campos só navega; namespace livre grava no clique. Reusar `scripts/lib/loadFlow.mjs`.
+- Critério de pronto: tsc + vitest + smokes verdes; validação manual (escolher 3-4 variáveis sem
+  precisar repetir clique). Versão sugerida: patch/minor conforme escopo final.
+
+**Risco conhecido:** overflow vertical do painel (campo perto do rodapé da tela) não é tratado —
+fora de escopo desta fase; abrir-para-cima fica para depois se incomodar.
+
 ## Melhorias paralelas (independentes das fases)
 
 - ~~Trocar `dagre@0.8.5` (sem manutenção) por `@dagrejs/dagre` (fork mantido,
