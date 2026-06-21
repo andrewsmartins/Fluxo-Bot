@@ -1133,6 +1133,133 @@ usado no badge de captura, `CaptureNode.tsx:40`).
 - Confirmar os **hex exatos** no DevTools do produto real antes de fechar a paleta — a print
   comprime cor (ver conversa: print dá aproximação, DevTools dá o valor + estados).
 
+### Fase 12 — Modelo de mensagem com Flow (mensagem TEMPLATE) ✅ CONCLUÍDA (v0.16.0, branch `feat/template-message`)
+
+> **Implementação efetiva (2026-06-21):** seguiu o plano interrogado abaixo, espelhando o COLLECTION.
+> - **`src/utils/messageTemplates.ts` (NOVO)** — `fetchMessageTemplates`/`fetchStoreMessageTemplates` (POST `findMessageTemplates`
+>   em `api-private.omni.chat` — **note o endpoint sem o "2"**, diferente do `PARSE`=`api-private2`; constante própria `FIND_TEMPLATES_FN`),
+>   filtro Flow client-side (`toFlowTemplate`/`findFlowButtonText`), helpers `templateVarCount`/`templateBody`/`distinctPlaceholders`.
+>   Reusa `fetchRetailerId`/`sessionHeaders` de `teams.ts`. `MessageTemplate = { objectId, title, body, examples[], flowButtonText }`.
+> - **`types.ts`** — `BotMessage` += `title?`/`messageTemplateId?`/`messageTemplateHeaderToken?`/`messageTemplateTokens?` (opcionais).
+>   `ButtonOption.description` virou **opcional** + ganhou `type?`; `ButtonMessageConfig.header/title/footer` viraram opcionais
+>   (o TEMPLATE só emite `type`/`body`/`buttons`). Todos os usos de leitura já eram null-safe.
+> - **`TeamsContext`/`App.tsx`** — estado `templates`/`templatesStatus`/`templatesError` + `loadTemplates(search?)` + `templatesById`,
+>   espelhando `loadCollections` (ref anti-concorrência, reset ao trocar token, sem logar token).
+> - **`editIntent.ts`** — `buildTemplateMessage` (forma canônica), `addTemplateMessage(intent, payload, condIdx?)`,
+>   `updateTemplateMessage(intent, ref, payload)` (reusa o `id` do botão quando o texto não muda); `listMessages`/`EditableMessage`
+>   expõem `messageTemplateId`/`templateTitle`/`templateTokens` e `text`=corpo. `TemplateMessagePayload` exportado.
+> - **`DetailPanel.tsx`** — opção `TEMPLATE` no `ADD_MESSAGE_OPTIONS` (ícone 🧩); `TemplateField` (picker `TemplatePicker` + N campos
+>   de variável + `TemplatePreview` com chips e botão Flow) com flag `editing` (= COLLECTION); estados `editingTpl`; validação no
+>   `handleApply` (bloqueia variável vazia, novas e existentes) + resolução do payload via `templatesById` com fallback aos campos
+>   gravados quando o modelo sumiu. `VariableTextArea` ganhou `rows` (versão de 1 linha).
+> - **Picker = DROPDOWN (ajuste pós-implementação, pedido do Andy):** o `TemplatePicker` virou um combobox — gatilho mostrando o
+>   modelo escolhido (ou "Selecionar modelo…") que abre um menu com busca + as opções encontradas; escolher fecha; clique fora fecha
+>   (mesmo padrão do `AddMessageMenu`). Antes era busca + lista sempre visíveis (como o COLLECTION).
+> - **Testes:** `messageTemplates.test.ts` (NOVO) + casos novos em `editIntent.test.ts` + smoke `scripts/smoke-phase12-template.mjs`
+>   (sem API real, intercepta `fetch` como o `smoke-phase4b`; abre o dropdown antes de escolher). Build + tsc + **308 testes** verdes;
+>   **os 15 smokes (sem API real) passam.**
+> - **Conserto do `smoke-phase2` (junto da Fase 12):** estava quebrado **desde a Fase 11G**, que adicionou os handles laterais de
+>   contexto (`ctx-source`/`ctx-target`) ao `NodeShell`. Dois sintomas, dois fixes no smoke (sem mexer no app): (1) `.react-flow__handle.source`
+>   passou a casar 2 handles (fluxo `-bottom` + `ctx-source` `-right`) → strict-mode; qualificado para `.react-flow__handle-bottom.source`.
+>   (2) o seletor de destino pegava o nó `start` (que só tem `ctx-target`, pois nada flui PARA ele) e a conexão de fluxo não nascia;
+>   qualificado para `.react-flow__handle-top.target` (alvo de fluxo). NÃO era regressão da Fase 12.
+> - **PENDÊNCIA — validar no 1º push real:** (1) a plataforma aceita o botão Flow sem `flow_id`/`flow_action` (gravamos só `{id,text,type}`)?
+>   (2) header de mídia em modelo Flow é ignorado no preview da v1 (corpo+botão só).
+>
+> ---
+> _Plano original (interrogado 2026-06-21), preservado para referência:_
+
+**Objetivo (uma frase):** adicionar ao "+ Adicionar Resposta" o tipo **"Modelo de mensagem
+com Flow"** (`type: 'TEMPLATE'`), que busca modelos do WhatsApp compatíveis com Flow, deixa
+preencher as variáveis do corpo com `@`, mostra preview da mensagem preenchida e é
+editável/excluível — espelhando o padrão do COLLECTION.
+
+**Contrato REAL confirmado (não suposto)** — capturado via `findMessageTemplates` com token
+real em 2026-06-21 (89 modelos no retailer `5rFc8fXg1G`, 1 com Flow):
+
+- **Busca:** `POST https://api-private.omni.chat/parse/functions/findMessageTemplates`,
+  headers = `sessionHeaders` padrão (mesma auth de `teams.ts`/`collections.ts`). Body:
+  `{ where: { retailer: Pointer(Retailer, <retailerId>), status: 'READY',
+  title: { $regex, $options: 'i' }, userVisible: true,
+  type: { $in: ['NEW_CHAT','CUSTOM','MARKETING','ACCOUNT_UPDATE'] } }, limit: 1000,
+  order: '-createdAt' }`. Resposta = `{ result: MessageTemplate[] }`. `retailerId` vem de
+  `fetchRetailerId(botId)` (JÁ existe em `collections.ts`).
+- **Forma do MessageTemplate (campos usados):** `objectId`, `title`, `text` (corpo com
+  `{{1}}..{{n}}`), `components[]` (tipos vistos: `BODY`, `HEADER`, `FOOTER`, `BUTTONS`,
+  `CAROUSEL`). O `BODY.examples[]` dá o nº de variáveis e um texto-exemplo por posição. O
+  botão Flow está em `components[type=BUTTONS].buttons[]` com `{ text, type:'FLOW',
+  flow_action, flow_id }`.
+- **Serialização da mensagem (BotMessage) — confirmada por export real:**
+  `{ type:'TEMPLATE', content:<corpo com {{n}}>, fileName:'', title:<title do modelo>,
+  messageTemplateId:<objectId>, messageTemplateHeaderToken:'',
+  messageTemplateTokens:[<var de {{1}}>, <var de {{2}}>, ...],
+  messageConfig:{ type:'text', body:'', buttons:[{ id:<uuid gerado>, text:<text do botão>,
+  type:'FLOW' }] } }`. **Posicional:** `messageTemplateTokens[i]` ↔ `{{i+1}}`.
+
+**Decisões fechadas (interrogatório 2026-06-21) + porquê:**
+
+1. **Filtro "compatível com Flow" = client-side.** O endpoint não filtra por Flow (só 1 de 89
+   tem). Mantemos o `where` capturado (espelha a plataforma) e filtramos no cliente os modelos
+   cujo `components` tem um botão `type === 'FLOW'`. _Por quê:_ é o que distingue "com Flow"; e
+   evita inventar parâmetro de servidor que não existe.
+2. **Campo de variável = texto livre com `@`** (reusa `VariableTextArea`, versão de 1 linha).
+   _Por quê:_ fiel à label "Digite @ para valores dinâmicos" e ao WhatsApp (parâmetro pode ser
+   texto fixo + variável, ex.: `Pedido #@order.id`). N campos posicionais (N = nº de `{{n}}`),
+   `examples[i]` vira placeholder do campo.
+3. **Variável de cabeçalho FORA de escopo na v1.** Dos 89 modelos, 22 têm HEADER e **nenhum**
+   tem variável no header (são imagem/mídia). Gravamos `messageTemplateHeaderToken: ''` fixo.
+   _Por quê:_ não construir UI para um caso que não aparece nos dados reais.
+4. **`content`, `title` e o botão Flow são read-only/derivados** do modelo selecionado. Só as
+   variáveis são editáveis. _Por quê:_ o texto e os botões pertencem ao modelo aprovado no
+   WhatsApp — editá-los no bot quebraria o vínculo com o template homologado.
+5. **Validação: exigir TODAS as variáveis preenchidas para salvar** (bloqueia com toast, igual
+   aos outros editores); modelo sem variável salva direto. _Por quê:_ variável vazia mandaria
+   `{{n}}` cru visível ao cliente no WhatsApp.
+6. **Preview** = `content` com cada `{{n}}` substituído inline pelo valor digitado (variável
+   destacada como chip sutil), com o botão Flow renderizado abaixo como pílula desabilitada.
+   _Por quê:_ "preview da mensagem preenchida" pedido pelo Andy; espelha o cartão do COLLECTION.
+7. **Padrão de implementação = espelhar COLLECTION** (decisão de arquitetura, não reinventar):
+   - `src/utils/messageTemplates.ts` (NOVO) espelha `collections.ts`: reusa `fetchRetailerId`,
+     `sessionHeaders`/`PARSE`/`APP_ID` de `teams.ts`; `fetchMessageTemplates(retailerId,
+     search?)` → filtra Flow client-side; expõe `MessageTemplate` tipado + helper
+     `templateVarCount(t)` e `templateBody(t)`.
+   - Estado/cache no `TeamsContext` espelhando `loadCollections` → `loadMessageTemplates`.
+   - `types.ts`: estender `BotMessage` com `title?`, `messageTemplateId?`,
+     `messageTemplateHeaderToken?`, `messageTemplateTokens?: string[]` (todos opcionais — não
+     quebra serialização existente, que preserva campos por patch).
+   - `editIntent.ts`: `addTemplateMessage(intent, payload, condIdx?)` +
+     `updateTemplateMessage(intent, ref, payload)`; `removeMessage` já é genérico. `listMessages`
+     passa a expor os campos de template.
+   - `DetailPanel.tsx`: opção `{ type:'TEMPLATE', label:'Modelo de mensagem com Flow' }` no
+     `ADD_MESSAGE_OPTIONS`; componente `TemplateMessageEditor` (picker com busca → seleção →
+     N campos de variável com `@` → preview) com flag `editing` (= COLLECTION) e
+     `TemplateMessageSummary` (cartão preview + lápis/excluir).
+
+**Como será testado (incl. caminho infeliz):**
+- **Vitest `messageTemplates.test.ts`** (fetch mockado): monta o `where` certo, filtra Flow
+  client-side, ordena por título, trata erro HTTP (status + motivo sem vazar token), lista vazia
+  (nenhum modelo com Flow → estado vazio), `fetchRetailerId` falha.
+- **Vitest `editIntent.test.ts`** (+casos): add/update/remove TEMPLATE; mapeamento posicional
+  `messageTemplateTokens[i]` ↔ `{{i+1}}`; modelo com 0/1/3 variáveis; serialização preserva
+  todos os campos novos (round-trip).
+- **Caminho infeliz de UI:** salvar com variável vazia (bloqueia), modelo sem variável (campos
+  desabilitados — "habilitado quando o template tem variável"), modelo salvo cujo `templateId`
+  some da plataforma (summary mostra `content`/`title` gravados, sem quebrar), busca sem token,
+  retailer não resolve.
+- **Smoke Playwright** `smoke-phase12-template.mjs` (sem API real, intercepta `fetch` como o
+  `smoke-phase4b`): adicionar → selecionar modelo → preencher variável → preview → salvar →
+  editar → excluir; export JSON com a mensagem TEMPLATE serializada certa.
+
+**Riscos/pendências conhecidas:**
+- **Botão Flow: gravamos só `{ id, text, type:'FLOW' }`** (o export real do Andy não tinha
+  `flow_id`/`flow_action` na mensagem — a plataforma resolve pelo `messageTemplateId`).
+  Validar no 1º push real que a plataforma aceita sem `flow_id`; se exigir, acrescentar.
+- **CAROUSEL/FOOTER existem** em modelos não-Flow; como filtramos só Flow, ficam fora — mas se
+  um modelo Flow tiver header de mídia, o preview da v1 ignora o header (corpo + botão só).
+- `findMessageTemplates` é API interna não documentada (mesmo risco dos demais services) — o
+  teste com `fetch` mockado + a 1ª captura real são a rede de segurança.
+- **Versão sugerida:** minor (próximo após a atual 0.15.x).
+
 ## Melhorias paralelas (independentes das fases)
 
 - ~~Trocar `dagre@0.8.5` (sem manutenção) por `@dagrejs/dagre` (fork mantido,

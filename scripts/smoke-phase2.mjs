@@ -49,7 +49,10 @@ try {
   // 3. Conectar o nó novo a um existente: drag do handle source até outro nó
   const newNode = page.locator('.react-flow__node', { hasText: 'nova_intencao_1' })
   if (!(await newNode.count())) fail('nó criado não encontrado pelo nome')
-  const srcHandle = await newNode.locator('.react-flow__handle.source').boundingBox()
+  // Handle de FLUXO (base): desde a Fase 6 Marco B os nós têm 2 handles `.source`
+  // (o de fluxo `-bottom` + o `ctx-source` `-right` da aresta de contexto), então
+  // `.react-flow__handle.source` sozinho viola o strict mode. Qualifica pelo `-bottom`.
+  const srcHandle = await newNode.locator('.react-flow__handle-bottom.source').boundingBox()
   // Alvo: handle target de um nó interno que NÃO sobreponha o nó recém-criado
   // (um drop sobre o nó novo seria capturado por ele, não pelo alvo)
   const targetHandle = await page.evaluate(() => {
@@ -59,7 +62,10 @@ try {
     const overlaps = (r) => !(r.right < fr.left - 20 || r.left > fr.right + 20 || r.bottom < fr.top - 20 || r.top > fr.bottom + 20)
     for (const el of nodes) {
       if (el === fresh || el.getAttribute('data-id')?.startsWith('ext-')) continue
-      const h = el.querySelector('.react-flow__handle.target')
+      // Handle de FLUXO (topo): desde a Fase 11G os nós têm um `ctx-target` (`-left`,
+      // âncora de contexto) além do alvo de fluxo. O start, por ex., só tem o ctx-target
+      // (nada flui PARA ele) — qualificar por `-top` evita escolhê-lo como destino.
+      const h = el.querySelector('.react-flow__handle-top.target')
       if (!h) continue
       const r = el.getBoundingClientRect()
       if (overlaps(r)) continue

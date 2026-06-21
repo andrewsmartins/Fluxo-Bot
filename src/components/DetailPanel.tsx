@@ -6,16 +6,17 @@ import { useTheme } from '../contexts/ThemeContext'
 import { PRIORITY_LABELS, CONDITION_TYPE_LABELS } from '../utils/nodeMeta'
 import {
   listMessages, updateMessageText, addTextMessage, addMediaMessage, addCollectionMessage, updateCollectionMessage, removeMessage,
-  addButtonListMessage, replaceButtonListMessage, setChoices,
+  addTemplateMessage, updateTemplateMessage, addButtonListMessage, replaceButtonListMessage, setChoices,
   updateCondition, addCondition, removeCondition,
   updateIntentMeta, updateActionFields, updateSetDataItems, sanitizeIntentName,
-  type EditableMessage, type MessageRef,
+  type EditableMessage, type MessageRef, type TemplateMessagePayload,
 } from '../utils/editIntent'
 import { acceptFor, type UploadMediaType } from '../utils/uploadMedia'
 import { VARIABLE_GROUPS, variableDisplay, entityFieldItems, type VariableItem } from '../utils/variables'
 import type { VariableGroup } from '../utils/variables'
 import { useTeams } from '../contexts/TeamsContext'
 import type { Collection } from '../utils/collections'
+import { templateVarCount, type MessageTemplate } from '../utils/messageTemplates'
 import type { EditResult } from '../utils/editFlow'
 import { CREATABLE_KINDS, CREATABLE_KIND_LABELS, type CreatableKind } from '../utils/intentTemplates'
 
@@ -109,7 +110,7 @@ interface DraftCondition {
 const KIND_OPTIONS = CREATABLE_KINDS.map(k => ({ value: k, label: CREATABLE_KIND_LABELS[k] }))
 
 /** Mensagem nova ainda não persistida, criada via "+ Adicionar Resposta". */
-type NewDraftMessage = NewMediaMessage | NewButtonListMessage | NewCollectionMessage
+type NewDraftMessage = NewMediaMessage | NewButtonListMessage | NewCollectionMessage | NewTemplateMessage
 
 /** Variantes de conteúdo simples (texto/mídia) — `content` é o texto ou a URL. */
 interface NewMediaMessage {
@@ -146,6 +147,19 @@ interface NewButtonListMessage {
 interface NewCollectionMessage {
   type: 'COLLECTION'
   collectionId: string
+  editing: boolean
+}
+
+/**
+ * Resposta "Modelo de mensagem com Flow" (TEMPLATE). `editing` controla a UI igual ao
+ * COLLECTION (picker aberto vs. preview). `messageTemplateId` é o modelo escolhido;
+ * `tokens` são os valores das variáveis (`{{n}}`), posicionais. Corpo/título/botão são
+ * derivados do modelo (não ficam no draft) — resolvidos via `templatesById` no apply.
+ */
+interface NewTemplateMessage {
+  type: 'TEMPLATE'
+  messageTemplateId: string
+  tokens: string[]
   editing: boolean
 }
 
@@ -820,11 +834,12 @@ const ADD_MESSAGE_OPTIONS: { type: NewDraftMessage['type']; label: string }[] = 
   { type: 'FILE',  label: 'PDF' },
   { type: 'VIDEO', label: 'Vídeo' },
   { type: 'COLLECTION', label: 'Coleção' },
+  { type: 'TEMPLATE', label: 'Modelo de mensagem com Flow' },
   // Botão/Lista NÃO entra aqui: vira o "Menu" do nó de Escolha (seção própria, Fase 10c).
 ]
 
-/** Ícones do menu "Adicionar Resposta" (mídia + texto + botão/lista + coleção). */
-const ADD_MESSAGE_ICONS: Record<string, string> = { ...MEDIA_ICONS, TEXT: '✏️', BUTTONLIST: '🔘', COLLECTION: '🛍️' }
+/** Ícones do menu "Adicionar Resposta" (mídia + texto + botão/lista + coleção + modelo). */
+const ADD_MESSAGE_ICONS: Record<string, string> = { ...MEDIA_ICONS, TEXT: '✏️', BUTTONLIST: '🔘', COLLECTION: '🛍️', TEMPLATE: '🧩' }
 
 /** Limites de caracteres do Botão/Lista, espelhando o construtor da plataforma (padrão WhatsApp). */
 const BL_LIMITS = { header: 60, body: 80, footer: 60, title: 20, item: 20, desc: 72 } as const
@@ -1229,6 +1244,245 @@ function CollectionField({ collectionId, editing, isDark, inputCls, labelCls, gh
   )
 }
 
+// ─── Modelo de mensagem com Flow (resposta TEMPLATE, Fase 12) ────────────────
+
+/** Segmento do corpo de um modelo: texto literal OU uma variável posicional `{{n}}`. */
+type TemplateSegment = { text: string } | { varIndex: number }
+
+/** Quebra o corpo (`...{{1}}...{{2}}...`) em segmentos para o preview. */
+function splitTemplateBody(body: string): TemplateSegment[] {
+  const segs: TemplateSegment[] = []
+  let last = 0
+  for (const m of body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) {
+    const start = m.index ?? 0
+    if (start > last) segs.push({ text: body.slice(last, start) })
+    segs.push({ varIndex: Number.parseInt(m[1], 10) })
+    last = start + m[0].length
+  }
+  if (last < body.length) segs.push({ text: body.slice(last) })
+  return segs
+}
+
+/**
+ * Preview da mensagem do modelo: o corpo com cada `{{n}}` substituído inline pelo
+ * valor digitado (chip sutil; mostra `{{n}}` esmaecido quando ainda vazio) e o botão
+ * Flow renderizado abaixo como pílula desabilitada. Espelha o cartão do COLLECTION.
+ */
+function TemplatePreview({ body, tokens, flowButtonText, isDark }: { body: string; tokens: string[]; flowButtonText: string; isDark: boolean }) {
+  const segs = splitTemplateBody(body)
+  const chipCls = isDark ? 'bg-slate-700 text-slate-100' : 'bg-blue-50 text-blue-700'
+  const emptyCls = isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+  return (
+    <div className={`rounded-xl border p-2.5 flex flex-col gap-2 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+      <p className={`text-xs whitespace-pre-wrap leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+        {segs.map((s, i) =>
+          'text' in s
+            ? <span key={i}>{s.text}</span>
+            : (() => {
+                const v = tokens[s.varIndex - 1]?.trim()
+                return <span key={i} className={`inline-block rounded px-1 py-0.5 text-[11px] font-medium ${v ? chipCls : emptyCls}`}>{v || `{{${s.varIndex}}}`}</span>
+              })(),
+        )}
+      </p>
+      {flowButtonText && (
+        <div className={`rounded-lg border text-center text-[11px] font-medium py-1.5 ${isDark ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+          🔗 {flowButtonText}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Picker de modelo de mensagem em formato DROPDOWN: um gatilho mostra o modelo
+ * escolhido (ou "Selecionar modelo…") e, ao abrir, revela uma busca + a lista dos
+ * modelos com Flow da loja (carregados sob demanda com o token, igual ao picker de
+ * coleções). Filtra no cliente; escolher um item fecha o menu. Clique fora fecha
+ * (mesmo padrão do "+ Adicionar Resposta"). Embutido no `TemplateField`.
+ */
+function TemplatePicker({ selectedId, isDark, inputCls, onSelect }: { selectedId: string; isDark: boolean; inputCls: string; onSelect: (t: MessageTemplate) => void }) {
+  const { templates, templatesStatus, templatesError, loadTemplates, hasToken, requestToken, templatesById } = useTeams()
+  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (hasToken && templatesStatus === 'idle') loadTemplates()
+  }, [hasToken, templatesStatus, loadTemplates])
+
+  // Clique fora fecha o dropdown.
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as HTMLElement)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
+  // Foca a busca ao abrir (digitar filtra na hora).
+  useEffect(() => { if (open) searchRef.current?.focus() }, [open])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? templates.filter(t => t.title.toLowerCase().includes(q)) : templates
+  }, [templates, search])
+
+  if (!hasToken) {
+    return (
+      <div className={`text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+        <button type="button" className="font-medium text-blue-500 hover:text-blue-600 text-left" onClick={requestToken}>
+          Insira o token de sessão
+        </button>
+        {' '}para carregar os modelos.
+      </div>
+    )
+  }
+
+  const selected = selectedId ? (templatesById.get(selectedId) ?? null) : null
+  const rowBase = 'w-full text-left text-xs px-2.5 py-1.5 transition-colors'
+  const rowSel = isDark ? `${rowBase} bg-slate-700 text-slate-100` : `${rowBase} bg-blue-50 text-blue-700`
+  const rowIdle = isDark ? `${rowBase} text-slate-300 hover:bg-slate-800` : `${rowBase} text-slate-700 hover:bg-slate-50`
+  const triggerLabel = selected?.title ?? (selectedId ? selectedId : 'Selecionar modelo…')
+
+  return (
+    <div ref={wrapRef} className="relative min-w-0">
+      <button
+        type="button"
+        className={`${inputCls} flex items-center justify-between gap-2 text-left`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className={`truncate ${selected || selectedId ? '' : (isDark ? 'text-slate-500' : 'text-slate-400')}`}>{triggerLabel}</span>
+        <span className={`shrink-0 text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>▾</span>
+      </button>
+      {open && (
+        <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border shadow-lg overflow-hidden ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <div className="p-1.5">
+            <input ref={searchRef} className={inputCls} value={search} placeholder="Buscar modelo…" onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div className="max-h-40 overflow-y-auto border-t border-inherit">
+            {(templatesStatus === 'idle' || templatesStatus === 'loading') && (
+              <p className={`px-2.5 py-1.5 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Carregando…</p>
+            )}
+            {templatesStatus === 'error' && (
+              <div className="px-2.5 py-1.5 flex flex-col gap-1">
+                <span className={`text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>{templatesError}</span>
+                <button type="button" className="self-start text-xs font-medium text-blue-500 hover:text-blue-600" onClick={() => loadTemplates()}>
+                  Tentar de novo
+                </button>
+              </div>
+            )}
+            {templatesStatus === 'loaded' && filtered.length === 0 && (
+              <p className={`px-2.5 py-1.5 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                {templates.length === 0 ? 'Nenhum modelo com Flow encontrado.' : 'Nenhum modelo bate com a busca.'}
+              </p>
+            )}
+            {templatesStatus === 'loaded' && filtered.map(t => (
+              <button key={t.objectId} type="button" className={selectedId === t.objectId ? rowSel : rowIdle} onClick={() => { onSelect(t); setOpen(false) }}>
+                {t.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface TemplateFieldProps {
+  messageTemplateId: string
+  tokens: string[]
+  /** `true` = picker + campos de variável abertos (Salvar visível); `false` = preview compacto (Editar visível). */
+  editing: boolean
+  /** Título/corpo gravados, para o resumo quando o modelo não está carregado (id sumiu da plataforma). */
+  fallbackTitle?: string
+  fallbackBody?: string
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+  ghostBtnCls: string
+  dashedBtnCls: string
+  /** Escolha de um modelo no picker (reinicia os tokens com o nº de variáveis dele). */
+  onSelectTemplate: (t: MessageTemplate) => void
+  /** Edição do valor da variável `i` (posicional). */
+  onChangeToken: (i: number, value: string) => void
+  onSave: () => void
+  onEdit: () => void
+  onRemove: () => void
+}
+
+/**
+ * Campo da resposta "Modelo de mensagem com Flow" com dois estados (espelha o
+ * `CollectionField`): EDITANDO (picker + N campos de variável com `@` + preview +
+ * "Salvar") e SALVO (preview compacto + "editar"/"remover"). Só as variáveis são
+ * editáveis; corpo/título/botão vêm do modelo aprovado no WhatsApp.
+ */
+function TemplateField({ messageTemplateId, tokens, editing, fallbackTitle, fallbackBody, isDark, inputCls, labelCls, ghostBtnCls, dashedBtnCls, onSelectTemplate, onChangeToken, onSave, onEdit, onRemove }: TemplateFieldProps) {
+  const { templatesById } = useTeams()
+  const tpl = messageTemplateId ? (templatesById.get(messageTemplateId) ?? null) : null
+  const title = tpl?.title ?? fallbackTitle ?? ''
+  const body = tpl?.body ?? fallbackBody ?? ''
+  const flowButtonText = tpl?.flowButtonText ?? ''
+  const varCount = tpl ? templateVarCount(tpl) : tokens.length
+  // Salvar só com modelo escolhido e TODAS as variáveis preenchidas (decisão 5 do PLANS).
+  const canSave = !!messageTemplateId && tokens.slice(0, varCount).every(t => t.trim())
+  const subCls = `text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`
+
+  return (
+    <div className={`flex flex-col gap-2 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+      <div className="flex items-center justify-between">
+        <span className={labelCls}>🧩 Modelo de mensagem</span>
+        <div className="flex items-center gap-2">
+          {!editing && <button className={ghostBtnCls} onClick={onEdit}>editar</button>}
+          <button className={ghostBtnCls} onClick={onRemove}>remover</button>
+        </div>
+      </div>
+      {editing ? (
+        <>
+          <TemplatePicker selectedId={messageTemplateId} isDark={isDark} inputCls={inputCls} onSelect={onSelectTemplate} />
+          {messageTemplateId && (
+            <>
+              {varCount === 0 ? (
+                <p className={subCls}>Este modelo não tem variáveis.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {Array.from({ length: varCount }, (_, i) => (
+                    <label key={i} className="flex flex-col gap-0.5">
+                      <span className={labelCls}>Variável {`{{${i + 1}}}`}</span>
+                      <VariableTextArea
+                        rows={1}
+                        className={`${inputCls} resize-none`}
+                        value={tokens[i] ?? ''}
+                        isDark={isDark}
+                        placeholder={tpl?.examples[i] || 'Digite @ para valores dinâmicos'}
+                        onChange={v => onChangeToken(i, v)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              <TemplatePreview body={body} tokens={tokens} flowButtonText={flowButtonText} isDark={isDark} />
+              <button
+                className={`${dashedBtnCls} ${canSave ? '' : 'opacity-40 cursor-not-allowed'}`}
+                disabled={!canSave}
+                onClick={onSave}
+              >Salvar modelo{canSave ? '' : ' (preencha as variáveis)'}</button>
+            </>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {title
+            ? <span className={`text-xs font-semibold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</span>
+            : <span className={subCls}>Modelo não carregado (clique em editar para resolver)</span>}
+          <TemplatePreview body={body} tokens={tokens} flowButtonText={flowButtonText} isDark={isDark} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface AddMessageMenuProps {
   isDark: boolean
   dashedBtnCls: string
@@ -1337,6 +1591,8 @@ interface VariableTextAreaProps {
   isDark: boolean
   className?: string
   placeholder?: string
+  /** Nº de linhas do textarea — `1` dá a versão de 1 linha (campos de variável do TEMPLATE). */
+  rows?: number
 }
 
 /**
@@ -1345,7 +1601,7 @@ interface VariableTextAreaProps {
  * cursor — texto livre pode misturar várias variáveis ("Olá @customer.name 👋").
  * O conteúdo é gravado/enviado verbatim, como a OmniChat espera (ver example.json).
  */
-function VariableTextArea({ value, onChange, isDark, className, placeholder }: VariableTextAreaProps) {
+function VariableTextArea({ value, onChange, isDark, className, placeholder, rows }: VariableTextAreaProps) {
   const [open, setOpen] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const triggerRef = useRef(0) // índice do '@' que abriu o menu
@@ -1370,6 +1626,7 @@ function VariableTextArea({ value, onChange, isDark, className, placeholder }: V
       <textarea
         ref={taRef}
         className={className}
+        rows={rows}
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
@@ -1594,14 +1851,17 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   const { mode, condIdx } = resolveMode(node, intent)
   const [draft, setDraft] = useState<Draft | null>(intent ? buildDraft(intent, mode, condIdx) : null)
   const [panelError, setPanelError] = useState<string | null>(null)
-  // Coleções JÁ SALVAS abertas no modo "editar" (chave = endereço da mensagem).
+  // Coleções/modelos JÁ SALVOS abertos no modo "editar" (chave = endereço da mensagem).
   // Estado só de UI — reseta ao trocar de nó.
   const [editingColl, setEditingColl] = useState<Set<string>>(new Set())
+  const [editingTpl, setEditingTpl] = useState<Set<string>>(new Set())
+  const { templatesById } = useTeams()
 
   useEffect(() => {
     setDraft(intent ? buildDraft(intent, mode, condIdx) : null)
     setPanelError(null)
     setEditingColl(new Set())
+    setEditingTpl(new Set())
   }, [node.id])
 
   const set = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -1638,6 +1898,41 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
     // fica undefined → as funções acham a 1ª do tipo, que é a única.
     const ci = mode === 'condition' ? condIdx : undefined
     const results: EditResult[] = []
+
+    // Nº de variáveis esperado de um modelo: o do modelo carregado, ou o nº de tokens
+    // gravados quando o modelo não está mais disponível (id sumiu da plataforma).
+    const tplVarCount = (id: string, tokens: string[]) => {
+      const tpl = templatesById.get(id)
+      return tpl ? templateVarCount(tpl) : tokens.length
+    }
+    // Validação (decisão 5 do PLANS): nenhuma resposta TEMPLATE com variável vazia.
+    // Vale para novas (com modelo escolhido) e existentes. Mandar `{{n}}` cru ao
+    // cliente no WhatsApp seria um vazamento visível.
+    if (showContent) {
+      const incompleteNew = draft.newMessages.some(m =>
+        m.type === 'TEMPLATE' && m.messageTemplateId.trim()
+        && m.tokens.slice(0, tplVarCount(m.messageTemplateId, m.tokens)).some(t => !t.trim()))
+      const incompleteExisting = draft.messages.some(m =>
+        m.type === 'TEMPLATE' && (m.messageTemplateId ?? '').trim()
+        && (m.templateTokens ?? []).slice(0, tplVarCount(m.messageTemplateId!, m.templateTokens ?? [])).some(t => !t.trim()))
+      if (incompleteNew || incompleteExisting) {
+        setPanelError('Preencha todas as variáveis do modelo de mensagem antes de salvar.')
+        onApplyFailed()
+        return
+      }
+    }
+    // Monta o payload de serialização de um TEMPLATE a partir do modelo carregado,
+    // caindo para os campos já gravados quando o modelo não está disponível.
+    const tplPayload = (id: string, tokens: string[], fb?: { title?: string; content?: string; flowButtonText?: string }): TemplateMessagePayload => {
+      const tpl = templatesById.get(id)
+      return {
+        messageTemplateId: id,
+        title: tpl?.title ?? fb?.title ?? '',
+        content: tpl?.body ?? fb?.content ?? '',
+        tokens,
+        flowButtonText: tpl?.flowButtonText ?? fb?.flowButtonText ?? '',
+      }
+    }
 
     if (showMeta) {
       results.push(updateIntentMeta(intent, {
@@ -1677,6 +1972,14 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
         ...draft.messages
           .filter(m => m.type === 'COLLECTION' && !!(m.collectionId ?? '').trim())
           .map(m => updateCollectionMessage(intent, m.ref, (m.collectionId ?? '').trim())),
+        ...draft.messages
+          .filter(m => m.type === 'TEMPLATE' && !!(m.messageTemplateId ?? '').trim())
+          .map(m => {
+            const cur = intent.conditions[m.ref.condIdx]?.assistant_says[m.ref.sayIdx]?.messages[m.ref.msgIdx]
+            return updateTemplateMessage(intent, m.ref, tplPayload(m.messageTemplateId!, m.templateTokens ?? [], {
+              title: cur?.title, content: cur?.content ?? undefined, flowButtonText: cur?.messageConfig?.buttons?.[0]?.text,
+            }))
+          }),
         ...[...draft.removedRefs]
           .sort((a, b) => b.condIdx - a.condIdx || b.sayIdx - a.sayIdx || b.msgIdx - a.msgIdx)
           .map(ref => removeMessage(intent, ref)),
@@ -1685,6 +1988,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
           .filter(m =>
             m.type === 'BUTTONLIST' ? (m.body.trim() || m.items.some(it => it.text.trim()))
             : m.type === 'COLLECTION' ? !!m.collectionId.trim()
+            : m.type === 'TEMPLATE' ? !!m.messageTemplateId.trim()
             : m.content.trim())
           .map(m =>
             m.type === 'TEXT' ? addTextMessage(intent, m.content.trim(), ci ?? 0)
@@ -1692,6 +1996,8 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
               ? addButtonListMessage(intent, { header: m.header, body: m.body, footer: m.footer, title: m.title, items: m.items, variant: m.variant }, ci ?? 0)
             : m.type === 'COLLECTION'
               ? addCollectionMessage(intent, m.collectionId.trim(), ci ?? 0)
+            : m.type === 'TEMPLATE'
+              ? addTemplateMessage(intent, tplPayload(m.messageTemplateId.trim(), m.tokens), ci ?? 0)
               : addMediaMessage(intent, m.type, m.content.trim(), m.fileName.trim(), ci ?? 0)
           ),
       )
@@ -1936,6 +2242,36 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                             removedRefs: [...d.removedRefs, msg.ref],
                           }))}
                         />
+                      ) : msg.type === 'TEMPLATE' ? (
+                        <TemplateField
+                          messageTemplateId={msg.messageTemplateId ?? ''}
+                          tokens={msg.templateTokens ?? []}
+                          editing={editingTpl.has(`${msg.ref.condIdx}-${msg.ref.sayIdx}-${msg.ref.msgIdx}`)}
+                          fallbackTitle={msg.templateTitle}
+                          fallbackBody={msg.text}
+                          isDark={isDark}
+                          inputCls={inputCls}
+                          labelCls={labelCls}
+                          ghostBtnCls={ghostBtnCls}
+                          dashedBtnCls={dashedBtnCls}
+                          onSelectTemplate={t => setDraft(d => d && ({
+                            ...d,
+                            messages: d.messages.map((m, j) => j === i ? { ...m, messageTemplateId: t.objectId, templateTitle: t.title, templateTokens: Array(templateVarCount(t)).fill('') } : m),
+                          }))}
+                          onChangeToken={(vi, value) => setDraft(d => d && ({
+                            ...d,
+                            messages: d.messages.map((m, j) => j === i ? { ...m, templateTokens: (m.templateTokens ?? []).map((t, k) => k === vi ? value : t) } : m),
+                          }))}
+                          onSave={() => setEditingTpl(s => {
+                            const n = new Set(s); n.delete(`${msg.ref.condIdx}-${msg.ref.sayIdx}-${msg.ref.msgIdx}`); return n
+                          })}
+                          onEdit={() => setEditingTpl(s => new Set(s).add(`${msg.ref.condIdx}-${msg.ref.sayIdx}-${msg.ref.msgIdx}`))}
+                          onRemove={() => setDraft(d => d && ({
+                            ...d,
+                            messages: d.messages.filter((_, j) => j !== i),
+                            removedRefs: [...d.removedRefs, msg.ref],
+                          }))}
+                        />
                       ) : (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -2002,6 +2338,22 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                           onEdit={() => set('newMessages', draft.newMessages.map((m, j) => j === i ? { ...m, editing: true } : m))}
                           onRemove={() => set('newMessages', draft.newMessages.filter((_, j) => j !== i))}
                         />
+                      ) : msg.type === 'TEMPLATE' ? (
+                        <TemplateField
+                          messageTemplateId={msg.messageTemplateId}
+                          tokens={msg.tokens}
+                          editing={msg.editing}
+                          isDark={isDark}
+                          inputCls={inputCls}
+                          labelCls={labelCls}
+                          ghostBtnCls={ghostBtnCls}
+                          dashedBtnCls={dashedBtnCls}
+                          onSelectTemplate={t => set('newMessages', draft.newMessages.map((m, j) => j === i ? { ...m, messageTemplateId: t.objectId, tokens: Array(templateVarCount(t)).fill('') } : m))}
+                          onChangeToken={(vi, value) => set('newMessages', draft.newMessages.map((m, j) => j === i && m.type === 'TEMPLATE' ? { ...m, tokens: m.tokens.map((t, k) => k === vi ? value : t) } : m))}
+                          onSave={() => set('newMessages', draft.newMessages.map((m, j) => j === i ? { ...m, editing: false } : m))}
+                          onEdit={() => set('newMessages', draft.newMessages.map((m, j) => j === i ? { ...m, editing: true } : m))}
+                          onRemove={() => set('newMessages', draft.newMessages.filter((_, j) => j !== i))}
+                        />
                       ) : (
                         <MediaMessageEditor
                           msg={msg}
@@ -2025,6 +2377,8 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                       ? { type, variant: 'plain', header: '', body: '', footer: '', title: '', items: [{ text: '', description: '' }] }
                       : type === 'COLLECTION'
                         ? { type, collectionId: '', editing: true }
+                      : type === 'TEMPLATE'
+                        ? { type, messageTemplateId: '', tokens: [], editing: true }
                         : { type, content: '', fileName: '' }])}
                   />
                 </div>

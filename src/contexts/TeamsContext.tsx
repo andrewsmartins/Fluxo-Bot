@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Team } from '../utils/teams'
 import type { Collection } from '../utils/collections'
+import type { MessageTemplate } from '../utils/messageTemplates'
 import type { UploadMediaType } from '../utils/uploadMedia'
 
 /** Estado do carregamento dos times da loja (variável `@team`). */
@@ -40,6 +41,16 @@ export interface TeamsContextValue {
   loadCollections: (search?: string) => void
   /** Mapa collectionId→coleção, para o resumo mostrar nome/imagem do que foi salvo. */
   collectionsById: ReadonlyMap<string, Collection>
+  // ─── Modelos de mensagem com Flow (resposta TEMPLATE) — mesmo padrão ──────
+  /** Modelos de mensagem com Flow da loja para o picker da resposta "Modelo de mensagem". */
+  templates: MessageTemplate[]
+  templatesStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `templatesStatus === 'error'`. */
+  templatesError: string | null
+  /** Dispara o carregamento dos modelos; `search` filtra por título (regex). */
+  loadTemplates: (search?: string) => void
+  /** Mapa messageTemplateId→modelo, para o resumo/edição mostrar o que foi salvo. */
+  templatesById: ReadonlyMap<string, MessageTemplate>
 }
 
 const EMPTY: TeamsContextValue = {
@@ -56,6 +67,11 @@ const EMPTY: TeamsContextValue = {
   collectionsError: null,
   loadCollections: () => {},
   collectionsById: new Map(),
+  templates: [],
+  templatesStatus: 'idle',
+  templatesError: null,
+  loadTemplates: () => {},
+  templatesById: new Map(),
 }
 
 export const TeamsContext = createContext<TeamsContextValue>(EMPTY)

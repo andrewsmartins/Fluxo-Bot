@@ -18,12 +18,31 @@ export interface MessageRef {
 export interface EditableMessage {
   ref: MessageRef
   type: string
-  /** Texto exibível: content (TEXT/IMAGE/FILE/VIDEO) ou messageConfig.body (BUTTON/LIST). */
+  /** Texto exibível: content (TEXT/IMAGE/FILE/VIDEO/TEMPLATE) ou messageConfig.body (BUTTON/LIST). */
   text: string
   /** Nome do arquivo original — presente em IMAGE, FILE e VIDEO. */
   fileName: string
   /** objectId da coleção — presente só em COLLECTION (resolve nome/imagem no resumo). */
   collectionId?: string
+  /** objectId do modelo de mensagem — presente só em TEMPLATE (resolve título/corpo). */
+  messageTemplateId?: string
+  /** Título gravado do modelo — presente só em TEMPLATE (resumo quando o id sumiu da plataforma). */
+  templateTitle?: string
+  /** Valores das variáveis do corpo, posicionais — presente só em TEMPLATE. */
+  templateTokens?: string[]
+}
+
+/**
+ * Dados necessários para serializar uma resposta TEMPLATE (modelo de mensagem com
+ * Flow). `content` é o corpo com `{{n}}`, `tokens` são os valores posicionais das
+ * variáveis e `flowButtonText` é o rótulo do botão Flow do modelo.
+ */
+export interface TemplateMessagePayload {
+  messageTemplateId: string
+  title: string
+  content: string
+  tokens: string[]
+  flowButtonText: string
 }
 
 function touch(intent: BotIntent): void {
@@ -40,12 +59,18 @@ export function listMessages(intent: BotIntent): EditableMessage[] {
   intent.conditions.forEach((cond, condIdx) => {
     cond.assistant_says.forEach((say, sayIdx) => {
       say.messages.forEach((msg, msgIdx) => {
-        const text = msg.type === 'TEXT' || msg.type === 'IMAGE' || msg.type === 'FILE' || msg.type === 'VIDEO'
+        const text = msg.type === 'TEXT' || msg.type === 'IMAGE' || msg.type === 'FILE'
+          || msg.type === 'VIDEO' || msg.type === 'TEMPLATE'
           ? msg.content ?? ''
           : msg.messageConfig?.body ?? ''
         result.push({
           ref: { condIdx, sayIdx, msgIdx }, type: msg.type, text, fileName: msg.fileName ?? '',
           ...(msg.type === 'COLLECTION' ? { collectionId: msg.collectionId ?? '' } : {}),
+          ...(msg.type === 'TEMPLATE' ? {
+            messageTemplateId: msg.messageTemplateId ?? '',
+            templateTitle: msg.title ?? '',
+            templateTokens: [...(msg.messageTemplateTokens ?? [])],
+          } : {}),
         })
       })
     })
@@ -144,6 +169,75 @@ export function updateCollectionMessage(intent: BotIntent, ref: MessageRef, coll
   if (msg.type !== 'COLLECTION') return { ok: false, reason: `mensagem do tipo ${msg.type} não é uma coleção` }
   if (!collectionId.trim()) return { ok: false, reason: 'selecione uma coleção antes de salvar' }
   msg.collectionId = collectionId
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Monta o `BotMessage` de uma resposta TEMPLATE no formato exportado pela plataforma
+ * (confirmado por captura real, Fase 12). `messageTemplateTokens[i]` ↔ `{{i+1}}`
+ * (posicional). O botão Flow vai só com `{ id, text, type:'FLOW' }` — a plataforma
+ * resolve o Flow pelo `messageTemplateId`. `messageTemplateHeaderToken` é fixo `''`
+ * (nenhum modelo real usa variável de cabeçalho — decisão 3 do PLANS).
+ */
+function buildTemplateMessage(payload: TemplateMessagePayload): BotMessage {
+  return {
+    type: 'TEMPLATE',
+    content: payload.content,
+    fileName: '',
+    title: payload.title,
+    messageTemplateId: payload.messageTemplateId,
+    messageTemplateHeaderToken: '',
+    messageTemplateTokens: [...payload.tokens],
+    messageConfig: {
+      type: 'text',
+      body: '',
+      buttons: [{ id: crypto.randomUUID(), text: payload.flowButtonText, type: 'FLOW' }],
+    },
+  }
+}
+
+/**
+ * Acrescenta uma resposta TEMPLATE (modelo de mensagem com Flow) ao final de uma
+ * condição. `content`/`title`/botão derivam do modelo selecionado; só os `tokens`
+ * (variáveis) são preenchidos pelo usuário. Exige `messageTemplateId` (a UI bloqueia
+ * antes, mas guardamos aqui também).
+ */
+export function addTemplateMessage(intent: BotIntent, payload: TemplateMessagePayload, condIdx = 0): EditResult {
+  const cond = intent.conditions[condIdx]
+  if (!cond) return { ok: false, reason: 'intenção sem condições' }
+  if (!payload.messageTemplateId.trim()) return { ok: false, reason: 'selecione um modelo de mensagem antes de salvar' }
+  if (!cond.assistant_says.length) cond.assistant_says.push({ channel: 'any', messages: [] })
+  cond.assistant_says[0].messages.push(buildTemplateMessage(payload))
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Atualiza uma resposta TEMPLATE já salva (edição in-place pelo endereço). Reescreve
+ * todos os campos derivados do modelo (id/título/corpo/botão) + os tokens, porque o
+ * usuário pode trocar o modelo no "Editar" do painel. `messageConfig` é regenerado
+ * (novo `id` de botão) só quando o texto do botão muda; para preservar o id quando
+ * possível, reaproveita o botão existente quando o texto é igual.
+ */
+export function updateTemplateMessage(intent: BotIntent, ref: MessageRef, payload: TemplateMessagePayload): EditResult {
+  const msg = getMessage(intent, ref)
+  if (!msg) return { ok: false, reason: 'mensagem não encontrada na intenção' }
+  if (msg.type !== 'TEMPLATE') return { ok: false, reason: `mensagem do tipo ${msg.type} não é um modelo de mensagem` }
+  if (!payload.messageTemplateId.trim()) return { ok: false, reason: 'selecione um modelo de mensagem antes de salvar' }
+  const prevBtn = msg.messageConfig?.buttons?.[0]
+  const reuseBtn = prevBtn && prevBtn.text === payload.flowButtonText && prevBtn.type === 'FLOW'
+  msg.content = payload.content
+  msg.fileName = ''
+  msg.title = payload.title
+  msg.messageTemplateId = payload.messageTemplateId
+  msg.messageTemplateHeaderToken = ''
+  msg.messageTemplateTokens = [...payload.tokens]
+  msg.messageConfig = {
+    type: 'text',
+    body: '',
+    buttons: [reuseBtn ? prevBtn : { id: crypto.randomUUID(), text: payload.flowButtonText, type: 'FLOW' }],
+  }
   touch(intent)
   return { ok: true }
 }

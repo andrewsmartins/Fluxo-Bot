@@ -96,13 +96,23 @@ export interface BotMessage {
    * id AQUI (não em `content`) e manda `fileName: ""` junto.
    */
   collectionId?: string
+  // ─── Modelo de mensagem com Flow (resposta TEMPLATE, Fase 12) ──────────────
+  /** Título do modelo do WhatsApp (derivado do modelo selecionado; read-only na UI). */
+  title?: string
+  /** `objectId` do `MessageTemplate` no Parse — a plataforma resolve o Flow por ele. */
+  messageTemplateId?: string
+  /** Token da variável de cabeçalho — fixo `''` na v1 (nenhum modelo real usa header com variável). */
+  messageTemplateHeaderToken?: string
+  /** Valores das variáveis do corpo, posicionais: `messageTemplateTokens[i]` ↔ `{{i+1}}`. */
+  messageTemplateTokens?: string[]
 }
 
 export interface ButtonMessageConfig {
-  header: string | null
-  title: string | null
+  /** Opcionais: a resposta TEMPLATE (Fase 12) só emite `type`, `body` e `buttons`. */
+  header?: string | null
+  title?: string | null
   body: string | null
-  footer: string | null
+  footer?: string | null
   type: string
   buttons: ButtonOption[]
 }
@@ -110,7 +120,10 @@ export interface ButtonMessageConfig {
 export interface ButtonOption {
   id: string
   text: string
-  description: string | null
+  /** Opcional: o botão Flow do TEMPLATE não tem descrição (só `id`, `text`, `type`). */
+  description?: string | null
+  /** Tipo do botão (ex.: `'FLOW'` no modelo de mensagem); ausente em botões comuns. */
+  type?: string
 }
 
 export type NodeKind =

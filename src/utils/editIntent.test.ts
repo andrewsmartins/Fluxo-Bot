@@ -8,6 +8,7 @@ import {
   addCondition, sanitizeIntentName, collectCategories, updateCondition,
   addButtonListMessage, addChoice, removeChoice, setChoiceDestination, setChoices,
   replaceButtonListMessage, addCollectionMessage, updateCollectionMessage,
+  addTemplateMessage, updateTemplateMessage, type TemplateMessagePayload,
 } from './editIntent'
 import { validateFlow } from './validateFlow'
 import { createIntentTemplate } from './intentTemplates'
@@ -116,6 +117,101 @@ describe('updateCollectionMessage', () => {
     addTextMessage(intent, 'oi')
     const textRef = listMessages(intent).find(m => m.type === 'TEXT')!.ref
     expect(updateCollectionMessage(intent, textRef, 'x').ok).toBe(false)
+  })
+})
+
+describe('addTemplateMessage / updateTemplateMessage (resposta TEMPLATE — modelo com Flow)', () => {
+  const payload = (over: Partial<TemplateMessagePayload> = {}): TemplateMessagePayload => ({
+    messageTemplateId: 'mt-001',
+    title: 'Pedido confirmado',
+    content: 'Olá {{1}}, seu pedido {{2}} foi confirmado.',
+    tokens: ['@customer.name', '#123'],
+    flowButtonText: 'Abrir formulário',
+    ...over,
+  })
+
+  it('serializa TEMPLATE no formato da plataforma com botão Flow e tokens posicionais', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    expect(addTemplateMessage(intent, payload())).toEqual({ ok: true })
+    const raw = intent.conditions[0].assistant_says[0].messages[0]
+    expect(raw).toMatchObject({
+      type: 'TEMPLATE',
+      content: 'Olá {{1}}, seu pedido {{2}} foi confirmado.',
+      fileName: '',
+      title: 'Pedido confirmado',
+      messageTemplateId: 'mt-001',
+      messageTemplateHeaderToken: '',
+      messageTemplateTokens: ['@customer.name', '#123'],
+    })
+    // messageConfig com botão Flow só com { id, text, type }
+    expect(raw.messageConfig?.type).toBe('text')
+    expect(raw.messageConfig?.body).toBe('')
+    const btn = raw.messageConfig!.buttons[0]
+    expect(btn.text).toBe('Abrir formulário')
+    expect(btn.type).toBe('FLOW')
+    expect(typeof btn.id).toBe('string')
+    expect(btn.description).toBeUndefined()
+  })
+
+  it('listMessages expõe messageTemplateId, título e tokens; text = corpo', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addTemplateMessage(intent, payload())
+    const msg = listMessages(intent).find(m => m.type === 'TEMPLATE')!
+    expect(msg.messageTemplateId).toBe('mt-001')
+    expect(msg.templateTitle).toBe('Pedido confirmado')
+    expect(msg.templateTokens).toEqual(['@customer.name', '#123'])
+    expect(msg.text).toBe('Olá {{1}}, seu pedido {{2}} foi confirmado.')
+  })
+
+  it('mapeamento posicional: 0, 1 e 3 variáveis', () => {
+    const i0 = createIntentTemplate('defaultNode', BOT_ID, 'a')
+    addTemplateMessage(i0, payload({ content: 'Sem variáveis aqui', tokens: [] }))
+    expect((i0.conditions[0].assistant_says[0].messages[0]).messageTemplateTokens).toEqual([])
+
+    const i1 = createIntentTemplate('defaultNode', BOT_ID, 'b')
+    addTemplateMessage(i1, payload({ content: 'Oi {{1}}', tokens: ['Maria'] }))
+    expect((i1.conditions[0].assistant_says[0].messages[0]).messageTemplateTokens).toEqual(['Maria'])
+
+    const i3 = createIntentTemplate('defaultNode', BOT_ID, 'c')
+    addTemplateMessage(i3, payload({ content: '{{1}} {{2}} {{3}}', tokens: ['a', 'b', 'c'] }))
+    expect((i3.conditions[0].assistant_says[0].messages[0]).messageTemplateTokens).toEqual(['a', 'b', 'c'])
+  })
+
+  it('rejeita messageTemplateId vazio (não cria mensagem)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    expect(addTemplateMessage(intent, payload({ messageTemplateId: '  ' })).ok).toBe(false)
+    expect(listMessages(intent).filter(m => m.type === 'TEMPLATE')).toHaveLength(0)
+  })
+
+  it('updateTemplateMessage troca tokens/modelo e reusa o id do botão quando o texto não muda', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addTemplateMessage(intent, payload())
+    const ref = listMessages(intent).find(m => m.type === 'TEMPLATE')!.ref
+    const btnIdAntes = intent.conditions[0].assistant_says[0].messages[0].messageConfig!.buttons[0].id
+
+    expect(updateTemplateMessage(intent, ref, payload({ tokens: ['@new', '#999'] }))).toEqual({ ok: true })
+    const raw = intent.conditions[0].assistant_says[0].messages[0]
+    expect(raw.messageTemplateTokens).toEqual(['@new', '#999'])
+    expect(raw.messageConfig!.buttons[0].id).toBe(btnIdAntes) // mesmo texto de botão → id preservado
+
+    // Trocar o texto do botão regenera o id
+    expect(updateTemplateMessage(intent, ref, payload({ tokens: ['@new', '#999'], flowButtonText: 'Outro botão' })).ok).toBe(true)
+    expect(intent.conditions[0].assistant_says[0].messages[0].messageConfig!.buttons[0].id).not.toBe(btnIdAntes)
+  })
+
+  it('updateTemplateMessage rejeita mensagem que não é TEMPLATE', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addTextMessage(intent, 'oi')
+    const textRef = listMessages(intent).find(m => m.type === 'TEXT')!.ref
+    expect(updateTemplateMessage(intent, textRef, payload()).ok).toBe(false)
+  })
+
+  it('permite remover uma resposta TEMPLATE (não é botão/lista)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    addTemplateMessage(intent, payload())
+    const ref = listMessages(intent).find(m => m.type === 'TEMPLATE')!.ref
+    expect(removeMessage(intent, ref)).toEqual({ ok: true })
+    expect(listMessages(intent).filter(m => m.type === 'TEMPLATE')).toHaveLength(0)
   })
 })
 

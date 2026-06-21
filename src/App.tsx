@@ -13,6 +13,7 @@ import { ThemeContext }  from './contexts/ThemeContext'
 import { TeamsContext, type TeamsStatus } from './contexts/TeamsContext'
 import { fetchStoreTeams, type Team } from './utils/teams'
 import { fetchStoreCollections, type Collection } from './utils/collections'
+import { fetchStoreMessageTemplates, type MessageTemplate } from './utils/messageTemplates'
 import { uploadMedia, type UploadMediaType } from './utils/uploadMedia'
 import type { FetchLike } from './utils/pushFlow'
 import { parseFlow, intentToNodeData, buildEdges } from './utils/parseFlow'
@@ -76,6 +77,10 @@ export default function App() {
   const [collections, setCollections]             = useState<Collection[]>([])
   const [collectionsStatus, setCollectionsStatus] = useState<TeamsStatus>('idle')
   const [collectionsError, setCollectionsError]   = useState<string | null>(null)
+  // Modelos de mensagem com Flow (resposta TEMPLATE) — carregados sob demanda pelo picker.
+  const [templates, setTemplates]             = useState<MessageTemplate[]>([])
+  const [templatesStatus, setTemplatesStatus] = useState<TeamsStatus>('idle')
+  const [templatesError, setTemplatesError]   = useState<string | null>(null)
   // IDs de nó com destaque "duplicando / recém-duplicado" (borda esmeralda animada).
   // Estado transitório de UI — nunca entra no modelo nem no histórico.
   const [highlightIds, setHighlightIds] = useState<Set<string>>(() => new Set())
@@ -655,7 +660,7 @@ export default function App() {
 
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
-  // Trocar o token (outra conta) invalida os times E as coleções já carregados.
+  // Trocar o token (outra conta) invalida os times, as coleções E os modelos já carregados.
   useEffect(() => {
     setTeams([])
     setTeamsStatus('idle')
@@ -663,6 +668,9 @@ export default function App() {
     setCollections([])
     setCollectionsStatus('idle')
     setCollectionsError(null)
+    setTemplates([])
+    setTemplatesStatus('idle')
+    setTemplatesError(null)
   }, [sessionToken])
 
   // Carrega os times da loja sob demanda (picker @team). Usa o token global e o
@@ -733,6 +741,41 @@ export default function App() {
   }, [sessionToken])
 
   const collectionsById = useMemo(() => new Map(collections.map(c => [c.objectId, c])), [collections])
+
+  // Carrega os modelos de mensagem com Flow da loja sob demanda (picker da resposta
+  // TEMPLATE). Mesmo padrão do loadCollections: token global + botId do fluxo, ref
+  // anti-concorrência, sem logar o token. `search` filtra por título (regex no servidor).
+  const templatesLoadingRef = useRef(false)
+  const loadTemplates = useCallback(async (search?: string) => {
+    if (templatesLoadingRef.current) return
+    const token = sessionToken.trim()
+    const botId = botIdOf(parsedDataRef.current)
+    if (!token) {
+      setTemplatesStatus('error')
+      setTemplatesError('Defina o token de sessão (botão de chave na barra) para carregar os modelos.')
+      return
+    }
+    if (!botId) {
+      setTemplatesStatus('error')
+      setTemplatesError('Fluxo sem botId — não dá para descobrir a loja.')
+      return
+    }
+    templatesLoadingRef.current = true
+    setTemplatesStatus('loading')
+    setTemplatesError(null)
+    try {
+      const list = await fetchStoreMessageTemplates({ fetch: browserFetch, token, botId, search })
+      setTemplates(list)
+      setTemplatesStatus('loaded')
+    } catch (e) {
+      setTemplatesStatus('error')
+      setTemplatesError(e instanceof Error ? e.message : 'Falha ao carregar os modelos de mensagem.')
+    } finally {
+      templatesLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  const templatesById = useMemo(() => new Map(templates.map(t => [t.objectId, t])), [templates])
   const requestToken = useCallback(() => setTokenOpen(true), [])
   const hasToken = !!sessionToken.trim()
   const uploadFile = useCallback(async (file: File, type: UploadMediaType) => {
@@ -744,10 +787,12 @@ export default function App() {
     () => ({
       teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken, byId: teamsById, uploadFile,
       collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
+      templates, templatesStatus, templatesError, loadTemplates, templatesById,
     }),
     [
       teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile,
       collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
+      templates, templatesStatus, templatesError, loadTemplates, templatesById,
     ],
   )
 
