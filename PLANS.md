@@ -67,6 +67,27 @@
 - **Caminho infeliz:** segundos vazio/`0`/`31`/`2.5`/negativo com toggle ON → "Aplicar" desabilitado + borda de erro; toggle OFF ignora qualquer valor residual no input.
 - **Não-regressão:** `captureInvalid` continua funcionando (a combinação `||` não pode mascarar a dica de captura). Rodar `tsc` + suíte (`vitest`) — alvo: manter verde.
 
+## Fix — `remapRefs` perde referências de `context`/`condition.intent` no push ✅ IMPLEMENTADO (v0.20.1)
+
+> Interrogatório + implementação 2026-06-22. Causa-raiz confirmada no código + dados reais. `remapRefs` agora cobre os 3 campos faltantes nas duas cópias (`pushFlow.ts` + `push-flow.mjs`); 3 testes novos em `pushFlow.test.ts`. `tsc` + 330 testes verdes. Pendente: validação manual (push real do `masterFlow.json` num bot de testes) e commit/PR.
+
+**Objetivo (uma frase):** estender o `remapRefs` para reapontar **todos** os campos que referenciam intenção por id ao enviar um fluxo novo pra plataforma, eliminando as referências quebradas pós-push.
+
+**Causa-raiz:** ao criar intenções, o servidor **ignora o `id` enviado e gera um novo** (achado da Fase 4a) — por isso o push roda 2 passadas e remapeia refs na 2ª. Mas o `remapRefs` ([pushFlow.ts:115](src/utils/pushFlow.ts#L115) e [push-flow.mjs:115](scripts/push-flow.mjs#L115)) só cobre 4 campos: `condition.next.intent.id`, `condition.action.choices`, `condition.action.error.next.intent`, `condition.fallbackIntents`. Ficam de fora **`intent.context`** (raiz, string), **`condition.intent`** (string, tipos `context`/`lastIntent`) e **`condition.context`** (string). No `masterFlow.json` o `teste_contexto_palavra_chave.context` ([masterFlow.json:427](masterFlow.json#L427)) e o `condition.intent` dos `teste_tipo_contexto`/`teste_tipo_ultima_intencao` ([masterFlow.json:851](masterFlow.json#L851)) apontam pra `mensagem_boas_vindas`, que também é recriada e ganha id novo → essas refs ficam órfãs.
+
+**Decisões (interrogatório):**
+1. **Caminho afetado = UI (Fase 4b)**, mas o fix vai no `remapRefs` — que também conserta o **restore** (reusa o mesmo módulo).
+2. **Escopo = 3 campos:** `intent.context`, `condition.intent`, `condition.context`. Defensivo e seguro: `swap` só troca ids presentes no `idMap` (intenções recém-criadas); cobrir um campo `null`/externo é no-op inofensivo. Não dá pra "forçar" nossos ids na criação (o servidor recusa) — remapear é o único caminho.
+3. **Paridade = as duas cópias** (`pushFlow.ts` + `push-flow.mjs`). O CLI segue sendo a fonte canônica pra lote (PLANS Fase 4b); deixá-lo com a lacuna re-introduziria o bug em push de lote.
+
+**Implementação (mapa):** em `remapRefs`, além dos 4 campos atuais, dentro do laço `for (const cond of intent.conditions)`: `if (typeof cond.intent === 'string') cond.intent = swap(cond.intent)` e `if (typeof cond.context === 'string') cond.context = swap(cond.context)`; e **fora do laço** (uma vez por intenção): `if (typeof intent.context === 'string') intent.context = swap(intent.context)`. Espelhar idêntico no `.mjs`. Atualizar o JSDoc (de "4 formas" → as formas cobertas).
+
+**Riscos / como testar:**
+- **Unitário (principal):** estender o `describe('remapRefs …')` em [pushFlow.test.ts:108](src/utils/pushFlow.test.ts#L108) — casos novos: `intent.context` raiz remapeado, `condition.intent` remapeado, `condition.context` remapeado. Renomear o describe (não é mais "4 formas").
+- **Caminho infeliz (já coberto, manter):** id fora do `idMap` (ref órfã/externa ou intenção só-atualizada) fica **intacto** — é o teste de [pushFlow.test.ts:141](src/utils/pushFlow.test.ts#L141); garantir que vale também pros 3 campos novos.
+- **Round-trip real:** push do `masterFlow.json` num bot de testes → conferir na tela da OmniChat que o contexto de `teste_contexto_palavra_chave` e os `condition.intent` dos `teste_tipo_*` apontam pra `mensagem_boas_vindas` (id do servidor), não pro UUID velho.
+- **Não-regressão:** `tsc` + `vitest` verdes; os smokes de push/restore passam sem alteração.
+
 ## masterFlow.json — fluxo de exemplo canônico (construído por partes)
 
 > Iniciado 2026-06-22. Arquivo: [masterFlow.json](masterFlow.json) na raiz.
@@ -87,6 +108,7 @@
 - **Parte 3 — Anexo + Prioridade:** 4 nós standalone de mensagem (`action.none` → `defaultNode`), um por tipo de anexo, cada um com prioridade distinta: `teste_anexo_imagem_prioridade_baixa` (IMAGE, 0.25), `teste_anexo_pdf_prioridade_media` (FILE, 0.5), `teste_anexo_video_prioridade_alta` (VIDEO, 0.75), `teste_anexo_colecao_prioridade_muito_alta` (COLLECTION `collectionId:72ae0Dqbfo`, 1). Links de mídia reais fornecidos pelo Andy.
 - **Parte 4 — Menu_Testes (choice/LIST) + cadeia "Teste Cabeçalho":** os 5 nós de teste tiveram `category` → `"Teste Cabeçalho"` e foram **encadeados em sequência** (contexto → imagem → pdf → vídeo → coleção → `encerrar`). Novo nó `Menu_Testes` (`action.choice` → `choiceNode`, `category: "Menu"`) com mensagem **LIST** toda preenchida (header/body/footer/título + botões com id/text/description). 3 itens: **Teste Cabeçalho** (conectado, `choices[0]` → início da cadeia) + 2 placeholders **Teste por Tipo** e **Teste por Ação** (slots `choices` vazios → aviso "sem conexão" do v0.19.0, reservados para caminhos futuros). Total: 9 intenções. `encerrar` agora é terminal compartilhado (recebe de `mensagem_boas_vindas` e da cadeia de teste). **Nota:** o JSON passou a ser formatado por `json.dump` (indent=2) a partir desta parte.
 - **Parte 5 — fluxo fechado:** `mensagem_boas_vindas.next` repontado de `encerrar` → `Menu_Testes`. Agora tudo é **1 componente conexo**: `start → boas_vindas → Menu_Testes → [Teste Cabeçalho] → cadeia → encerrar`. Placeholders do menu seguem sem destino.
+- **Parte 6 — Teste por Tipo (submenu de ConditionTypes):** novo nó `Menu_Tipos_Condicao` (choice/LIST, `category: "Menu"`, 8 itens), ligado a partir do botão "Teste por Tipo" do `Menu_Testes` (`choices[1]`). Para cada um dos 8 ConditionTypes que avaliam algo (`context`, `lastIntent`, `empty`, `exists`, `equals`, `contains`, `totalIsGreaterThan`, `totalIsEqual`) há um nó `teste_tipo_<slug>` (`category: "Teste por Tipo"`) com **2 condições** `[<tipo>, else]` → vira `intentGroupNode`; ambas `action.none`, com mensagem distintiva ("✅ Caiu em: <rótulo>" / "↪️ Caiu no Senão") e `next → encerrar`. Operandos placeholder: `@custom.teste` (igual="A", contém=["sim","ok"], total*="1"); `context`/`lastIntent` referenciam `mensagem_boas_vindas` no campo `intent` da condição. Formas de campo por tipo espelhadas dos samples (`""` em equals/empty/contains; `null` em exists/total*).
 
 **Como foi testado:** parse JSON OK + simulação do grafo `parseFlow` (action→NodeKind e validação de que todo `next.intent.id` existe na lista). Pendente: validar visualmente no viewer e, se for dar push, confirmar contra a API real.
 

@@ -111,7 +111,12 @@ const backupFile = `backup-${targetBot}-${stamp}.json`
 writeFileSync(new URL(`../samples/${backupFile}`, import.meta.url), JSON.stringify(backupData, null, 2))
 console.log(`\nBackup salvo: samples/${backupFile}`)
 
-/** Reaponta todas as referências usando o mapa clientId -> serverId. */
+/**
+ * Reaponta todas as referências por id usando o mapa clientId -> serverId:
+ * next.intent.id, action.choices, action.error.next.intent, fallbackIntents,
+ * condition.intent (tipos context/lastIntent), condition.context e
+ * intent.context (raiz). Refs fora do mapa ficam intactas.
+ */
 function remapRefs(intent, idMap) {
   let changed = false
   const swap = id => {
@@ -125,7 +130,12 @@ function remapRefs(intent, idMap) {
     const errNext = cond.action?.error?.next
     if (errNext && typeof errNext.intent === 'string') errNext.intent = swap(errNext.intent)
     if (Array.isArray(cond.fallbackIntents)) cond.fallbackIntents = cond.fallbackIntents.map(swap)
+    // Refs por id no nível da condição (tipos context/lastIntent usam `intent`).
+    if (typeof cond.intent === 'string') cond.intent = swap(cond.intent)
+    if (typeof cond.context === 'string') cond.context = swap(cond.context)
   }
+  // Contexto no nível da intenção (uma vez por intenção, fora do laço).
+  if (typeof intent.context === 'string') intent.context = swap(intent.context)
   return changed
 }
 

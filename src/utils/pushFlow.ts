@@ -108,9 +108,11 @@ export function planPush(flowList: BotIntent[], serverIntents: BotIntent[]): Pus
  * Reaponta todas as referências de uma intenção usando o mapa ID-cliente →
  * ID-servidor. Mutates `intent` e devolve `true` se trocou algo (portado de
  * push-flow.mjs:114-130). As referências cobertas: `next.intent.id` (objeto),
- * `action.choices` (array de IDs), `action.error.next.intent` (string) e
- * `condition.fallbackIntents`. Refs que não estão no mapa ficam intactas —
- * preservar, não reconstruir.
+ * `action.choices` (array de IDs), `action.error.next.intent` (string),
+ * `condition.fallbackIntents`, `condition.intent` (string — tipos
+ * `context`/`lastIntent`), `condition.context` (string) e `intent.context`
+ * (raiz, string). Refs que não estão no mapa ficam intactas — preservar, não
+ * reconstruir.
  */
 export function remapRefs(intent: BotIntent, idMap: Map<string, string>): boolean {
   let changed = false
@@ -132,7 +134,12 @@ export function remapRefs(intent: BotIntent, idMap: Map<string, string>): boolea
     if (Array.isArray(cond.fallbackIntents)) {
       cond.fallbackIntents = cond.fallbackIntents.map(swap)
     }
+    // Refs por id no nível da condição (tipos context/lastIntent usam `intent`).
+    if (typeof cond.intent === 'string') cond.intent = swap(cond.intent)
+    if (typeof cond.context === 'string') cond.context = swap(cond.context)
   }
+  // Contexto no nível da intenção (uma vez por intenção, fora do laço).
+  if (typeof intent.context === 'string') intent.context = swap(intent.context)
   return changed
 }
 

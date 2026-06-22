@@ -105,7 +105,7 @@ describe('planPush — quem é criação vs. atualização', () => {
   })
 })
 
-describe('remapRefs — reaponta as 4 formas de referência', () => {
+describe('remapRefs — reaponta todas as formas de referência por id', () => {
   it('troca next.intent.id (objeto), choices, error.next.intent (string) e fallbackIntents', () => {
     const idMap = new Map([
       ['old-1', 'srv-1'],
@@ -136,11 +136,47 @@ describe('remapRefs — reaponta as 4 formas de referência', () => {
     expect(c.fallbackIntents).toEqual(['srv-4', 'mantem'])
   })
 
+  it('troca condition.intent (tipos context/lastIntent) e condition.context (string)', () => {
+    const idMap = new Map([
+      ['old-ctx', 'srv-ctx'],
+      ['old-cond-ctx', 'srv-cond-ctx'],
+    ])
+    const i = intent('x', 'X', [
+      cond({ type: 'context', intent: 'old-ctx', context: 'old-cond-ctx' }),
+    ])
+
+    const changed = remapRefs(i, idMap)
+
+    const c = i.conditions[0]
+    expect(changed).toBe(true)
+    expect(c.intent).toBe('srv-ctx')
+    expect(c.context).toBe('srv-cond-ctx')
+  })
+
+  it('troca intent.context (raiz) — o caso que quebrava o masterFlow', () => {
+    const i = intent('x', 'X')
+    i.context = 'old-root-ctx'
+
+    const changed = remapRefs(i, new Map([['old-root-ctx', 'srv-root-ctx']]))
+
+    expect(changed).toBe(true)
+    expect(i.context).toBe('srv-root-ctx')
+  })
+
   it('não muta e devolve false quando nada está no mapa (preserva refs)', () => {
-    const i = intent('x', 'X', [nextTo('desconhecido')])
+    const i = intent('x', 'X', [
+      cond({ type: 'context', intent: 'desconhecido-cond', context: 'desconhecido-cond-ctx' }),
+      nextTo('desconhecido'),
+    ])
+    i.context = 'desconhecido-raiz'
+
     const changed = remapRefs(i, new Map([['outro', 'srv']]))
+
     expect(changed).toBe(false)
-    expect((i.conditions[0].next.intent as { id: string }).id).toBe('desconhecido')
+    expect(i.context).toBe('desconhecido-raiz')
+    expect(i.conditions[0].intent).toBe('desconhecido-cond')
+    expect(i.conditions[0].context).toBe('desconhecido-cond-ctx')
+    expect((i.conditions[1].next.intent as { id: string }).id).toBe('desconhecido')
   })
 })
 
