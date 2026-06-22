@@ -13,6 +13,7 @@ import { ThemeContext }  from './contexts/ThemeContext'
 import { TeamsContext, type TeamsStatus } from './contexts/TeamsContext'
 import { fetchStoreTeams, fetchActiveBots, type Team, type Bot } from './utils/teams'
 import { fetchStoreCollections, type Collection } from './utils/collections'
+import { fetchStoreEntities, type StoreEntity } from './utils/entities'
 import { fetchStoreMessageTemplates, type MessageTemplate } from './utils/messageTemplates'
 import { uploadMedia, type UploadMediaType } from './utils/uploadMedia'
 import { fetchServerIntents, type FetchLike } from './utils/pushFlow'
@@ -88,6 +89,10 @@ export default function App() {
   const [botIntents, setBotIntents]             = useState<Record<string, BotIntent[]>>({})
   const [botIntentsStatus, setBotIntentsStatus] = useState<Record<string, TeamsStatus>>({})
   const [botIntentsError, setBotIntentsError]   = useState<Record<string, string | null>>({})
+  // Listas (entities) do bot — variável @entity + nó "Loja física". Carregadas sob demanda.
+  const [entities, setEntities]             = useState<StoreEntity[]>([])
+  const [entitiesStatus, setEntitiesStatus] = useState<TeamsStatus>('idle')
+  const [entitiesError, setEntitiesError]   = useState<string | null>(null)
   // IDs de nó com destaque "duplicando / recém-duplicado" (borda esmeralda animada).
   // Estado transitório de UI — nunca entra no modelo nem no histórico.
   const [highlightIds, setHighlightIds] = useState<Set<string>>(() => new Set())
@@ -708,6 +713,9 @@ export default function App() {
     setBotIntents({})
     setBotIntentsStatus({})
     setBotIntentsError({})
+    setEntities([])
+    setEntitiesStatus('idle')
+    setEntitiesError(null)
   }, [sessionToken])
 
   // Carrega os times da loja sob demanda (picker @team). Usa o token global e o
@@ -868,6 +876,41 @@ export default function App() {
     }
   }, [sessionToken])
 
+  // Carrega as Listas (entities) do bot sob demanda (picker @entity + nó "Loja física").
+  // Mesmo padrão do loadCollections: token global + botId do fluxo, ref anti-concorrência,
+  // sem logar o token. Endpoint por botId direto (sem o passo retailerId).
+  const entitiesLoadingRef = useRef(false)
+  const loadEntities = useCallback(async () => {
+    if (entitiesLoadingRef.current) return
+    const token = sessionToken.trim()
+    const botId = botIdOf(parsedDataRef.current)
+    if (!token) {
+      setEntitiesStatus('error')
+      setEntitiesError('Defina o token de sessão (botão de chave na barra) para carregar as listas.')
+      return
+    }
+    if (!botId) {
+      setEntitiesStatus('error')
+      setEntitiesError('Fluxo sem botId — não dá para descobrir as listas.')
+      return
+    }
+    entitiesLoadingRef.current = true
+    setEntitiesStatus('loading')
+    setEntitiesError(null)
+    try {
+      const list = await fetchStoreEntities({ fetch: browserFetch, token, botId })
+      setEntities(list)
+      setEntitiesStatus('loaded')
+    } catch (e) {
+      setEntitiesStatus('error')
+      setEntitiesError(e instanceof Error ? e.message : 'Falha ao carregar as listas.')
+    } finally {
+      entitiesLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  const entitiesById = useMemo(() => new Map(entities.map(en => [en.id, en])), [entities])
+
   const requestToken = useCallback(() => setTokenOpen(true), [])
   const hasToken = !!sessionToken.trim()
   const uploadFile = useCallback(async (file: File, type: UploadMediaType) => {
@@ -882,6 +925,7 @@ export default function App() {
       templates, templatesStatus, templatesError, loadTemplates, templatesById,
       bots, botsStatus, botsError, loadBots,
       botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
+      entities, entitiesStatus, entitiesError, loadEntities, entitiesById,
     }),
     [
       teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile,
@@ -889,6 +933,7 @@ export default function App() {
       templates, templatesStatus, templatesError, loadTemplates, templatesById,
       bots, botsStatus, botsError, loadBots,
       botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
+      entities, entitiesStatus, entitiesError, loadEntities, entitiesById,
     ],
   )
 

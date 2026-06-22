@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Bot, Team } from '../utils/teams'
 import type { Collection } from '../utils/collections'
+import type { StoreEntity } from '../utils/entities'
 import type { MessageTemplate } from '../utils/messageTemplates'
 import type { UploadMediaType } from '../utils/uploadMedia'
 import type { BotIntent } from '../types'
@@ -68,6 +69,16 @@ export interface TeamsContextValue {
   botIntentsError: Record<string, string | null>
   /** Dispara o carregamento das intenções de um bot específico (idempotente por bot). */
   loadBotIntents: (botId: string) => void
+  // ─── Listas (entities) — variável `@entity` + nó "Loja física" (mesmo padrão) ─
+  /** Listas (entities) do bot — alimenta o picker `@entity` e (Fase 3) o nó "Loja física". */
+  entities: StoreEntity[]
+  entitiesStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `entitiesStatus === 'error'`. */
+  entitiesError: string | null
+  /** Dispara o carregamento das listas do bot (idempotente). */
+  loadEntities: () => void
+  /** Mapa id→lista, para a Fase 3 (editor do nó) mostrar o nome do que foi salvo. */
+  entitiesById: ReadonlyMap<string, StoreEntity>
 }
 
 const EMPTY: TeamsContextValue = {
@@ -97,6 +108,11 @@ const EMPTY: TeamsContextValue = {
   botIntentsStatus: {},
   botIntentsError: {},
   loadBotIntents: () => {},
+  entities: [],
+  entitiesStatus: 'idle',
+  entitiesError: null,
+  loadEntities: () => {},
+  entitiesById: new Map(),
 }
 
 export const TeamsContext = createContext<TeamsContextValue>(EMPTY)

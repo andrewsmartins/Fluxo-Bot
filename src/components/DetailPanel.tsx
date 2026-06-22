@@ -574,7 +574,10 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
   const [activeTeam, setActiveTeam] = useState<{ objectId: string; name: string } | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const { teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken } = useTeams()
+  const {
+    teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken,
+    entities, entitiesStatus, entitiesError, loadEntities,
+  } = useTeams()
 
   // Posiciona logo abaixo do campo, ancorado pela ESQUERDA (caixa MÓVEL): cresce para
   // a direita conforme abre coluna e só desliza para a esquerda quando estouraria a
@@ -616,12 +619,18 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
     if (activeGroup === 'team' && hasToken && teamsStatus === 'idle') loadTeams()
   }, [activeGroup, hasToken, teamsStatus, loadTeams])
 
+  // Auto-carrega as Listas ao abrir a categoria Lista quando há token (mesmo padrão do Time).
+  useEffect(() => {
+    if (activeGroup === 'entity' && hasToken && entitiesStatus === 'idle') loadEntities()
+  }, [activeGroup, hasToken, entitiesStatus, loadEntities])
+
   const group = VARIABLE_GROUPS.find(g => g.key === activeGroup) ?? null
 
   const onCategoryClick = (g: VariableGroup) => {
     setActiveItem(null); setActiveChild(null); setActiveTeam(null)
-    // Time é dinâmico: em vez de gravar "@team" pelado, abre a coluna de times.
+    // Time e Lista são dinâmicos: em vez de gravar o namespace pelado, abrem a coluna.
     if (g.key === 'team') { setActiveGroup('team'); return }
+    if (g.key === 'entity') { setActiveGroup('entity'); return }
     if (g.value !== undefined) onPick(g.value, true) // categoria-folha (namespace livre)
     else setActiveGroup(g.key)
   }
@@ -679,9 +688,9 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
             <button
               type="button"
               className={rowCls(g.key === activeGroup)}
-              onMouseEnter={() => { if (g.items || g.key === 'team') { setActiveGroup(g.key); setActiveItem(null); setActiveChild(null); setActiveTeam(null) } }}
+              onMouseEnter={() => { if (g.items || g.key === 'team' || g.key === 'entity') { setActiveGroup(g.key); setActiveItem(null); setActiveChild(null); setActiveTeam(null) } }}
               onClick={() => onCategoryClick(g)}
-            >{g.label}{g.items || g.key === 'team' ? ' ›' : ''}</button>
+            >{g.label}{g.items || g.key === 'team' || g.key === 'entity' ? ' ›' : ''}</button>
           </li>
         ))}
       </ul>
@@ -734,6 +743,45 @@ function VariableMenu({ anchorRef, isDark, onPick, onClose }: VariableMenuProps)
                 className={rowCls(activeTeam?.objectId === team.objectId)}
                 onClick={() => onTeamClick(team)}
               >{team.name} ›</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* Grupo dinâmico Lista: coluna das listas (entities) do bot. Clicar INSERE
+          `@entity.<nome>` como prefixo (libera digitação) — sem sub-coluna de campos. */}
+      {activeGroup === 'entity' && (
+        <ul className={`${colCls} border-l ${borderCls}`}>
+          <li className={headerCls}>Listas do bot</li>
+          {/* Sem token: aviso clicável que abre o campo de token na barra. */}
+          {!hasToken && (
+            <li className="px-2.5 py-1.5">
+              <button type="button" className="text-xs font-medium text-blue-500 hover:text-blue-600 text-left" onClick={requestToken}>
+                Insira o token da sessão
+              </button>
+            </li>
+          )}
+          {/* Com token: carrega sozinho (idle dispara o fetch via efeito). */}
+          {hasToken && (entitiesStatus === 'idle' || entitiesStatus === 'loading') && (
+            <li className={`px-2.5 py-1.5 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Carregando…</li>
+          )}
+          {hasToken && entitiesStatus === 'error' && (
+            <li className="px-2.5 py-1.5 flex flex-col gap-1">
+              <span className={`text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>{entitiesError}</span>
+              <button type="button" className="self-start text-xs font-medium text-blue-500 hover:text-blue-600" onClick={loadEntities}>
+                Tentar de novo
+              </button>
+            </li>
+          )}
+          {hasToken && entitiesStatus === 'loaded' && entities.length === 0 && (
+            <li className={`px-2.5 py-1.5 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Nenhuma lista cadastrada.</li>
+          )}
+          {hasToken && entitiesStatus === 'loaded' && entities.map(entity => (
+            <li key={entity.id}>
+              <button
+                type="button"
+                className={rowCls(false)}
+                onClick={() => onPick(`@entity.${entity.name}`, true)}
+              >{entity.name}</button>
             </li>
           ))}
         </ul>

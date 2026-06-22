@@ -130,3 +130,21 @@ describe('variableDisplay — Time (grupo dinâmico, @team.{id}.campo)', () => {
       .toEqual({ label: 'Time.S1Cl3fbnFG.Aberto Agora', resolved: true })
   })
 })
+
+describe('variableDisplay — Lista (grupo dinâmico, @entity.<nome>)', () => {
+  // O picker insere a lista pelo NOME (já legível): `@entity.<nome>` resolve para
+  // "Lista.<nome>" por parsing simples, sem mapa id→nome (diferente do Time).
+  it('resolve @entity.<nome> para "Lista.<nome>"', () => {
+    expect(variableDisplay('@entity.Endereco')).toEqual({ label: 'Lista.Endereco', resolved: true })
+    expect(variableDisplay('@entity.Lojas Proximas')).toEqual({ label: 'Lista.Lojas Proximas', resolved: true })
+  })
+
+  it('preserva o resto do caminho quando o usuário continua digitando', () => {
+    expect(variableDisplay('@entity.Endereco.cep')).toEqual({ label: 'Lista.Endereco.cep', resolved: true })
+  })
+
+  it('o @entity pelado continua sendo prefixo livre (não resolvido)', () => {
+    expect(variableDisplay('@entity')).toEqual({ label: '@entity', resolved: false })
+    expect(variableDisplay('@entity.')).toEqual({ label: '@entity.', resolved: false })
+  })
+})

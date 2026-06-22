@@ -22,7 +22,7 @@
 
 ### Fases (1 por sessão, fecha com /handoff)
 - **Fase 1 — Camada de dados (sem React, testável): ✅ CONCLUÍDA 2026-06-22.** [src/utils/entities.ts](src/utils/entities.ts) criado espelhando `teams.ts`/`collections.ts`: `interface StoreEntity { id; name; type }` e `fetchStoreEntities(deps & { botId })` → `GET ${API}/v1/{botId}/entities` (por botId direto, sem `retailerId`), lê `data.list`, filtra itens com `id`, `name` cai pro `id`, `type` cai pra `''`, ordena por nome. Reusa `sessionHeaders` + `Deps` e o novo `export const API` de [teams.ts](src/utils/teams.ts) (espelha `PARSE`/`APP_ID`). 4 testes em [entities.test.ts](src/utils/entities.test.ts) (mapa+ordem+endpoint+headers; fallback id/type; ignora sem-id + lista ausente→`[]`; erro sem expor token). tsc + 344 testes verdes. Sem CHANGELOG/bump (camada interna, ainda não consumida pela UI — fica pra Fase 3).
-- **Fase 2 — Fiação no contexto + picker `@entity` dinâmico:** adicionar ao [TeamsContext](src/contexts/TeamsContext.tsx) `entities`/`entitiesStatus`/`entitiesError`/`loadEntities`/`entitiesById` (espelha coleções) e implementar o fetch no [App.tsx](src/App.tsx). Em [variables.ts](src/utils/variables.ts): grupo `entity` deixa de ser folha (`value:'@entity'`) e vira dinâmico (tratado como o `team` no picker). No [DetailPanel](src/components/DetailPanel.tsx) `VariableMenu`: coluna de Listas (auto-load por token, mesmos estados do `team`), clique insere `@entity.<name>` (prefix:true, permite continuar digitando). Opcional: `variableDisplay` resolver "Lista.<name>".
+- **Fase 2 — Fiação no contexto + picker `@entity` dinâmico: ✅ CONCLUÍDA 2026-06-22.** [TeamsContext](src/contexts/TeamsContext.tsx) ganhou `entities`/`entitiesStatus`/`entitiesError`/`loadEntities`/`entitiesById` (espelha coleções); [App.tsx](src/App.tsx) implementa `loadEntities` (token + botId, ref anti-concorrência, reset no troca-de-token, `entitiesById` por `id`) consumindo `fetchStoreEntities`. No picker (`VariableMenu` em [DetailPanel](src/components/DetailPanel.tsx)) o grupo "Lista" virou dinâmico **como o Time** (interceptado por `g.key === 'entity'`, mantendo `value:'@entity'` no catálogo): auto-load por token, coluna "Listas do bot" com estados sem-token/loading/erro+retry/vazio, e clique **insere `@entity.<name>` como prefixo** (sem sub-coluna de campos). [variables.ts](src/utils/variables.ts): `matchEntityVariable` resolve `@entity.<nome>` → "Lista.<nome>" (3 testes novos; `@entity` pelado segue não-resolvido). tsc + 347 testes + build verdes. **Sem CHANGELOG/bump ainda** — fica pra Fase 3 (release única da feature). Decisão de design: o token usa o **NOME** da lista (decisão 5 do interrogatório) — ⚠️ validar com export real se a plataforma resolve por nome ou apiName.
 - **Fase 3 — Editor do nó Loja física + CHANGELOG/bump:** `Draft` ganha `storeType`/`storeEntity`; init a partir de `cond.action.storeType`/`cond.action.entity`; `<Section title="Loja física">` gated por `kind === 'storeNode'` (espelha o bloco `captureNode` em [DetailPanel.tsx:2791](src/components/DetailPanel.tsx#L2791)) com select "Tipo de ação" + picker de Lista (filtra `type:store`, auto-load, estados sem-token/erro/vazio). `storeInvalid` (sem `storeEntity`) entra no `disabled` do "Aplicar". Helper em `editFlow.ts` (ex.: `setStoreAction(cond, { storeType, entity })`). CHANGELOG (Added) + bump (minor) + atualizar este PLANS.
 
 ### Riscos / como testar
@@ -34,29 +34,30 @@
 <!-- HANDOFF:START -->
 ## 🔄 Handoff — 2026-06-22
 
-**Foco da próxima sessão:** **Fase 2 da Loja física + picker `@entity`** — fiação no `TeamsContext`/`App` (`entities`/`entitiesStatus`/`entitiesError`/`loadEntities`/`entitiesById`, espelhando coleções) + tornar o picker `@entity` dinâmico em [variables.ts](src/utils/variables.ts) e no `VariableMenu` do [DetailPanel](src/components/DetailPanel.tsx). A camada de dados (Fase 1) já está pronta e testada.
+**Foco da próxima sessão:** **Fase 3 da Loja física** — editor do nó "Loja física" no `DetailPanel` (gated por `kind === 'storeNode'`): select "Tipo de ação" (única opção `first`) + picker de Lista (filtra `type:'store'`, auto-load, estados sem-token/erro/vazio), gate `storeInvalid` no "Aplicar", helper `setStoreAction` em `editFlow.ts`. **Fecha a feature** com CHANGELOG + bump (minor) + atualizar este PLANS. Fases 1 (dados) e 2 (picker `@entity` + contexto) já prontas e testadas.
 
-**Onde paramos:** branch `feat/execution-delay`, versão **0.22.0**. Nesta sessão: (1) feature **Próximo Fluxo** 100% concluída (Fases 1–3) e (2) **Loja física Fase 1** (camada de dados) concluída. tsc + 344 testes verdes. **Commits feitos** (3, separados): `refactor:` rename de labels, `feat:` Próximo Fluxo v0.22.0, `feat:` Loja física Fase 1 (entities). Working tree limpo exceto untracked ignorados (logos `.png/.svg`, `masterFlow.json`).
+**Onde paramos:** branch `feat/execution-delay`, versão **0.22.0**. Nesta sessão: (1) **Próximo Fluxo** 100% concluída (Fases 1–3, commitada); (2) **Loja física Fase 1** (camada de dados, commitada); (3) **Loja física Fase 2** (contexto + picker `@entity` dinâmico) concluída. tsc + 347 testes + build verdes. **Fase 2 NÃO commitada ainda** — está no working tree (ver "Fios soltos").
 
 **Fios soltos / meio-feito:**
-- **Loja física — Fases 2 e 3 pendentes.** Plano completo e fonte de dados (já sondada na API real) na seção "Feature — Nó Loja física + picker @entity" no topo deste PLANS (Fase 1 marcada ✅ com mapa de implementação).
-- **entities.ts ainda não é consumido pela UI** — só existe a camada de dados + testes. A Fase 2 faz a fiação; a Fase 3 adiciona o editor do nó + CHANGELOG/bump.
+- **Fase 2 sem commit:** o working tree tem `TeamsContext.tsx`, `App.tsx`, `variables.ts`, `variables.test.ts`, `DetailPanel.tsx` (VariableMenu) + `PLANS.md`. Commitar como `feat:` próprio (sem bump — release fica na Fase 3) quando aprovado.
+- **Loja física — Fase 3 pendente** (editor do nó + fechamento). Plano completo na seção "Feature — Nó Loja física + picker @entity" no topo (Fases 1 e 2 ✅).
+- **⚠️ Token `@entity` por NOME:** o picker insere `@entity.<name>` pelo nome de exibição (decisão 5). Validar com export real se a plataforma resolve por `name` ou `apiName` — se for apiName, ajustar o `onClick` do picker e o `StoreEntity` (`entities.ts` traria `apiName`).
 - **package-lock estava defasado** (0.20.1) e foi alinhado a 0.22.0. Se reaparecer desalinhado, sincronizar os dois campos `version` do topo do lock.
 - **Untracked não commitados** (logos `.png/.svg`, `masterFlow.json`) seguem no working tree — decidir se entram no `.gitignore` ou são removidos.
 
-**Armadilhas (úteis para a próxima feature):**
-- Fonte de dados das Listas (`@entity`): `GET .../v1/{botId}/entities` — **por botId direto, sem passo `retailerId`** (diferente de `teams`/`collections`). Shape e id confirmados na sonda (ver seção do plano).
-- Padrão de picker dinâmico com token de sessão já consolidado (`@team`, coleções): auto-load no idle, estados sem-token/erro/vazio, token só nos headers (nunca logado).
-- (Próximo Fluxo) `remapRefs` só troca ids presentes no `idMap` de criação → refs cross-bot/órfãs ficam intactas por construção ([pushFlow.ts:117-144](src/utils/pushFlow.ts#L117-L144)).
+**Armadilhas (úteis para a Fase 3):**
+- O nó "Loja física" grava `action.entity = <id>` da Lista (NÃO o nome) + `action.storeType: 'first'` — confirmado na sonda (`id` da lista "Endereco" bate com o `entity` do export). O picker do nó filtra `type === 'store'`; o picker `@entity` (já feito) traz TODAS as listas.
+- `entitiesById` (id→`StoreEntity`) já está no contexto para o editor do nó mostrar o nome da lista salva pelo id.
+- Padrão de picker/editor gated por `kind` já consolidado: ver bloco `captureNode`/`storeNode` no `DetailPanel`.
 
-**Próximo passo imediato:** Fase 2 da Loja física — fiar `entities` no [TeamsContext](src/contexts/TeamsContext.tsx)/[App.tsx](src/App.tsx) (espelhar o bloco de coleções) consumindo `fetchStoreEntities`, e tornar o picker `@entity` dinâmico em [variables.ts](src/utils/variables.ts) + `VariableMenu` do [DetailPanel](src/components/DetailPanel.tsx).
+**Próximo passo imediato:** Fase 3 — adicionar `<Section title="Loja física">` no `DetailPanel` (gated `kind==='storeNode'`), `Draft.storeType`/`storeEntity`, `setStoreAction` em `editFlow.ts`, gate `storeInvalid`, e fechar com CHANGELOG + bump.
 
 **Ponteiros:**
-- Plano da feature: PLANS.md, seção "Feature — Nó Loja física + picker @entity" (topo) — decisões e 3 fases (Fase 1 ✅).
-- Camada de dados pronta: [src/utils/entities.ts](src/utils/entities.ts) (`fetchStoreEntities`, `StoreEntity`) + [entities.test.ts](src/utils/entities.test.ts); reusa `export const API`/`sessionHeaders`/`Deps` de [teams.ts](src/utils/teams.ts).
-- "Próximo Fluxo" (concluída): seção "Feature — Próximo Fluxo" + [DetailPanel.tsx](src/components/DetailPanel.tsx) (`NextFlowSection`).
+- Plano da feature: PLANS.md, seção "Feature — Nó Loja física + picker @entity" (topo) — decisões e 3 fases (Fases 1 e 2 ✅).
+- Camada de dados/contexto prontos: [entities.ts](src/utils/entities.ts) (`fetchStoreEntities`, `StoreEntity`) + [entities.test.ts](src/utils/entities.test.ts); contexto em [TeamsContext.tsx](src/contexts/TeamsContext.tsx)/[App.tsx](src/App.tsx) (`entities`/`loadEntities`/`entitiesById`).
+- Picker `@entity` dinâmico: `VariableMenu` em [DetailPanel.tsx](src/components/DetailPanel.tsx) + `matchEntityVariable` em [variables.ts](src/utils/variables.ts).
 
-**Skills sugeridas:** `/interrogar` antes de codar a Loja física se surgirem decisões novas; `/code-review` antes de commitar; `/verify` (ou `/run`) para validar UI.
+**Skills sugeridas:** `/code-review` antes de commitar; `/verify` (ou `/run`) para validar o picker `@entity` e o editor do nó na UI; `/interrogar` se a Fase 3 levantar decisões novas.
 <!-- HANDOFF:END -->
 
 ## Feature — Próximo Fluxo (next.intent editável no painel: "Neste bot" / "Em outro bot")

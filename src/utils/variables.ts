@@ -176,6 +176,10 @@ export function variableDisplay(
   // id→nome estiver carregado (Fase 2), o rótulo usa o NOME do time; senão, o ID.
   const team = matchTeamVariable(value, teamNames)
   if (team) return { label: team, resolved: true }
+  // Lista (`@entity`) é dinâmica como o Time, mas o token já é legível (`@entity.<nome>`):
+  // resolvemos para "Lista.<nome>" por parsing simples, sem precisar de mapa id→nome.
+  const entity = matchEntityVariable(value)
+  if (entity) return { label: entity, resolved: true }
   for (const group of VARIABLE_GROUPS) {
     const label = matchVariable(group.items ?? [], value, [group.label])
     if (label) return { label, resolved: true }
@@ -196,6 +200,18 @@ function matchTeamVariable(value: string, teamNames?: ReadonlyMap<string, string
   const id = match[1]
   const idLabel = teamNames?.get(id) ?? id
   return matchVariable(entityFieldItems(`@team.${id}`), value, ['Time', idLabel])
+}
+
+/**
+ * Resolve um token de Lista (`@entity.<nome>[.resto]`) para o caminho de rótulos
+ * "Lista.<nome>[.resto]". O picker insere a lista pelo NOME (já legível), então não
+ * há mapa id→nome a consultar — basta trocar o prefixo `@entity` pelo rótulo "Lista".
+ * Devolve null para o `@entity` pelado (sem ponto), que segue como prefixo livre.
+ */
+function matchEntityVariable(value: string): string | null {
+  const match = /^@entity\.(.+)$/.exec(value)
+  if (!match) return null
+  return `Lista.${match[1]}`
 }
 
 /**
