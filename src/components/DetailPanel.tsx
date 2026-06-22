@@ -20,6 +20,7 @@ import type { Collection } from '../utils/collections'
 import { templateVarCount, type MessageTemplate } from '../utils/messageTemplates'
 import type { EditResult } from '../utils/editFlow'
 import { CREATABLE_KINDS, CREATABLE_KIND_LABELS, type CreatableKind } from '../utils/intentTemplates'
+import { CAPTURE_FIELDS, CAPTURE_CATEGORY, MULTIPLE_FIELDS_SENTINEL, FREE_CAPTURE } from '../utils/captureFields'
 
 const KIND_LABELS_LIGHT: Record<NodeKind, { label: string; color: string }> = {
   startNode:       { label: 'Início',          color: 'bg-emerald-100 text-emerald-700' },
@@ -61,18 +62,6 @@ const TRANSFER_TYPES = [
   { value: 'direct4user',         label: 'Usuário direto' },
   { value: 'direct4userPrevious', label: 'Atendente anterior' },
   { value: 'direct4userCurrent',  label: 'Atendente atual' },
-]
-
-const CAPTURE_TYPES = [
-  { value: 'free',    label: 'Livre' },
-  { value: 'custom',  label: 'Customizado' },
-  { value: 'name',    label: 'Nome' },
-  { value: 'fullName', label: 'Nome completo' },
-  { value: 'cpf',     label: 'CPF' },
-  { value: 'email',   label: 'E-mail' },
-  { value: 'phone',   label: 'Telefone' },
-  { value: 'zipcode', label: 'CEP' },
-  { value: 'entity',  label: 'Entidade' },
 ]
 
 /** Opções de gatilho (ConditionType) — os 10 tipos oficiais da plataforma. */
@@ -202,8 +191,12 @@ interface Draft {
   choices: string[]
   transferType: string
   transferValue: string
+  /** Modo de captura: 'singleField' (um dado) ou 'multipleFields' (vários). */
+  captureMode: string
+  /** Dado escolhido no modo single (vazio = nada escolhido). */
   captureDataType: string
-  captureVariable: string
+  /** Dados marcados no modo múltiplo (array de `CaptureDataType`). */
+  captureMultiple: string[]
   setDataItems: BulkUpdateItem[]
   // Lista de condições (modos group/solo) — estrutura da intenção
   conditions: DraftCondition[]
@@ -319,8 +312,19 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
     choices,
     transferType: transferCond?.action.transferType ?? '',
     transferValue: transferCond?.action.value ?? '',
-    captureDataType: captureCond?.action.captureDataType ?? '',
-    captureVariable: captureCond?.action.variable ?? '',
+    // Modo derivado de `captureDataTypesCategory`; legado sem o campo cai em single.
+    captureMode: captureCond?.action.captureDataTypesCategory === CAPTURE_CATEGORY.multiple
+      ? CAPTURE_CATEGORY.multiple
+      : CAPTURE_CATEGORY.single,
+    // No modo múltiplo o `captureDataType` carrega a sentinela — não é dado real,
+    // então o slot single fica vazio nesse caso. No single, null/ausente cai em
+    // `free` (o placeholder "— Selecione —"), mantendo o estado de repouso consistente.
+    captureDataType: captureCond?.action.captureDataTypesCategory === CAPTURE_CATEGORY.multiple
+      ? ''
+      : (captureCond?.action.captureDataType ?? FREE_CAPTURE),
+    captureMultiple: Array.isArray(captureCond?.action.multipleFields)
+      ? [...captureCond.action.multipleFields]
+      : [],
     setDataItems: (Array.isArray(setDataCond?.action.bulkUpdate) ? setDataCond.action.bulkUpdate : [])
       .map(i => ({ ...i })),
     conditions: intent.conditions.map((c, i) => ({
@@ -2049,7 +2053,15 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
         results.push(updateActionFields(intent, 'transfer', { transferType: draft.transferType, value: draft.transferValue }, ci))
       }
       if (kind === 'captureNode') {
-        results.push(updateActionFields(intent, 'captureData', { captureDataType: draft.captureDataType, variable: draft.captureVariable }, ci))
+        // Modo múltiplo: sentinela em captureDataType + array em multipleFields.
+        // Modo single: o dado real + multipleFields vazio. variable sempre '' (campo removido da UI).
+        const isMultiple = draft.captureMode === CAPTURE_CATEGORY.multiple
+        results.push(updateActionFields(intent, 'captureData', {
+          captureDataType: isMultiple ? MULTIPLE_FIELDS_SENTINEL : draft.captureDataType,
+          captureDataTypesCategory: isMultiple ? CAPTURE_CATEGORY.multiple : CAPTURE_CATEGORY.single,
+          multipleFields: isMultiple ? draft.captureMultiple : [],
+          variable: '',
+        }, ci))
       }
       if (kind === 'setDataNode') {
         results.push(updateSetDataItems(intent, draft.setDataItems, ci))
@@ -2112,6 +2124,13 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
 
   const editable = !!intent && !!draft && mode !== 'externalRO' && mode !== 'startRO'
   const canDeleteCondition = mode === 'condition' && !!intent && intent.conditions.length > 1
+  // Captura exige uma escolha real: bloqueia o save no single em repouso (vazio ou
+  // `free`, o placeholder) ou no múltiplo sem marcações.
+  const captureInvalid = !!draft && kind === 'captureNode' && (
+    draft.captureMode === CAPTURE_CATEGORY.multiple
+      ? draft.captureMultiple.length === 0
+      : (!draft.captureDataType || draft.captureDataType === FREE_CAPTURE)
+  )
 
   return (
     <div data-testid="detail-panel" className={`absolute right-0 top-0 h-full w-96 rounded-l-2xl shadow-2xl z-10 flex flex-col overflow-hidden ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
@@ -2509,25 +2528,85 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
               </Section>
             )}
 
-            {showContent && draft && kind === 'captureNode' && (
-              <Section title="Captura de dado" isDark={isDark}>
-                <div className="flex flex-col gap-2">
-                  <label className="flex flex-col gap-1">
-                    <span className={labelCls}>Tipo de dado</span>
-                    <select className={inputCls} value={draft.captureDataType} onChange={e => set('captureDataType', e.target.value)}>
-                      {CAPTURE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      {!CAPTURE_TYPES.some(t => t.value === draft.captureDataType) && draft.captureDataType && (
-                        <option value={draft.captureDataType}>{draft.captureDataType}</option>
-                      )}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className={labelCls}>Variável de destino</span>
-                    <input className={`${inputCls} font-mono`} value={draft.captureVariable} onChange={e => set('captureVariable', e.target.value)} placeholder="ex: customer.name" />
-                  </label>
-                </div>
-              </Section>
-            )}
+            {showContent && draft && kind === 'captureNode' && (() => {
+              const isMultiple = draft.captureMode === CAPTURE_CATEGORY.multiple
+              const singleEmpty = !draft.captureDataType || draft.captureDataType === FREE_CAPTURE
+              // Valor legado fora das 11 opções (exceto o `free` do placeholder):
+              // preserva como <option> extra (anti-corrupção de import).
+              const legacySingle = !isMultiple && !singleEmpty
+                && !CAPTURE_FIELDS.some(f => f.value === draft.captureDataType)
+                ? draft.captureDataType : null
+              const isEmpty = isMultiple ? draft.captureMultiple.length === 0 : singleEmpty
+              // Alternar modo limpa a seleção do outro (decisão 4); single volta ao
+              // repouso `free` (placeholder), múltiplo zera o array.
+              const switchMode = (mode: string) => {
+                if (mode === draft.captureMode) return
+                setDraft(d => d ? {
+                  ...d,
+                  captureMode: mode,
+                  captureDataType: mode === CAPTURE_CATEGORY.multiple ? '' : FREE_CAPTURE,
+                  captureMultiple: [],
+                } : d)
+              }
+              const toggleField = (value: string) => setDraft(d => d ? {
+                ...d,
+                captureMultiple: d.captureMultiple.includes(value)
+                  ? d.captureMultiple.filter(v => v !== value)
+                  : [...d.captureMultiple, value],
+              } : d)
+              const segBase = 'flex-1 text-[11px] font-medium rounded-md px-2 py-1.5 transition-colors'
+              const segActive = isDark ? `${segBase} bg-violet-600 text-white` : `${segBase} bg-violet-600 text-white shadow-sm`
+              const segIdle = isDark ? `${segBase} text-slate-400 hover:text-slate-200` : `${segBase} text-slate-500 hover:text-slate-700`
+              return (
+                <Section title="Captura de dado" isDark={isDark}>
+                  <div className="flex flex-col gap-2.5">
+                    {/* Modo: uma informação x múltiplas — exclusivos */}
+                    <div className={`flex gap-1 p-0.5 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                      <button type="button" className={!isMultiple ? segActive : segIdle} onClick={() => switchMode(CAPTURE_CATEGORY.single)}>
+                        Uma informação
+                      </button>
+                      <button type="button" className={isMultiple ? segActive : segIdle} onClick={() => switchMode(CAPTURE_CATEGORY.multiple)}>
+                        Múltiplas informações
+                      </button>
+                    </div>
+
+                    {!isMultiple ? (
+                      <label className="flex flex-col gap-1">
+                        <span className={labelCls}>Dado a coletar</span>
+                        <select className={inputCls} value={draft.captureDataType} onChange={e => set('captureDataType', e.target.value)}>
+                          <option value={FREE_CAPTURE}>— Selecione —</option>
+                          {CAPTURE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          {legacySingle && <option value={legacySingle}>{legacySingle}</option>}
+                        </select>
+                      </label>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <span className={labelCls}>Dados a coletar</span>
+                        <div className="flex flex-col gap-1">
+                          {CAPTURE_FIELDS.map(f => (
+                            <label key={f.value} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="accent-violet-600"
+                                checked={draft.captureMultiple.includes(f.value)}
+                                onChange={() => toggleField(f.value)}
+                              />
+                              <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{f.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {isEmpty && (
+                      <p className={`text-[11px] leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                        Selecione ao menos um dado para salvar.
+                      </p>
+                    )}
+                  </div>
+                </Section>
+              )
+            })()}
 
             {showContent && draft && kind === 'setDataNode' && (
               <Section title="Variáveis definidas" isDark={isDark}>
@@ -2640,8 +2719,9 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
           )}
           <button
             onClick={handleApply}
-            className="w-full text-xs font-semibold rounded-lg px-3 py-2 bg-amber-400 text-slate-900 hover:bg-amber-500 transition-colors"
-          >Aplicar alterações</button>
+            disabled={captureInvalid}
+            className={`w-full text-xs font-semibold rounded-lg px-3 py-2 bg-amber-400 text-slate-900 transition-colors ${captureInvalid ? 'opacity-40 cursor-not-allowed' : 'hover:bg-amber-500'}`}
+          >Aplicar alterações{captureInvalid ? ' (selecione um dado)' : ''}</button>
           {(mode === 'condition' || mode === 'solo') && intent && (
             <div className="flex gap-2">
               <button

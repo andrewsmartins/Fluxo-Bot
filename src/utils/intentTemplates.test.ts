@@ -100,6 +100,13 @@ describe('Marco D — criação dos 11 ActionTypes (Modelo B)', () => {
     expect(createIntentTemplate('csatNode', BOT_ID, 'c').conditions[0].action.captureDataType).toBe('supportRate')
   })
 
+  it('capture nasce com captureDataType "free" (repouso push-safe; o painel exibe placeholder)', () => {
+    const action = createIntentTemplate('captureNode', BOT_ID, 'c').conditions[0].action
+    expect(action.captureDataType).toBe('free')
+    expect(action.captureDataTypesCategory).toBe('singleField')
+    expect(action.multipleFields).toEqual([])
+  })
+
   it('store/external/end nascem sem subtipo presumido (enum desconhecido / terminal)', () => {
     const store = createIntentTemplate('storeNode', BOT_ID, 's').conditions[0].action
     expect(store.storeType).toBeNull()

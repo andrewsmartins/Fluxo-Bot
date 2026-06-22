@@ -140,6 +140,9 @@ function conditionNodeData(intent: BotIntent, condIdx: number, mode: 'solo' | 'c
     buttons:         condButtons(cond),
     actionType:      action.type,
     captureDataType: action.captureDataType ?? null,
+    captureMultipleFields: action.captureDataTypesCategory === 'multipleFields' && Array.isArray(action.multipleFields)
+      ? action.multipleFields
+      : [],
     transferType:    action.transferType ?? null,
     transferValue:   action.type === 'transfer' ? (action.value ?? null) : null,
     allMessages:     condAllMessages(cond),

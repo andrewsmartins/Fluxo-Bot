@@ -64,7 +64,7 @@ function canonicalAction(type: string): Action {
     transferType: null,
     captureDataType: null,
     captureDataTypesCategory: 'singleField',
-    multipleFields: '',
+    multipleFields: [],
     conversationType: null,
     storeType: null,
     orderType: null,
@@ -107,6 +107,9 @@ function buildKindAction(kind: CreatableKind, botId: string): Action {
     action.error = canonicalError(botId)
   }
   if (kind === 'captureNode') {
+    // `free` = estado de repouso "texto livre": serializa valor válido se o nó for
+    // criado e nunca configurado (evita captureDataType null no push). No painel
+    // aparece como "— Selecione —" e o gate de save ainda exige escolher um dado.
     action.captureDataType = 'free'
     action.error = canonicalError(botId)
   }

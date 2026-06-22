@@ -57,7 +57,7 @@ function canonicalAction() {
   return {
     type: 'none', bulkUpdate: [], variable: null, value: null, choices: null,
     entity: null, transferType: null, captureDataType: null,
-    captureDataTypesCategory: 'singleField', multipleFields: '',
+    captureDataTypesCategory: 'singleField', multipleFields: [],
     conversationType: null, storeType: null, orderType: null,
     lastMessageTextParams: { position: null, pattern: null },
     external: { type: [], apiName: [] },

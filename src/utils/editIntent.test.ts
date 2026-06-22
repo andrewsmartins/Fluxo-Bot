@@ -734,6 +734,30 @@ describe('updateActionFields / updateSetDataItems', () => {
     expect(intent.conditions[0].action.variable).toBe('customer.cpf')
   })
 
+  it('captura modo single: grava captureDataType + categoria singleField + multipleFields vazio', () => {
+    const intent = createIntentTemplate('captureNode', BOT_ID, 'x')
+    updateActionFields(intent, 'captureData', {
+      captureDataType: 'name', captureDataTypesCategory: 'singleField', multipleFields: [], variable: '',
+    })
+    const action = intent.conditions[0].action
+    expect(action.captureDataType).toBe('name')
+    expect(action.captureDataTypesCategory).toBe('singleField')
+    expect(action.multipleFields).toEqual([])
+    expect(action.variable).toBe('')
+  })
+
+  it('captura modo múltiplo: sentinela em captureDataType + array em multipleFields', () => {
+    const intent = createIntentTemplate('captureNode', BOT_ID, 'x')
+    const fields = ['fullName', 'cpf', 'zipcode']
+    updateActionFields(intent, 'captureData', {
+      captureDataType: 'multipleFields', captureDataTypesCategory: 'multipleFields', multipleFields: fields, variable: '',
+    })
+    const action = intent.conditions[0].action
+    expect(action.captureDataType).toBe('multipleFields')
+    expect(action.captureDataTypesCategory).toBe('multipleFields')
+    expect(action.multipleFields).toEqual(fields)
+  })
+
   it('rejeita tipo de ação que a intenção não tem', () => {
     const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
     expect(updateActionFields(intent, 'transfer', { value: 'y' }).ok).toBe(false)

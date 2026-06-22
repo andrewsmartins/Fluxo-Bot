@@ -1356,3 +1356,101 @@ fora de escopo desta fase; abrir-para-cima fica para depois se incomodar.
    para falhas que não atingem produção. Se um dia quiser zerar o audit, fazer
    um **upgrade deliberado do vite** como tarefa própria, com revalidação de
    build/config/plugin-react — nunca via `--force`.
+
+---
+
+## Fase 14 — Reformulação do nó de Captura (single vs múltiplos campos)
+
+> Interrogada e decidida em 2026-06-21 (branch atual `feat/template-message`).
+> Ainda **não implementada** — esta seção é o plano aprovado para a próxima sessão.
+
+**Objetivo (1 frase):** trocar o painel do nó de Captura — hoje "tipo de dado" +
+"variável de destino" — por dois modos exclusivos ("Uma informação" / "Múltiplas
+informações") que espelham 1:1 a UI e a serialização reais da plataforma OmniChat.
+
+### Serialização real (confirmada por POST capturado, 2026-06-21)
+
+O campo `action.multipleFields` **é um array de strings de verdade** (não string
+separada por vírgula). Dois modos via `captureDataTypesCategory`:
+
+| Campo da `action` | Uma informação | Múltiplas informações |
+|---|---|---|
+| `captureDataTypesCategory` | `"singleField"` | `"multipleFields"` |
+| `captureDataType` | o dado real (ex.: `"name"`) | sentinela literal `"multipleFields"` |
+| `multipleFields` | `[]` (array vazio) | `["fullName","name",...]` (ordem de seleção) |
+| `variable` | `""` (não usado — removido da UI) | `""` |
+
+⚠️ **Impacto no código atual:**
+- `types.ts:66` — `multipleFields?: string` → **`string[]`**.
+- `intentTemplates.ts:67` — canônico emite `multipleFields: ''` → **`[]`**.
+- `intentTemplates.ts:66` — `captureDataTypesCategory: 'singleField'` (mantém como default).
+
+### As 11 opções de campo (fonte única de verdade)
+
+Ordem oficial: `fullName`, `name`, `fullPhoneNumber`, `cpf`, `cnpj`, `zipcode`,
+`addressNumber`, `addressComplement`, `mail`, `gender`, `birthDate`.
+
+Rótulos PT-BR: Nome completo · Nome · Telefone · CPF · CNPJ · CEP · Número do
+endereço · Complemento · E-mail · Gênero · Data de nascimento.
+
+- Extrair **uma única fonte** `{value, label}[]` (ex.: `CAPTURE_FIELDS` em um módulo
+  compartilhado), consumida por: o select/checkboxes do `DetailPanel` **e** o
+  `CAPTURE_LABELS` do `CaptureNode`. Hoje há duas listas duplicadas e
+  dessincronizadas (`DetailPanel.tsx:66` tem `free`/`custom`/`entity`+`email`/`phone`;
+  `CaptureNode.tsx:4` tem `email`/`phone`). Ambas erradas (real = `mail`/`fullPhoneNumber`).
+
+### Decisões (e o porquê)
+
+1. **Remover "Variável de destino"** (`captureVariable`). Não aparece em nenhum
+   fluxo real e o payload manda `variable: ""`. Serializar `variable: ""` sempre.
+2. **Dois modos exclusivos** via `captureDataTypesCategory`. "Uma informação" =
+   select de 1 das 11; "Múltiplas informações" = checkboxes de N das 11. As 11
+   ficam listadas abaixo do seletor de modo nos dois casos.
+3. **Só as 11 são selecionáveis** (a plataforma só oferece essas). **+ fallback
+   defensivo:** se um nó importado trouxer `captureDataType` fora da lista
+   (`entity`/`store`/legado), preservo o valor como `<option>` extra e serializo
+   intacto — evita corrupção silenciosa no round-trip (princípio do PLANS).
+4. **Alternar modo limpa a seleção do outro modo, sem confirmação.** Evita a
+   ambiguidade "tinha 5 marcados, voltei pro single, qual fica?". Re-selecionar é barato.
+5. **Bloquear o save com captura vazia (nos dois modos).** Desabilitar o botão
+   "Aplicar alterações" (`DetailPanel.tsx`, padrão `disabled + opacity`) até haver
+   escolha real: single em repouso **ou** múltiplo com zero marcados. Aviso inline.
+   **Placeholder `"— Selecione —"` vale `free`** (decisão de 2026-06-22): o
+   `<option>` placeholder tem `value="free"` e o nó nasce com `captureDataType: 'free'`
+   (`intentTemplates.ts`), então um nó criado e nunca configurado serializa valor
+   válido em vez de `null` no push (rede de segurança). O gate trata `free`/vazio
+   como "nada escolhido" — não dá para salvar pelo painel sem escolher um dos 11.
+   `FREE_CAPTURE` é constante nomeada em `captureFields.ts`; no canvas o `free`
+   aparece como "Texto livre" (via `captureFieldLabel`).
+6. **Preview no canvas (`CaptureNode`):** cabeçalho "Captura de uma informação:" /
+   "Captura de múltiplas informações:" acima das TAGs de **TODOS** os campos
+   selecionados (o nó cresce conforme a seleção — sem truncar nem contagem;
+   revisado em 2026-06-22, antes era 5 pílulas + contagem + tooltip).
+
+### Onde mexer
+
+- `src/types.ts` — `multipleFields: string[]`.
+- `src/utils/intentTemplates.ts` — canônico `multipleFields: []`.
+- `src/components/DetailPanel.tsx` — seção `captureNode` (~2512-2529): trocar select+input
+  por toggle de modo + select/checkboxes; draft passa a ter modo + array; `handleApply`
+  (~2051) serializa conforme o modo (incl. sentinela `"multipleFields"` no `captureDataType`);
+  gate de save (~2641). Remover `CAPTURE_TYPES` antigo (66-76).
+- `src/components/nodes/CaptureNode.tsx` — preview single/múltiplo + usar `CAPTURE_FIELDS`.
+- Novo módulo de fonte única das 11 opções (`CAPTURE_FIELDS`).
+- `updateActionFields`/parse — garantir leitura/escrita de `multipleFields` como array
+  e do `captureDataTypesCategory` (verificar `parseFlow.ts` no draft `buildDraft`).
+
+### Caminho infeliz / testes
+
+- Single sem escolha e múltiplo com zero marcados → save bloqueado (testar o disable).
+- Import com `captureDataType` fora das 11 → valor preservado no save (round-trip).
+- Alternar modo → seleção anterior some (testar limpeza).
+- Múltiplo com >5 → preview mostra 5 + contagem + tooltip completo.
+- Round-trip: serializar single e múltiplo e bater com os dois POSTs capturados
+  (array real em `multipleFields`, sentinela no `captureDataType`).
+- `tsc` + Vitest verdes; atualizar testes que checam shape de `multipleFields` (era string).
+
+### Versão / docs
+
+Bump **minor** (feature de UI + mudança de schema): 0.17.1 → **0.18.0**. Atualizar
+`CHANGELOG.md` (Changed: schema `multipleFields` agora array; UI do nó de Captura).

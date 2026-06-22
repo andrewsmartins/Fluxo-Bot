@@ -624,13 +624,21 @@ export function updateIntentMeta(
 
 /**
  * Atualiza campos da ação de uma condição (transfer → transferType/value;
- * captureData → captureDataType/variable). Com `condIdx` (Modelo B, Marco C)
- * mira aquela condição; sem ele, a primeira condição cujo action.type bate.
+ * captureData → captureDataType/variable/captureDataTypesCategory/multipleFields).
+ * Com `condIdx` (Modelo B, Marco C) mira aquela condição; sem ele, a primeira
+ * condição cujo action.type bate.
  */
 export function updateActionFields(
   intent: BotIntent,
   actionType: string,
-  fields: Partial<{ transferType: string; value: string; captureDataType: string; variable: string }>,
+  fields: Partial<{
+    transferType: string
+    value: string
+    captureDataType: string
+    variable: string
+    captureDataTypesCategory: string
+    multipleFields: string[]
+  }>,
   condIdx?: number,
 ): EditResult {
   const cond = condIdx === undefined
@@ -640,7 +648,10 @@ export function updateActionFields(
   if (fields.transferType !== undefined) cond.action.transferType = fields.transferType || null
   if (fields.value !== undefined) cond.action.value = fields.value || null
   if (fields.captureDataType !== undefined) cond.action.captureDataType = fields.captureDataType || null
-  if (fields.variable !== undefined) cond.action.variable = fields.variable || null
+  // `variable` no captureData pode ser intencionalmente '' (payload real); preserva o vazio.
+  if (fields.variable !== undefined) cond.action.variable = fields.variable
+  if (fields.captureDataTypesCategory !== undefined) cond.action.captureDataTypesCategory = fields.captureDataTypesCategory
+  if (fields.multipleFields !== undefined) cond.action.multipleFields = fields.multipleFields
   touch(intent)
   return { ok: true }
 }

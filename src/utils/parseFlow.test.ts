@@ -79,6 +79,24 @@ describe('actionToNodeKind — os 11 ActionTypes', () => {
   })
 })
 
+describe('captureData — modo single vs múltiplo no view-model', () => {
+  it('single: captureDataType preenchido e captureMultipleFields vazio', () => {
+    const action = makeAction('captureData', { captureDataType: 'name', captureDataTypesCategory: 'singleField', multipleFields: [] })
+    const intent = makeIntent('cap', [makeCond({ action })])
+    const { nodes } = parseFlow({ list: [intent] })
+    expect(nodes[0].data.captureDataType).toBe('name')
+    expect(nodes[0].data.captureMultipleFields).toEqual([])
+  })
+
+  it('múltiplo: captureMultipleFields traz o array (categoria multipleFields)', () => {
+    const fields = ['fullName', 'cpf', 'zipcode']
+    const action = makeAction('captureData', { captureDataType: 'multipleFields', captureDataTypesCategory: 'multipleFields', multipleFields: fields })
+    const intent = makeIntent('cap', [makeCond({ action })])
+    const { nodes } = parseFlow({ list: [intent] })
+    expect(nodes[0].data.captureMultipleFields).toEqual(fields)
+  })
+})
+
 describe('os 5 novos tipos de nó isolados renderizam como nó solto tipado', () => {
   it.each([
     ['endConversation', 'endNode'],

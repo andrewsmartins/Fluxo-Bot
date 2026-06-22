@@ -63,7 +63,8 @@ export interface Action {
   external?: { type: unknown; apiName: unknown }
   error?: ErrorAction
   captureDataTypesCategory?: string
-  multipleFields?: string
+  /** Campos selecionados no modo "Múltiplas informações" — array de `CaptureDataType`. */
+  multipleFields?: string[]
   lastMessageTextParams?: { position: unknown; pattern: unknown }
 }
 
@@ -162,6 +163,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   buttons: ButtonOption[]
   actionType: string
   captureDataType: string | null
+  /** Modo "Múltiplas informações": campos selecionados (vazio/ausente = modo single). */
+  captureMultipleFields?: string[]
   transferType: string | null
   transferValue: string | null
   allMessages: string[]
