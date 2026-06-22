@@ -4,9 +4,10 @@
  * Fluxo em 2 passos (presigned POST do S3 — formato confirmado por captura de rede):
  *   1. POST /files/v1/presigned-url com { type, name, mimeType } e Bearer token
  *      → devolve { attachmentUrl, url, fields } (ver PresignedUrlResponse abaixo)
- *   2. POST multipart/form-data em `url`, com todos os `fields` + o arquivo como
- *      ÚLTIMO campo (`file`). Sem Authorization e sem Content-Type manual: é o S3
- *      que valida via `fields` (policy/assinatura), e o browser põe o boundary.
+ *   2. POST multipart/form-data em `url`, com todos os `fields` + um campo
+ *      `Content-Type` (exigido pela policy do S3) + o arquivo como ÚLTIMO campo
+ *      (`file`). Sem header Authorization e sem definir o Content-Type DO REQUEST:
+ *      é o S3 que valida via `fields` (policy/assinatura), e o browser põe o boundary.
  *   `attachmentUrl` é a URL pública permanente, gravada em BotMessage.content.
  *
  * CORS: o host `private-api2.omni.chat` é um AWS API Gateway com Allow-Origin `*`,
@@ -44,6 +45,26 @@ const TYPE_MAP: Record<UploadMediaType, { apiType: ApiMediaType; accept: string 
 /** Valor do atributo `accept` para o <input type="file"> conforme o tipo de mídia. */
 export function acceptFor(type: UploadMediaType): string {
   return TYPE_MAP[type].accept
+}
+
+/**
+ * Em dev (Vite), o bucket S3 não libera CORS para http://localhost:5173: mesmo um
+ * upload bem-sucedido (204) fica ilegível pro fetch por falta de Access-Control-
+ * Allow-Origin, e a chamada rejeita. Roteamos então o POST por um proxy do Vite
+ * (`server.proxy['/s3-proxy']` → s3.amazonaws.com), que faz a chamada server-to-
+ * server, sem CORS. A assinatura do presigned POST é feita sobre a Policy (não
+ * sobre o host), então trocar o host pelo proxy NÃO a invalida. Em produção (e se
+ * o host não for o S3 path-style esperado) devolvemos a URL absoluta original.
+ */
+function resolveUploadUrl(rawUrl: string): string {
+  if (!import.meta.env.DEV) return rawUrl
+  try {
+    const parsed = new URL(rawUrl)
+    if (parsed.host !== 's3.amazonaws.com') return rawUrl
+    return `/s3-proxy${parsed.pathname}${parsed.search}`
+  } catch {
+    return rawUrl
+  }
 }
 
 /**
@@ -107,13 +128,23 @@ export async function uploadMedia(
 
   // Passo 2: enviar o arquivo ao S3 via presigned POST (sem token OmniChat).
   // Os `fields` (policy, assinatura, key) vão primeiro; o `file` precisa ser o
-  // ÚLTIMO campo do form. Não definimos Content-Type: o browser monta o
-  // multipart/form-data com o boundary correto sozinho.
+  // ÚLTIMO campo do form. Não definimos o Content-Type DO REQUEST: o browser
+  // monta o multipart/form-data com o boundary correto sozinho.
   const form = new FormData()
   for (const [name, value] of Object.entries(data.fields)) form.append(name, value)
+
+  // A policy do S3 traz a condição ["eq", "$Content-Type", <mime>], que EXIGE um
+  // CAMPO de formulário chamado `Content-Type` com esse valor exato. O header
+  // Content-Type da parte `file` NÃO satisfaz essa condição — sem o campo, o S3
+  // recusa com 403 (que, por não trazer Access-Control-Allow-Origin, o browser
+  // reporta como erro de CORS). O `fields` da OmniChat não inclui esse campo, então
+  // o adicionamos aqui com o mesmo mimeType enviado no passo 1 (file.type), antes
+  // do `file`. Só é incluído quando `data.fields` ainda não o trouxe.
+  if (!('Content-Type' in data.fields)) form.append('Content-Type', file.type)
+
   form.append('file', file)
 
-  const post = await requestStep('passo 2 (envio ao armazenamento)', () => fetch(data.url, {
+  const post = await requestStep('passo 2 (envio ao armazenamento)', () => fetch(resolveUploadUrl(data.url), {
     method: 'POST',
     body: form,
   }))
