@@ -15,7 +15,8 @@
  */
 import type { FetchLike } from './pushFlow'
 
-const API = 'https://k0yowczqxg.execute-api.us-east-1.amazonaws.com/prod'
+/** Base da `execute-api` (bots/times/entities) — reusada por `entities.ts`. */
+export const API = 'https://k0yowczqxg.execute-api.us-east-1.amazonaws.com/prod'
 /** Base do Parse — reusada pelo `collections.ts` (mesma loja, mesmo app). */
 export const PARSE = 'https://api-private2.omni.chat/parse'
 // ID público do app Parse (visível a qualquer navegador na plataforma — não é segredo).
@@ -27,6 +28,16 @@ export interface Team {
   objectId: string
   /** Nome legível do time (rótulo amigável do picker). */
   name: string
+}
+
+/** Bot ativo da conta — campos que o picker "Selecionar bot" (Próximo Fluxo) precisa. */
+export interface Bot {
+  /** ID canônico do bot — vira `next.intent.botId` no redirect cross-bot. */
+  botId: string
+  /** Nome legível do bot (rótulo do picker); cai para o `botId` quando ausente. */
+  name: string
+  /** Loja dona do bot — alguns endpoints precisam dele; opcional aqui. */
+  retailerId?: string
 }
 
 /** Dependências comuns dos fetchs (token de sessão + fetch injetável). */
@@ -48,17 +59,32 @@ export function sessionHeaders(token: string): Record<string, string> {
 }
 
 /**
- * Resolve o `retailerId` da loja a partir do `botId` do fluxo (passo 1).
- * Lê a lista de bots ativos da conta do token e casa pelo `botId`. Lança erro
- * (sem expor o token) se a leitura falhar ou o bot não estiver na lista.
+ * Lista os bots ATIVOS da conta do token (`GET /v2/bots?status=active`). É a
+ * fonte tanto do passo 1 do fetch de times (`fetchRetailerId`) quanto do picker
+ * "Selecionar bot" da seção Próximo Fluxo. Devolve `{ botId, name, retailerId }`,
+ * com `name` caindo para o `botId` (o picker sempre precisa de um rótulo) e
+ * ordenado por nome. Lança (sem expor o token) se a leitura falhar.
  */
-export async function fetchRetailerId(deps: Deps & { botId: string }): Promise<string> {
+export async function fetchActiveBots(deps: Deps): Promise<Bot[]> {
   const res = await deps.fetch(`${API}/v2/bots?status=active`, { headers: sessionHeaders(deps.token) })
   if (!res.ok) {
-    throw new Error(`não foi possível listar os bots para achar a loja (status ${res.status})`)
+    throw new Error(`não foi possível listar os bots da conta (status ${res.status})`)
   }
-  const data = (await res.json()) as { list?: Array<{ botId?: string; retailerId?: string }> }
-  const bot = (data.list ?? []).find(b => b.botId === deps.botId)
+  const data = (await res.json()) as { list?: Array<{ botId?: string; name?: string; retailerId?: string }> }
+  return (data.list ?? [])
+    .filter((b): b is { botId: string; name?: string; retailerId?: string } => typeof b.botId === 'string')
+    .map(b => ({ botId: b.botId, name: b.name ?? b.botId, retailerId: b.retailerId }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+}
+
+/**
+ * Resolve o `retailerId` da loja a partir do `botId` do fluxo (passo 1).
+ * Reusa `fetchActiveBots` e casa pelo `botId`. Lança erro (sem expor o token)
+ * se a leitura falhar, o bot não estiver na lista ou não tiver `retailerId`.
+ */
+export async function fetchRetailerId(deps: Deps & { botId: string }): Promise<string> {
+  const bots = await fetchActiveBots(deps)
+  const bot = bots.find(b => b.botId === deps.botId)
   if (!bot) {
     throw new Error(`o bot ${deps.botId} não está na lista de bots ativos desta conta`)
   }

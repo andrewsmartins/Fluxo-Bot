@@ -1,5 +1,84 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
+## Feature — Nó "Loja física" editável + picker dinâmico de `@entity` (Listas)
+
+> **PLANEJADA em 2026-06-22** (interrogatório). Branch atual: `feat/execution-delay`. Duas features irmãs alimentadas pela MESMA fonte (as "Listas"/entities da loja): (1) dar editor ao nó **Loja física** (hoje só visual em [StoreNode.tsx](src/components/nodes/StoreNode.tsx), sem nada no [DetailPanel](src/components/DetailPanel.tsx)); (2) tornar o `@entity` (rótulo "Lista") um **picker dinâmico** que lista as Listas disponíveis — hoje é prefixo pelado em [variables.ts:125](src/utils/variables.ts#L125), como o `@team` era antes da Fase 9.
+
+**Objetivo (uma frase):** no nó Loja física, campos "Tipo de ação" (única opção "Selecionar a primeira loja" → `storeType:"first"`) e "Loja" (escolhe uma Lista, grava `action.entity = <id>`); e o picker `@entity` passa a listar as Listas da loja, inserindo `@entity.<name>`.
+
+### Fonte de dados — CONFIRMADA na API real (sonda read-only, bot de testes `2a3859ff-…`, 2026-06-22)
+- Endpoint: `GET https://k0yowczqxg.execute-api.us-east-1.amazonaws.com/prod/v1/{botId}/entities` (mesma `execute-api` dos bots/times; **por `botId` direto — NÃO precisa do passo `retailerId`**). Envelope `{ list: [...] }`. `fullObject` não faz diferença pros campos que usamos (true/false idênticos aqui).
+- Shape de uma Lista: `{ id, name, apiName, type, storeFilterType, format, distance, limit, values, botId, ... }`.
+- A Lista "Endereco" tem `id: "97f92ce3-ae7c-40cf-bbf7-5e6ab1858280"` — **idêntico ao `action.entity`** do exemplo do nó Loja física → o nó grava o `id`. `type: "store"` (lista de loja física, por distância).
+
+### Decisões (interrogatório 2026-06-22)
+1. **Loja física grava `action.entity = <id>` da Lista** (confirmado: `id` bate com o `entity` do exemplo). `storeType: "first"`.
+2. **"Tipo de ação" = select de opção única** ("Selecionar a primeira loja" → `first`). Enum completo de `storeType` segue desconhecido; mantemos só `first` (o que o Andy pediu) e preservamos valor legado fora-da-lista como `<option>` extra (anti-corrupção de import, padrão da captura).
+3. **Picker "Loja" do nó filtra só `type === "store"`** — a ação "primeira loja" só opera nessas; uma lista de valores ali geraria config quebrada. Caveat: se houver lista-de-loja com `type` diferente de `store`, ficará oculta (revisitar se aparecer).
+4. **Gate de save: Lista obrigatória.** Sem `entity` selecionado, "Aplicar" desabilitado + aviso âmbar (espelha `captureInvalid`, [DetailPanel.tsx:2861](src/components/DetailPanel.tsx#L2861)). Evita gravar `entity:""`.
+5. **Picker `@entity` insere `@entity.<name>`** (pelo nome de exibição — confirmado pelo Andy). NÃO precisa de mapa id→nome (diferente do `@team`, que grava id): o token já é legível, então `variableDisplay` pode resolver `@entity.<x>` → "Lista.<x>" por parsing simples (ou seguir como prefixo não-resolvido; decisão menor).
+6. **Picker `@entity` traz TODAS as listas** (sem filtro por `type`), ao contrário do picker do nó.
+7. **Caminhos-infelizes = idênticos ao `@team`:** sem token → aviso clicável "Insira o token da sessão"; com token → auto-load no idle; erro → mensagem + botão "Tentar de novo"; lista vazia → "Nenhuma lista cadastrada". Token só nos headers, NUNCA logado (regra do projeto + `flow-viewer.env` tem `OMNI_TOKEN`).
+
+### Fases (1 por sessão, fecha com /handoff)
+- **Fase 1 — Camada de dados (sem React, testável):** novo `src/utils/entities.ts` espelhando `teams.ts`/`collections.ts`. `interface StoreEntity { id; name; type }`. `fetchStoreEntities(deps & { botId })` → `GET .../v1/{botId}/entities`, lê `data.list`, filtra itens com `id`, ordena por nome, `name` cai pro `id` quando ausente. `fetch` injetável + `sessionHeaders` reusado. Testes unitários (feliz: parse do `list`; infeliz: status≠ok lança sem expor token, `list` ausente → `[]`).
+- **Fase 2 — Fiação no contexto + picker `@entity` dinâmico:** adicionar ao [TeamsContext](src/contexts/TeamsContext.tsx) `entities`/`entitiesStatus`/`entitiesError`/`loadEntities`/`entitiesById` (espelha coleções) e implementar o fetch no [App.tsx](src/App.tsx). Em [variables.ts](src/utils/variables.ts): grupo `entity` deixa de ser folha (`value:'@entity'`) e vira dinâmico (tratado como o `team` no picker). No [DetailPanel](src/components/DetailPanel.tsx) `VariableMenu`: coluna de Listas (auto-load por token, mesmos estados do `team`), clique insere `@entity.<name>` (prefix:true, permite continuar digitando). Opcional: `variableDisplay` resolver "Lista.<name>".
+- **Fase 3 — Editor do nó Loja física + CHANGELOG/bump:** `Draft` ganha `storeType`/`storeEntity`; init a partir de `cond.action.storeType`/`cond.action.entity`; `<Section title="Loja física">` gated por `kind === 'storeNode'` (espelha o bloco `captureNode` em [DetailPanel.tsx:2791](src/components/DetailPanel.tsx#L2791)) com select "Tipo de ação" + picker de Lista (filtra `type:store`, auto-load, estados sem-token/erro/vazio). `storeInvalid` (sem `storeEntity`) entra no `disabled` do "Aplicar". Helper em `editFlow.ts` (ex.: `setStoreAction(cond, { storeType, entity })`). CHANGELOG (Added) + bump (minor) + atualizar este PLANS.
+
+### Riscos / como testar
+- **`fetchStoreEntities` (unitário, principal):** mock do `fetch` devolvendo `{ list: [{id,name,type}] }` → mapeia certo; status 500 → lança sem token no texto; sem `list` → `[]`.
+- **Round-trip do nó (manual):** importar fluxo com nó store → editor vem com a Lista certa selecionada; trocar Lista + Aplicar → `action.entity` muda pro novo `id`; export bate. Sem lista → "Aplicar" bloqueado.
+- **Picker `@entity` (manual):** com token, abrir `@` → categoria "Lista" carrega as listas; escolher insere `@entity.<name>`; sem token mostra aviso clicável; erro mostra retry.
+- **Não-regressão:** `tsc` + `vitest` verdes; pickers `@team`/coleções/templates seguem funcionando (mesmo padrão de contexto, sem colisão).
+
+<!-- HANDOFF:START -->
+## 🔄 Handoff — 2026-06-22
+
+**Foco da próxima sessão:** iniciar a feature **Loja física + picker `@entity`** (seção planejada no topo deste PLANS) — começar pela **Fase 1** (camada de dados `src/utils/entities.ts` + testes). A feature "Próximo Fluxo" está **100% concluída** (Fases 1–3).
+
+**Onde paramos:** branch `feat/execution-delay`, versão **0.22.0**. A feature "Próximo Fluxo" foi finalizada nesta sessão: validação visual aprovada pelo Andy, ajuste de UI (seção "Próximo Fluxo" virou a **última do painel**, depois de "Condições"), integração canvas/push verificada por código, CHANGELOG + bump v0.22.0 + PLANS atualizados. tsc + 340 testes + build de produção verdes. **Estado do commit:** ver "Fios soltos" abaixo.
+
+**Fios soltos / meio-feito:**
+- **Commits da "Próximo Fluxo":** verificar se já foram feitos nesta sessão (`git log --oneline -5`). O working tree acumulava também mudanças de features anteriores já commitadas (executionDelay v0.20.0, Editar Informação v0.21.0) — conferir o que ainda falta commitar.
+- **package-lock estava defasado** (0.20.1) e foi alinhado a 0.22.0 junto do package.json. Se reaparecer desalinhado, sincronizar os dois campos `version` do topo do lock.
+- **Loja física — Fase 1 ainda não iniciada.** Plano completo e fonte de dados (já sondada na API real) na seção "Feature — Nó Loja física + picker @entity" no topo deste PLANS.
+
+**Armadilhas (úteis para a próxima feature):**
+- Fonte de dados das Listas (`@entity`): `GET .../v1/{botId}/entities` — **por botId direto, sem passo `retailerId`** (diferente de `teams`/`collections`). Shape e id confirmados na sonda (ver seção do plano).
+- Padrão de picker dinâmico com token de sessão já consolidado (`@team`, coleções): auto-load no idle, estados sem-token/erro/vazio, token só nos headers (nunca logado).
+- (Próximo Fluxo) `remapRefs` só troca ids presentes no `idMap` de criação → refs cross-bot/órfãs ficam intactas por construção ([pushFlow.ts:117-144](src/utils/pushFlow.ts#L117-L144)).
+
+**Próximo passo imediato:** criar `src/utils/entities.ts` (`fetchStoreEntities`) + testes unitários (Fase 1 da Loja física), espelhando `teams.ts`/`collections.ts`.
+
+**Ponteiros:**
+- Plano da próxima feature: PLANS.md, seção "Feature — Nó Loja física + picker @entity" (topo) — decisões e 3 fases mapeadas.
+- "Próximo Fluxo" (concluída): seção "Feature — Próximo Fluxo" + arquivos [teams.ts](src/utils/teams.ts), [editFlow.ts](src/utils/editFlow.ts), [TeamsContext.tsx](src/contexts/TeamsContext.tsx), [App.tsx](src/App.tsx), [DetailPanel.tsx](src/components/DetailPanel.tsx) (`NextFlowSection`).
+
+**Skills sugeridas:** `/interrogar` antes de codar a Loja física se surgirem decisões novas; `/code-review` antes de commitar; `/verify` (ou `/run`) para validar UI.
+<!-- HANDOFF:END -->
+
+## Feature — Próximo Fluxo (next.intent editável no painel: "Neste bot" / "Em outro bot")
+
+> **PLANEJADA em 2026-06-22** na branch `feat/execution-delay`. Objetivo: nova seção "Próximo Fluxo" no `DetailPanel`, só em **nós de passo único** (mensagem, captura, setData, wait, apiCall, order, csat, store — NÃO choiceNode, que já roteia por escolha). Um toggle escolhe o destino do `next.intent` da condição: **Neste bot** (intenção do próprio fluxo) ou **Em outro bot** (busca bots da loja + intenções daquele bot via API).
+
+### Decisões (interrogatório 2026-06-22)
+1. **Escopo = só nós de passo único** (next linear). choiceNode fica de fora (seção "Escolhas" já cobre destino por item).
+2. **Sem token de sessão:** "Em outro bot" mostra aviso; ao clicar, abre o popover de token já existente. "Neste bot" funciona sempre (dados locais).
+3. **Persistência:** rascunho (Draft) → "Aplicar alterações" → push manual já existente. Nada de push imediato.
+4. **Canvas:** reusar o `externalBotNode` read-only — sai de graça do re-parse quando `next.intent.botId ≠ mainBotId` ([parseFlow.ts:493](src/utils/parseFlow.ts#L493)).
+5. **Defaults sem perguntar:** seletor tem opção "Nenhum (sem próximo)" p/ limpar; "Selecionar bot" exclui o próprio bot da lista.
+6. **Serialização cross-bot — CONFIRMADA em export real** ([sample02.json:161-169](samples/sample02.json#L161-L169), condição "Comercial"): `next = { redirect: 'continueFlow', action: 'bot', type: 'context', intent: { id, botId } }`. Forma-OBJETO + `action:'bot'`, **SEM `intentBot`** no next principal (o `intentBot` só existe no `action.error.next`, que é outro objeto). Mesmo bot usa `action:'intent'`.
+
+### Fases (1 por sessão, fecha com /handoff)
+- **Fase 1 — Dados/modelo (sem React, testável): ✅ CONCLUÍDA 2026-06-22.** `fetchActiveBots` + refactor de `fetchRetailerId` em [teams.ts](src/utils/teams.ts) e `setNextRef` em [editFlow.ts](src/utils/editFlow.ts) implementados e testados. tsc limpo + 340 testes verdes (11 novos: 4 em teams.test, 6 em editFlow.test). Detalhe do plano original abaixo.
+  - `fetchActiveBots(deps)` em [teams.ts](src/utils/teams.ts): mesmo `GET /v2/bots?status=active`, devolve `{ botId, name, retailerId }[]`. `fetchRetailerId` passa a reusá-la (DRY).
+  - `setNextRef(cond, ref | null)` em [editFlow.ts](src/utils/editFlow.ts): cria/atualiza/limpa `cond.next.intent`, trata `next` ausente, e marca `action:'bot'`+`intentBot` quando cross-bot. Reusa intenções de outro bot via `fetchServerIntents` ([pushFlow.ts:151](src/utils/pushFlow.ts#L151)) — sem código novo de fetch de intents.
+  - Testes unitários (caminho feliz + infeliz) p/ ambas.
+- **Fase 2 — Seção UI no painel: ✅ CONCLUÍDA 2026-06-22 (pendente validação visual manual).** Implementado: `TeamsContext`/`App` ganharam `bots`/`botsStatus`/`loadBots` (via `fetchActiveBots`, conta toda — NÃO depende do botId do fluxo) e `botIntents`/`botIntentsStatus`/`botIntentsError`/`loadBotIntents(botId)` (cache por bot, via `fetchServerIntents`), com reset no troca-de-token. `DetailPanel`: Draft + `nextScope`/`nextSelfId`/`nextBotId`/`nextOtherId`, init `nextFlowDraft(scopedCond, intent.botId)`, flag `showNextFlow` (= `showContent && kind !== 'choiceNode' && kind !== 'endNode'`), apply via `setNextRef` na condição-alvo (`ci ?? 0`), e componente `NextFlowSection` (toggle segmentado Neste/Em outro bot, `IntentSelect` no "neste", selects bot→intenção no "outro" com estados loading/erro/fora-da-lista, e CTA "Inserir token de sessão" via `requestToken` quando sem token). tsc + 340 testes + build verdes. Detalhe do plano original abaixo.
+- **Fase 3 — Integração: ✅ CONCLUÍDA 2026-06-22.** Validação visual aprovada pelo Andy (dois modos OK); único ajuste de UI: a seção "Próximo Fluxo" passou a ser **a última do painel** (movida para depois de "Condições" em [DetailPanel.tsx](src/components/DetailPanel.tsx)). Integração canvas/push **verificada por código** (não exige código novo): (a) re-parse gera `externalBotNode` read-only por `action:'bot' || botId!==mainBotId` ([parseFlow.ts:493](src/utils/parseFlow.ts#L493)); (b) `remapRefs` preserva a ref alheia — o id do outro bot não está no `idMap` de criação, então não é trocado nem recriado ([pushFlow.ts:117-144](src/utils/pushFlow.ts#L117-L144)); o pré-flight de botId não dispara porque a ref cross-bot vive em `next.intent`, não como intenção separada no `flow.list`. CHANGELOG + bump **v0.22.0** (package.json + package-lock alinhados; o lock estava defasado em 0.20.1) feitos. tsc + 340 testes + build de produção verdes.
+
+
+
 > Última atualização: 2026-06-18 (Fase 11 — Repaginação visual "cara de Omni" PLANEJADA; ver seção "Fase 11" no fim). Este arquivo orienta sessões futuras do Claude Code.
 > **Fase 7 (Duplicação de nós)** concluída e **Fase 8 (Painel de edição alinhado à plataforma)** em andamento — ambas na branch `feat/duplicate-nodes`, ainda não mergeadas. Ver as seções "Fase 7" e "Fase 8" abaixo. package.json em 0.15.0.
 > **Fase 8 — progresso 2026-06-17:** tipos de mensagem IMAGE/FILE/VIDEO implementados no painel de edição. Botão "+ Adicionar Resposta" com dropdown, editor por tipo (aba Link + aba Upload via API presigned URL OmniChat), renderização de mensagens existentes de mídia (ícone + fileName + remover). Utilitário `uploadMedia.ts` + `uploadFile` no TeamsContext. 251 testes + tsc verdes. **ATENÇÃO:** os campos da resposta presigned URL (`uploadUrl` e `url`) são supostos — validar na primeira testada com upload real e ajustar `uploadMedia.ts:PresignedUrlResponse` se necessário.

@@ -11,11 +11,11 @@ import { Toast, type Notice } from './components/Toast'
 import { ThemeToggle }   from './components/ThemeToggle'
 import { ThemeContext }  from './contexts/ThemeContext'
 import { TeamsContext, type TeamsStatus } from './contexts/TeamsContext'
-import { fetchStoreTeams, type Team } from './utils/teams'
+import { fetchStoreTeams, fetchActiveBots, type Team, type Bot } from './utils/teams'
 import { fetchStoreCollections, type Collection } from './utils/collections'
 import { fetchStoreMessageTemplates, type MessageTemplate } from './utils/messageTemplates'
 import { uploadMedia, type UploadMediaType } from './utils/uploadMedia'
-import type { FetchLike } from './utils/pushFlow'
+import { fetchServerIntents, type FetchLike } from './utils/pushFlow'
 import { parseFlow, intentToNodeData } from './utils/parseFlow'
 import { applyEdgeReconnect, applyConnect, applyEdgeDelete, applyNodeDelete, serializeFlow } from './utils/editFlow'
 import { createIntentTemplate, createStartIntent, type CreatableKind } from './utils/intentTemplates'
@@ -24,7 +24,7 @@ import { cloneIntent, duplicateConditionInIntent, intentFromCondition } from './
 import { validateFlow } from './utils/validateFlow'
 import { exportFlowImage } from './utils/exportImage'
 import { FlowHistory, takeSnapshot, type FlowSnapshot } from './utils/history'
-import type { BotFlowJson, FlowNodeData } from './types'
+import type { BotFlowJson, BotIntent, FlowNodeData } from './types'
 import pkg from '../package.json'
 
 const SPACING_STEP = 60
@@ -81,6 +81,13 @@ export default function App() {
   const [templates, setTemplates]             = useState<MessageTemplate[]>([])
   const [templatesStatus, setTemplatesStatus] = useState<TeamsStatus>('idle')
   const [templatesError, setTemplatesError]   = useState<string | null>(null)
+  // Bots da conta + intenções por bot (seção "Próximo Fluxo") — carregados sob demanda.
+  const [bots, setBots]             = useState<Bot[]>([])
+  const [botsStatus, setBotsStatus] = useState<TeamsStatus>('idle')
+  const [botsError, setBotsError]   = useState<string | null>(null)
+  const [botIntents, setBotIntents]             = useState<Record<string, BotIntent[]>>({})
+  const [botIntentsStatus, setBotIntentsStatus] = useState<Record<string, TeamsStatus>>({})
+  const [botIntentsError, setBotIntentsError]   = useState<Record<string, string | null>>({})
   // IDs de nó com destaque "duplicando / recém-duplicado" (borda esmeralda animada).
   // Estado transitório de UI — nunca entra no modelo nem no histórico.
   const [highlightIds, setHighlightIds] = useState<Set<string>>(() => new Set())
@@ -695,6 +702,12 @@ export default function App() {
     setTemplates([])
     setTemplatesStatus('idle')
     setTemplatesError(null)
+    setBots([])
+    setBotsStatus('idle')
+    setBotsError(null)
+    setBotIntents({})
+    setBotIntentsStatus({})
+    setBotIntentsError({})
   }, [sessionToken])
 
   // Carrega os times da loja sob demanda (picker @team). Usa o token global e o
@@ -800,6 +813,61 @@ export default function App() {
   }, [sessionToken])
 
   const templatesById = useMemo(() => new Map(templates.map(t => [t.objectId, t])), [templates])
+
+  // Carrega os bots ATIVOS da conta sob demanda (picker "Selecionar bot" do redirect
+  // cross-bot). Diferente dos times/coleções, NÃO depende do botId do fluxo — é a
+  // conta toda. Token global + ref anti-concorrência, sem logar o token.
+  const botsLoadingRef = useRef(false)
+  const loadBots = useCallback(async () => {
+    if (botsLoadingRef.current) return
+    const token = sessionToken.trim()
+    if (!token) {
+      setBotsStatus('error')
+      setBotsError('Defina o token de sessão (botão de chave na barra) para listar os bots.')
+      return
+    }
+    botsLoadingRef.current = true
+    setBotsStatus('loading')
+    setBotsError(null)
+    try {
+      const list = await fetchActiveBots({ fetch: browserFetch, token })
+      setBots(list)
+      setBotsStatus('loaded')
+    } catch (e) {
+      setBotsStatus('error')
+      setBotsError(e instanceof Error ? e.message : 'Falha ao carregar os bots.')
+    } finally {
+      botsLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  // Carrega as intenções de UM bot escolhido sob demanda (campo "Selecionar intenção"
+  // do redirect cross-bot). Cache por botId no estado; o ref guarda os botIds em voo
+  // (idempotente por bot). Reusa o GET read-only do push (`fetchServerIntents`).
+  const botIntentsLoadingRef = useRef<Set<string>>(new Set())
+  const loadBotIntents = useCallback(async (botId: string) => {
+    if (!botId || botIntentsLoadingRef.current.has(botId)) return
+    const token = sessionToken.trim()
+    if (!token) {
+      setBotIntentsStatus(s => ({ ...s, [botId]: 'error' }))
+      setBotIntentsError(e => ({ ...e, [botId]: 'Defina o token de sessão para listar as intenções.' }))
+      return
+    }
+    botIntentsLoadingRef.current.add(botId)
+    setBotIntentsStatus(s => ({ ...s, [botId]: 'loading' }))
+    setBotIntentsError(e => ({ ...e, [botId]: null }))
+    try {
+      const list = await fetchServerIntents({ fetch: browserFetch, token, botId })
+      setBotIntents(m => ({ ...m, [botId]: list }))
+      setBotIntentsStatus(s => ({ ...s, [botId]: 'loaded' }))
+    } catch (e) {
+      setBotIntentsStatus(s => ({ ...s, [botId]: 'error' }))
+      setBotIntentsError(er => ({ ...er, [botId]: e instanceof Error ? e.message : 'Falha ao carregar as intenções do bot.' }))
+    } finally {
+      botIntentsLoadingRef.current.delete(botId)
+    }
+  }, [sessionToken])
+
   const requestToken = useCallback(() => setTokenOpen(true), [])
   const hasToken = !!sessionToken.trim()
   const uploadFile = useCallback(async (file: File, type: UploadMediaType) => {
@@ -812,11 +880,15 @@ export default function App() {
       teams, status: teamsStatus, error: teamsError, loadTeams, hasToken, requestToken, byId: teamsById, uploadFile,
       collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
       templates, templatesStatus, templatesError, loadTemplates, templatesById,
+      bots, botsStatus, botsError, loadBots,
+      botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
     }),
     [
       teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile,
       collections, collectionsStatus, collectionsError, loadCollections, collectionsById,
       templates, templatesStatus, templatesError, loadTemplates, templatesById,
+      bots, botsStatus, botsError, loadBots,
+      botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
     ],
   )
 

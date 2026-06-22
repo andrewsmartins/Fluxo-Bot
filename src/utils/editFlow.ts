@@ -121,6 +121,46 @@ function setNext(cond: Condition, target: BotIntent): void {
   }
 }
 
+/**
+ * Define (ou limpa) o destino `next.intent` de uma condição — núcleo da seção
+ * "Próximo Fluxo" do painel. Diferente de `setNext`, aceita uma ref crua
+ * `{ botId, id }` (não exige a `BotIntent` carregada), o que cobre o salto
+ * CROSS-BOT, e aceita `null` para remover o destino. Não toca em `assistant_says`
+ * nem na `action` da condição — só no `next`.
+ *
+ * Serialização (confirmada em export real — sample02.json, ex. condição "Comercial"):
+ *  - mesmo bot (`ref.botId === mainBotId`) → `action: 'intent'`; redirect/type preservados.
+ *  - outro bot → `action: 'bot'` + `intent: { botId, id }` na FORMA-OBJETO. O `next`
+ *    principal NÃO usa `intentBot` (esse campo só existe no `action.error.next`, que é
+ *    outro objeto). `action: 'bot'` é o sinal cross-bot que o `parseFlow` lê p/ render
+ *    o `externalBotNode`.
+ *  - `null` → remove `intent` (e qualquer `intentBot` órfão), mantendo o resto do `next`
+ *    intacto (vira folha terminal: o `parseFlow` não desenha aresta sem `intent`).
+ */
+export function setNextRef(
+  cond: Condition,
+  ref: { botId: string; id: string } | null,
+  mainBotId: string,
+): void {
+  if (!ref) {
+    if (cond.next) {
+      delete cond.next.intent
+      delete cond.next.intentBot
+    }
+    return
+  }
+  const isCrossBot = !!ref.botId && ref.botId !== mainBotId
+  cond.next = {
+    ...cond.next,
+    type: cond.next?.type ?? 'context',
+    redirect: cond.next?.redirect ?? 'continueFlow',
+    action: isCrossBot ? 'bot' : 'intent',
+    intent: { botId: ref.botId, id: ref.id },
+  }
+  // O next principal nunca carrega `intentBot` (só o error.next usa) — limpa órfãos.
+  delete cond.next.intentBot
+}
+
 /** Nº de itens do menu (botões da 1ª mensagem BUTTON/LIST) de uma condição. */
 function menuItemCount(cond: Condition): number {
   for (const say of cond.assistant_says) {

@@ -1,8 +1,9 @@
 import { createContext, useContext } from 'react'
-import type { Team } from '../utils/teams'
+import type { Bot, Team } from '../utils/teams'
 import type { Collection } from '../utils/collections'
 import type { MessageTemplate } from '../utils/messageTemplates'
 import type { UploadMediaType } from '../utils/uploadMedia'
+import type { BotIntent } from '../types'
 
 /** Estado do carregamento dos times da loja (variável `@team`). */
 export type TeamsStatus = 'idle' | 'loading' | 'loaded' | 'error'
@@ -51,6 +52,22 @@ export interface TeamsContextValue {
   loadTemplates: (search?: string) => void
   /** Mapa messageTemplateId→modelo, para o resumo/edição mostrar o que foi salvo. */
   templatesById: ReadonlyMap<string, MessageTemplate>
+  // ─── Bots da conta + intenções de outro bot (seção "Próximo Fluxo") ───────
+  /** Bots ativos da conta — alimenta o picker "Selecionar bot" do redirect cross-bot. */
+  bots: Bot[]
+  botsStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `botsStatus === 'error'`. */
+  botsError: string | null
+  /** Dispara o carregamento dos bots da conta (idempotente). */
+  loadBots: () => void
+  /** Intenções por bot escolhido (`{botId}` → lista), cache da sessão. */
+  botIntents: Record<string, BotIntent[]>
+  /** Status do fetch de intenções por bot (`{botId}` → status). */
+  botIntentsStatus: Record<string, TeamsStatus>
+  /** Erro do fetch de intenções por bot (`{botId}` → mensagem). */
+  botIntentsError: Record<string, string | null>
+  /** Dispara o carregamento das intenções de um bot específico (idempotente por bot). */
+  loadBotIntents: (botId: string) => void
 }
 
 const EMPTY: TeamsContextValue = {
@@ -72,6 +89,14 @@ const EMPTY: TeamsContextValue = {
   templatesError: null,
   loadTemplates: () => {},
   templatesById: new Map(),
+  bots: [],
+  botsStatus: 'idle',
+  botsError: null,
+  loadBots: () => {},
+  botIntents: {},
+  botIntentsStatus: {},
+  botIntentsError: {},
+  loadBotIntents: () => {},
 }
 
 export const TeamsContext = createContext<TeamsContextValue>(EMPTY)

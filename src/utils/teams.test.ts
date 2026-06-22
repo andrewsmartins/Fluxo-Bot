@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fetchRetailerId, fetchTeams, fetchStoreTeams } from './teams'
+import { fetchActiveBots, fetchRetailerId, fetchTeams, fetchStoreTeams } from './teams'
 import type { FetchLike } from './pushFlow'
 
 const TOKEN = 'r:fake-session-token'
@@ -63,6 +63,40 @@ describe('fetchRetailerId — casa o botId do fluxo com a lista de bots', () => 
   it('lança quando o bot existe mas não tem retailerId', async () => {
     const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ botId: BOT }] } }))
     await expect(fetchRetailerId({ fetch, token: TOKEN, botId: BOT })).rejects.toThrow(/não tem retailerId/)
+  })
+})
+
+describe('fetchActiveBots — lista os bots ativos da conta (picker Próximo Fluxo)', () => {
+  it('mapeia para {botId, name, retailerId} e ordena por nome', async () => {
+    const body = { list: [
+      { botId: 'b2', name: 'Zeta', retailerId: 'R2' },
+      { botId: 'b1', name: 'Alfa', retailerId: 'R1' },
+    ] }
+    const { fetch, calls } = recordingFetch(() => ({ status: 200, body }))
+    const bots = await fetchActiveBots({ fetch, token: TOKEN })
+    expect(bots).toEqual([
+      { botId: 'b1', name: 'Alfa', retailerId: 'R1' },
+      { botId: 'b2', name: 'Zeta', retailerId: 'R2' },
+    ])
+    expect(calls[0].url).toContain('/v2/bots?status=active')
+    expect(calls[0].headers['x-parse-session-token']).toBe(TOKEN)
+  })
+
+  it('usa o botId como rótulo quando o bot não tem name e tolera lista vazia', async () => {
+    const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ botId: 'b9' }] } }))
+    expect(await fetchActiveBots({ fetch, token: TOKEN })).toEqual([{ botId: 'b9', name: 'b9', retailerId: undefined }])
+    const empty = recordingFetch(() => ({ status: 200, body: {} }))
+    expect(await fetchActiveBots({ fetch: empty.fetch, token: TOKEN })).toEqual([])
+  })
+
+  it('ignora entradas sem botId', async () => {
+    const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ name: 'sem id' }, { botId: 'ok' }] } }))
+    expect(await fetchActiveBots({ fetch, token: TOKEN })).toEqual([{ botId: 'ok', name: 'ok', retailerId: undefined }])
+  })
+
+  it('lança quando a leitura falha (status != 2xx)', async () => {
+    const { fetch } = recordingFetch(() => ({ status: 403, body: { error: 'denied' } }))
+    await expect(fetchActiveBots({ fetch, token: TOKEN })).rejects.toThrow(/status 403/)
   })
 })
 

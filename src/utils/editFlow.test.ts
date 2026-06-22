@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
-import { parseEdgeId, applyEdgeReconnect, serializeFlow } from './editFlow'
+import { parseEdgeId, applyEdgeReconnect, serializeFlow, setNextRef } from './editFlow'
 import { parseFlow } from './parseFlow'
-import type { BotFlowJson } from '../types'
+import type { BotFlowJson, Condition } from '../types'
 
 const samplesDir = join(dirname(fileURLToPath(import.meta.url)), '../../samples')
 
@@ -139,5 +139,55 @@ describe('applyEdgeReconnect', () => {
   it('lista vazia: não quebra com fluxo sem intenções', () => {
     const result = applyEdgeReconnect({ list: [] }, 'x-c0-next', 'a', 'b')
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('setNextRef — destino da seção "Próximo Fluxo" (mesmo bot / outro bot / limpar)', () => {
+  const MAIN = 'bot-principal'
+  /** Condição mínima: só o `next` importa para esta função. */
+  const makeCond = (next?: Partial<Condition['next']>): Condition =>
+    ({ next: next ? { type: 'context', ...next } : undefined } as unknown as Condition)
+
+  it('mesmo bot: action "intent" e sem intentBot', () => {
+    const cond = makeCond({ type: 'context', redirect: 'continueFlow' })
+    setNextRef(cond, { botId: MAIN, id: 'i1' }, MAIN)
+    expect(cond.next).toEqual({ type: 'context', redirect: 'continueFlow', action: 'intent', intent: { botId: MAIN, id: 'i1' } })
+    expect(cond.next.intentBot).toBeUndefined()
+  })
+
+  it('outro bot: action "bot" + intent objeto, SEM intentBot (forma do export real)', () => {
+    const cond = makeCond({ type: 'context' })
+    setNextRef(cond, { botId: 'outro-bot', id: 'i2' }, MAIN)
+    expect(cond.next.action).toBe('bot')
+    expect(cond.next.intent).toEqual({ botId: 'outro-bot', id: 'i2' })
+    expect(cond.next.intentBot).toBeUndefined()
+  })
+
+  it('cria o next do zero quando a condição não tem next', () => {
+    const cond = makeCond(undefined)
+    setNextRef(cond, { botId: MAIN, id: 'i3' }, MAIN)
+    expect(cond.next).toEqual({ type: 'context', redirect: 'continueFlow', action: 'intent', intent: { botId: MAIN, id: 'i3' } })
+  })
+
+  it('null limpa o destino mas preserva o resto do next', () => {
+    const cond = makeCond({ type: 'context', redirect: 'continueFlow', action: 'bot', intent: { botId: 'outro-bot', id: 'x' }, intentBot: 'outro-bot' })
+    setNextRef(cond, null, MAIN)
+    expect(cond.next.intent).toBeUndefined()
+    expect(cond.next.intentBot).toBeUndefined()
+    expect(cond.next.type).toBe('context')
+    expect(cond.next.redirect).toBe('continueFlow')
+  })
+
+  it('alternar outro-bot → mesmo-bot remove o intentBot antigo', () => {
+    const cond = makeCond({ type: 'context', action: 'bot', intent: { botId: 'outro-bot', id: 'x' }, intentBot: 'outro-bot' })
+    setNextRef(cond, { botId: MAIN, id: 'i4' }, MAIN)
+    expect(cond.next.action).toBe('intent')
+    expect(cond.next.intentBot).toBeUndefined()
+    expect(cond.next.intent).toEqual({ botId: MAIN, id: 'i4' })
+  })
+
+  it('null em condição sem next não quebra', () => {
+    const cond = makeCond(undefined)
+    expect(() => setNextRef(cond, null, MAIN)).not.toThrow()
   })
 })

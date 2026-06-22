@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type KeyboardEvent, type RefObject, type ChangeEvent } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type KeyboardEvent, type RefObject, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
 import { createPortal } from 'react-dom'
 import type { Node } from '@xyflow/react'
 import type { BotIntent, Condition, BulkUpdateItem, FlowNodeData, NodeKind, ButtonMessageConfig } from '../types'
@@ -18,7 +18,7 @@ import { computeMenuLeft, MENU_COLUMN_WIDTH, MENU_MARGIN } from '../utils/menuPo
 import { useTeams } from '../contexts/TeamsContext'
 import type { Collection } from '../utils/collections'
 import { templateVarCount, type MessageTemplate } from '../utils/messageTemplates'
-import type { EditResult } from '../utils/editFlow'
+import { setNextRef, type EditResult } from '../utils/editFlow'
 import { CREATABLE_KINDS, CREATABLE_KIND_LABELS, type CreatableKind } from '../utils/intentTemplates'
 import { CAPTURE_FIELDS, CAPTURE_CATEGORY, MULTIPLE_FIELDS_SENTINEL, FREE_CAPTURE } from '../utils/captureFields'
 
@@ -205,6 +205,15 @@ interface Draft {
   // Lista de condições (modos group/solo) — estrutura da intenção
   conditions: DraftCondition[]
   removedCondIdxs: number[]
+  // Próximo Fluxo (nós de passo único): destino do `next.intent` da condição em escopo.
+  /** "self" = intenção do próprio bot; "other" = redirect para outro bot. */
+  nextScope: 'self' | 'other'
+  /** Intenção-destino no próprio fluxo (scope "self"); '' = sem próximo. */
+  nextSelfId: string
+  /** Bot escolhido no scope "other". */
+  nextBotId: string
+  /** Intenção-destino dentro do bot escolhido (scope "other"). */
+  nextOtherId: string
 }
 
 /**
@@ -341,6 +350,26 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
       intent: c.intent ?? '', context: typeof c.context === 'string' ? c.context : '', originalIdx: i,
     })),
     removedCondIdxs: [],
+    ...nextFlowDraft(scopedCond, intent.botId),
+  }
+}
+
+/**
+ * Estado inicial da seção "Próximo Fluxo" a partir do `next.intent` da condição.
+ * Forma-objeto `{ botId, id }` é o padrão; com `botId` diferente do bot do fluxo,
+ * o destino é cross-bot (scope "other"). Aceita a forma string (legado) como
+ * destino no próprio bot. Sem destino → scope "self" vazio.
+ */
+function nextFlowDraft(cond: Condition | undefined, mainBotId: string): Pick<Draft, 'nextScope' | 'nextSelfId' | 'nextBotId' | 'nextOtherId'> {
+  const raw = cond?.next?.intent
+  const obj = raw && typeof raw === 'object' ? raw : null
+  const str = typeof raw === 'string' ? raw : ''
+  const crossBot = !!obj?.botId && obj.botId !== mainBotId
+  return {
+    nextScope: crossBot ? 'other' : 'self',
+    nextSelfId: crossBot ? '' : (obj?.id ?? str),
+    nextBotId: crossBot ? obj!.botId : '',
+    nextOtherId: crossBot ? obj!.id : '',
   }
 }
 
@@ -1879,6 +1908,134 @@ function IntentSelect({ value, onChange, intents, inputCls, emptyLabel }: Intent
   )
 }
 
+interface NextFlowSectionProps {
+  draft: Draft
+  setDraft: Dispatch<SetStateAction<Draft | null>>
+  /** Bot do fluxo atual — exclui-se do picker (isso é o "Neste bot"). */
+  selfBotId: string
+  /** Intenções do fluxo (já sem a própria) para o destino "Neste bot". */
+  intents: BotIntent[]
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+}
+
+/**
+ * Seção "Próximo Fluxo": define o destino do `next.intent` da condição em escopo.
+ * "Neste bot" lista as intenções do fluxo; "Em outro bot" busca os bots da loja e,
+ * após escolher um, as intenções daquele bot (via API, sob demanda, cache por bot).
+ * Sem token de sessão, oferece abrir o campo de token em vez de listar bots.
+ */
+function NextFlowSection({ draft, setDraft, selfBotId, intents, isDark, inputCls, labelCls }: NextFlowSectionProps) {
+  const {
+    bots, botsStatus, botsError, loadBots, hasToken, requestToken,
+    botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
+  } = useTeams()
+
+  const isOther = draft.nextScope === 'other'
+
+  // Carrega os bots ao abrir "Em outro bot" (com token), uma vez por sessão.
+  useEffect(() => {
+    if (isOther && hasToken && botsStatus === 'idle') loadBots()
+  }, [isOther, hasToken, botsStatus, loadBots])
+
+  // Carrega as intenções do bot escolhido (cache por bot no contexto).
+  useEffect(() => {
+    if (isOther && draft.nextBotId && hasToken && !botIntentsStatus[draft.nextBotId]) {
+      loadBotIntents(draft.nextBotId)
+    }
+  }, [isOther, draft.nextBotId, hasToken, botIntentsStatus, loadBotIntents])
+
+  const patch = (p: Partial<Draft>) => setDraft(d => d ? { ...d, ...p } : d)
+  const otherIntents = botIntents[draft.nextBotId] ?? []
+  const intentsStatus = botIntentsStatus[draft.nextBotId] ?? 'idle'
+  const intentsErr = botIntentsError[draft.nextBotId]
+
+  const segBase = 'flex-1 text-[11px] font-medium rounded-md px-2 py-1.5 transition-colors'
+  const segActive = `${segBase} bg-violet-600 text-white${isDark ? '' : ' shadow-sm'}`
+  const segIdle = isDark ? `${segBase} text-slate-400 hover:text-slate-200` : `${segBase} text-slate-500 hover:text-slate-700`
+  const hintCls = `text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`
+  const errCls = `text-[11px] leading-snug ${isDark ? 'text-rose-400' : 'text-rose-600'}`
+  const linkBtn = `self-start text-[11px] font-medium underline ${isDark ? 'text-blue-400' : 'text-blue-600'}`
+
+  return (
+    <Section title="Próximo Fluxo" isDark={isDark}>
+      <div className="flex flex-col gap-2.5">
+        <div className={`flex gap-1 p-0.5 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+          <button type="button" className={!isOther ? segActive : segIdle} onClick={() => patch({ nextScope: 'self' })}>
+            Neste bot
+          </button>
+          <button type="button" className={isOther ? segActive : segIdle} onClick={() => patch({ nextScope: 'other' })}>
+            Em outro bot
+          </button>
+        </div>
+
+        {!isOther ? (
+          <label className="flex flex-col gap-1">
+            <span className={labelCls}>Destino (intenção)</span>
+            <IntentSelect
+              value={draft.nextSelfId}
+              onChange={v => patch({ nextSelfId: v })}
+              intents={intents}
+              inputCls={inputCls}
+              emptyLabel="Nenhum (sem próximo)"
+            />
+          </label>
+        ) : !hasToken ? (
+          <div className="flex flex-col gap-1.5">
+            <p className={hintCls}>Conecte-se à loja para listar os bots disponíveis.</p>
+            <button type="button" className={linkBtn} onClick={requestToken}>Inserir token de sessão</button>
+          </div>
+        ) : (
+          <>
+            <label className="flex flex-col gap-1">
+              <span className={labelCls}>Selecionar bot</span>
+              {botsStatus === 'loading' ? (
+                <p className={hintCls}>Carregando bots…</p>
+              ) : botsStatus === 'error' ? (
+                <p className={errCls}>{botsError}</p>
+              ) : (
+                <select
+                  className={inputCls}
+                  value={draft.nextBotId}
+                  onChange={e => patch({ nextBotId: e.target.value, nextOtherId: '' })}
+                >
+                  <option value="">— Selecione —</option>
+                  {bots.filter(b => b.botId !== selfBotId).map(b => (
+                    <option key={b.botId} value={b.botId}>{b.name}</option>
+                  ))}
+                  {draft.nextBotId && !bots.some(b => b.botId === draft.nextBotId) && (
+                    <option value={draft.nextBotId}>{draft.nextBotId} (fora da lista)</option>
+                  )}
+                </select>
+              )}
+            </label>
+
+            {draft.nextBotId && (
+              <label className="flex flex-col gap-1">
+                <span className={labelCls}>Selecionar intenção</span>
+                {intentsStatus === 'loading' ? (
+                  <p className={hintCls}>Carregando intenções…</p>
+                ) : intentsStatus === 'error' ? (
+                  <p className={errCls}>{intentsErr ?? 'Falha ao carregar as intenções.'}</p>
+                ) : (
+                  <select className={inputCls} value={draft.nextOtherId} onChange={e => patch({ nextOtherId: e.target.value })}>
+                    <option value="">— Selecione —</option>
+                    {otherIntents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    {draft.nextOtherId && !otherIntents.some(i => i.id === draft.nextOtherId) && (
+                      <option value={draft.nextOtherId}>{draft.nextOtherId} (fora da lista)</option>
+                    )}
+                  </select>
+                )}
+              </label>
+            )}
+          </>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 interface DetailPanelProps {
   node: Node<FlowNodeData>
   intent: BotIntent | null
@@ -1963,6 +2120,10 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   const showTrigger = mode === 'condition'
   const showContent = mode === 'condition' || mode === 'solo'
   const showCondList = mode === 'group' || mode === 'solo'
+  // "Próximo Fluxo" só em nós de passo único (next linear): exclui Escolha (roteia por
+  // item) e Encerrar (terminal, sem próximo). Container/grupo e read-only ficam fora
+  // por já não terem `showContent`.
+  const showNextFlow = showContent && kind !== 'choiceNode' && kind !== 'endNode'
 
   /**
    * Aplica o rascunho via patches pequenos, no escopo do modo (meta da intenção,
@@ -2101,6 +2262,17 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
       }
     }
 
+    if (showNextFlow) {
+      // Condição-alvo: a própria no modo condition; a única (idx 0) no solo.
+      const target = intent.conditions[ci ?? 0]
+      if (target) {
+        const ref = draft.nextScope === 'other'
+          ? (draft.nextBotId && draft.nextOtherId ? { botId: draft.nextBotId, id: draft.nextOtherId } : null)
+          : (draft.nextSelfId ? { botId: intent.botId, id: draft.nextSelfId } : null)
+        setNextRef(target, ref, intent.botId)
+      }
+    }
+
     if (showCondList) {
       results.push(
         ...draft.conditions
@@ -2167,7 +2339,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
       : (!draft.captureDataType || draft.captureDataType === FREE_CAPTURE)
   )
 
-  // Editar Informação exige ao menos uma linha, com variável E valor preenchidos.
+  // Editar informação exige ao menos uma linha, com variável E valor preenchidos.
   const setDataInvalid = !!draft && kind === 'setDataNode' && (
     draft.setDataItems.length === 0
       || draft.setDataItems.some(it => !it.variable.trim() || !it.value.trim())
@@ -2181,7 +2353,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   })()
 
   // "Aplicar" fica bloqueado enquanto houver dado de captura, variável de
-  // Editar Informação ou tempo de envio inválido.
+  // Editar informação ou tempo de envio inválido.
   const applyBlocked = captureInvalid || setDataInvalid || delayInvalid
   const applyHint = captureInvalid ? ' (selecione um dado)'
     : setDataInvalid ? ' (preencha variável e valor)'
@@ -2804,6 +2976,18 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                   >+ Adicionar condição</button>
                 </div>
               </Section>
+            )}
+
+            {showNextFlow && draft && intent && (
+              <NextFlowSection
+                draft={draft}
+                setDraft={setDraft}
+                selfBotId={intent.botId}
+                intents={intents.filter(it => it.id !== intent.id)}
+                isDark={isDark}
+                inputCls={inputCls}
+                labelCls={labelCls}
+              />
             )}
           </>
         )}
