@@ -49,6 +49,18 @@ export const ORDER_ACTIONS = [
   { value: 'generateOrder', label: 'Gerar pedido' },
 ]
 
+// Nó "Captura CSAT" (action.type === 'captureCsat'): "Tipo de captura CSAT" com dois
+// valores — Nota (`supportRate`) e Comentário (`supportRateComment`). É o ÚNICO campo
+// que o dropdown grava; o resto da ação (incl. o bloco error, gerido pela seção "Em
+// caso de erro") fica preservado verbatim. Fonte única do rótulo: `labelDropdown`
+// (descritivo, no painel) e `labelPill` (curto, no `CsatNode`). captureDataType salvo
+// fora do conjunto (legado/import) vira <option> extra — anti-corrupção, igual ao orderType.
+export const CSAT_CAPTURE_TYPES = [
+  { value: 'supportRate',        labelDropdown: 'Dados avaliação CSAT - Nota',       labelPill: 'Nota da avaliação' },
+  { value: 'supportRateComment', labelDropdown: 'Dados avaliação CSAT - Comentário', labelPill: 'Comentário da avaliação' },
+]
+const CSAT_DEFAULT_TYPE = 'supportRate'
+
 /** Lê `external.type`/`external.apiName` tolerante a array/string (export real usa string; template usa []). */
 function firstStringOf(v: unknown): string {
   if (Array.isArray(v)) return v.length ? String(v[0]) : ''
@@ -301,6 +313,9 @@ interface Draft {
   orderType: string
   /** Variável do "Adicionar item" (texto livre via picker @) — grava em `action.variable`. */
   orderVariable: string
+  // Nó "Captura CSAT" (action.type === 'captureCsat').
+  /** Tipo de captura — 'supportRate'/'supportRateComment' (preserva legado fora-da-lista). */
+  csatCaptureType: string
   setDataItems: BulkUpdateItem[]
   // Lista de condições (modos group/solo) — estrutura da intenção
   conditions: DraftCondition[]
@@ -434,6 +449,9 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
   const orderCond = mode === 'condition'
     ? (scopedCond?.action.type === 'order' ? scopedCond : undefined)
     : intent.conditions.find(c => c.action.type === 'order')
+  const csatCond = mode === 'condition'
+    ? (scopedCond?.action.type === 'captureCsat' ? scopedCond : undefined)
+    : intent.conditions.find(c => c.action.type === 'captureCsat')
 
   return {
     name: intent.name,
@@ -487,6 +505,8 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
     // a variável (só usada no addToCart) é preservada se vier string no import.
     orderType: orderCond?.action.orderType || 'generateOrder',
     orderVariable: typeof orderCond?.action.variable === 'string' ? orderCond.action.variable : '',
+    // Captura CSAT: captureDataType ausente/null cai em 'supportRate' (default do nó novo).
+    csatCaptureType: csatCond?.action.captureDataType || CSAT_DEFAULT_TYPE,
     setDataItems: (Array.isArray(setDataCond?.action.bulkUpdate) ? setDataCond.action.bulkUpdate : [])
       .map(i => ({ ...i })),
     conditions: intent.conditions.map((c, i) => ({
@@ -2368,6 +2388,39 @@ function OrderActionSection({ orderType, orderVariable, invalid, isDark, inputCl
   )
 }
 
+interface CsatActionSectionProps {
+  csatCaptureType: string
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+  onChangeType: (v: string) => void
+}
+
+/**
+ * Seção "Captura CSAT" (nó `action.type === 'captureCsat'`): dropdown "Tipo de captura
+ * CSAT" — Nota (`supportRate`) ou Comentário (`supportRateComment`). É o único campo
+ * editável (sem picker, sem gate: o valor nunca fica vazio — nasce em 'supportRate').
+ * captureDataType salvo fora do conjunto (legado/import) vira <option> extra —
+ * anti-corrupção, igual ao orderType/storeType.
+ */
+function CsatActionSection({ csatCaptureType, isDark, inputCls, labelCls, onChangeType }: CsatActionSectionProps) {
+  const legacyType = csatCaptureType && !CSAT_CAPTURE_TYPES.some(t => t.value === csatCaptureType) ? csatCaptureType : null
+
+  return (
+    <Section title="Captura CSAT" isDark={isDark}>
+      <div className="flex flex-col gap-2.5">
+        <label className="flex flex-col gap-1">
+          <span className={labelCls}>Tipo de captura CSAT</span>
+          <select className={inputCls} value={csatCaptureType} onChange={e => onChangeType(e.target.value)}>
+            {CSAT_CAPTURE_TYPES.map(t => <option key={t.value} value={t.value}>{t.labelDropdown}</option>)}
+            {legacyType && <option value={legacyType}>{legacyType}</option>}
+          </select>
+        </label>
+      </div>
+    </Section>
+  )
+}
+
 interface ApiActionSectionProps {
   externalType: string
   externalApiName: string
@@ -3177,6 +3230,11 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
           ? updateActionFields(intent, 'order', { orderType: ORDER_ADD_TO_CART, variable: draft.orderVariable.trim() }, ci)
           : updateActionFields(intent, 'order', { orderType: draft.orderType }, ci))
       }
+      if (kind === 'csatNode') {
+        // CSAT grava SÓ captureDataType (supportRate/supportRateComment); o bloco error
+        // e o resto da ação ficam preservados verbatim (preserve-and-patch, D1).
+        results.push(updateActionFields(intent, 'captureCsat', { captureDataType: draft.csatCaptureType }, ci))
+      }
       // Seção "Em caso de erro" (7 nós de ação): diff das mensagens de fallback no
       // container 'error' + destino do erro (setActionErrorNext aplica o acoplamento
       // intentBot↔redirect e fixa type:'error'+action:'intent'). Sem gate.
@@ -3696,6 +3754,16 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                 labelCls={labelCls}
                 onChangeType={v => set('orderType', v)}
                 onChangeVariable={v => set('orderVariable', v)}
+              />
+            )}
+
+            {showContent && draft && kind === 'csatNode' && (
+              <CsatActionSection
+                csatCaptureType={draft.csatCaptureType}
+                isDark={isDark}
+                inputCls={inputCls}
+                labelCls={labelCls}
+                onChangeType={v => set('csatCaptureType', v)}
               />
             )}
 

@@ -156,6 +156,31 @@ Alvo: o modelo `BotIntent[]` é a fonte de verdade; o canvas é uma projeção e
 
 **Riscos/pendências:** sem fonte para validar se a `variable` existe de fato (só não-vazio); termo "Adicionar item" vs. termo oficial da plataforma (confirmar na tela do construtor se possível).
 
+## Nó Captura CSAT — dropdown "Tipo de captura CSAT" (✅ entregue v0.27.0, commit pendente)
+
+> Interrogatório + implementação 2026-06-23. Era espelho **mais simples** que o nó Pedido: um único dropdown de enum, sem picker de variável e sem gate. Entregue: `CSAT_CAPTURE_TYPES` (fonte única), `CsatActionSection`, branch de serialização `csatNode`, `CsatNode` derivando o pill, +5 testes de round-trip. `tsc` limpo, 383 testes verdes, build OK.
+
+**Objetivo (1 frase):** dar ao nó Captura CSAT um editor com dropdown "Tipo de captura CSAT" — **Dados avaliação CSAT - Nota** (`captureDataType: supportRate`) e **Dados avaliação CSAT - Comentário** (`captureDataType: supportRateComment`).
+
+**Decisões (com o porquê):**
+1. **O dropdown grava SÓ `action.captureDataType`.** Confronto dos 3 JSONs de exemplo do Andy: a única diferença consistente entre Nota e Comentário é `captureDataType`. O `action.error.next.intentBot` varia de forma independente (apareceu `""` e preenchido para o *mesmo* `supportRateComment`) → é **ruído de captura**, não correlacionado ao tipo. O bloco `error` é gerenciado pela feature "Em caso de erro" (v0.25.0) e fica **preservado verbatim** (preserve-and-patch). Tudo o mais idêntico.
+2. **Rótulos: pill curto, dropdown longo, fonte única.** Nova `CSAT_CAPTURE_TYPES` com `{ value, labelDropdown, labelPill }`. Dropdown: "Dados avaliação CSAT - Nota/Comentário" (texto pedido pelo Andy). Pill do canvas mantém o curto atual ("Nota da avaliação" / "Comentário da avaliação") — espaço apertado no nó pede leitura rápida. `CsatNode.tsx` deriva `CSAT_LABELS` (pill) dessa fonte; o dropdown usa `labelDropdown`. Evita strings soltas sem espremer o texto longo no pill.
+3. **Anti-corrupção:** `captureDataType` desconhecido de import (fora de `supportRate`/`supportRateComment`) preservado como `<option>` extra selecionada — igual a `storeType`/`orderType`/`captureDataType` legado. Round-trip não corrompe fluxos que não criamos.
+4. **Sem gate no "Aplicar"** — diferente de Pedido/Loja, o CSAT sempre tem valor válido (nasce em `supportRate`, [intentTemplates.ts:139](src/utils/intentTemplates.ts#L139)); o dropdown nunca fica vazio. Default de nó novo **inalterado** (`supportRate`).
+
+**Plano de implementação (mirror da `StoreActionSection`, ainda mais enxuto):**
+- `editIntent.ts updateActionFields` já trata `captureDataType` ([:737](src/utils/editIntent.ts#L737)) — reusável. **Atenção:** lá faz `fields.captureDataType || null`; para CSAT o valor é sempre não-vazio, então OK.
+- Draft: novo campo `csatCaptureType: string` (ou reusar `captureDataType` do draft com cuidado — preferir campo próprio para não colidir com a lógica de sentinela/multipleFields da Captura).
+- Parse (buildDraft, ~[:462](src/components/DetailPanel.tsx#L462)): derivar `csatCond` (mirror `storeCond` ~[:413](src/components/DetailPanel.tsx#L413)); `csatCaptureType: csatCond?.action.captureDataType || 'supportRate'`.
+- Serialização: **branch próprio** `if (kind === 'csatNode')` → `updateActionFields(intent,'csat',{captureDataType: draft.csatCaptureType},ci)`. NÃO usar o branch da Captura (que escreve `captureDataTypesCategory`/`multipleFields`/sentinela — irrelevante p/ CSAT). NÃO tocar no `error`.
+- Novo `CsatActionSection` (mirror `StoreActionSection`): dropdown `CSAT_CAPTURE_TYPES` (usando `labelDropdown`) + `<option>` legado p/ valor desconhecido. Sem `VariablePicker`, sem aviso âmbar.
+- Render do `CsatActionSection` quando `kind === 'csatNode'`.
+- `CsatNode.tsx`: derivar `CSAT_LABELS` (pill) de `CSAT_CAPTURE_TYPES.labelPill`.
+
+**Como será testado (decisão: unitário round-trip + visual):** casos em `editIntent.test`/`intentTemplates.test` — (a) parse `supportRate` → draft; (b) parse `supportRateComment`; (c) serialização grava o `captureDataType` certo **e preserva o bloco `error` intacto**; (d) `captureDataType` desconhecido sobrevive ao round-trip. Validação visual manual no viewer no fim. Sem Playwright (projeto não usa; UI é baixo risco).
+
+**Riscos/pendências:** confirmar na tela oficial do construtor OmniChat se "Dados avaliação CSAT - Nota/Comentário" é o termo exato exibido (texto fornecido pelo Andy; ajustar se a plataforma usar outro).
+
 ## Melhorias paralelas (independentes das fases)
 
 - ~~Trocar `dagre@0.8.5` (sem manutenção) por `@dagrejs/dagre` (fork mantido,

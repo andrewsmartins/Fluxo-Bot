@@ -830,6 +830,34 @@ describe('updateActionFields / updateSetDataItems', () => {
     expect(intent.conditions[0].action.variable).toBe('@custom.item')
   })
 
+  it('CSAT Nota: grava captureDataType supportRate na condição captureCsat', () => {
+    const intent = createIntentTemplate('csatNode', BOT_ID, 'x')
+    expect(updateActionFields(intent, 'captureCsat', { captureDataType: 'supportRate' })).toEqual({ ok: true })
+    expect(intent.conditions[0].action.captureDataType).toBe('supportRate')
+  })
+
+  it('CSAT Comentário: alterna captureDataType para supportRateComment', () => {
+    const intent = createIntentTemplate('csatNode', BOT_ID, 'x')   // nasce em supportRate
+    updateActionFields(intent, 'captureCsat', { captureDataType: 'supportRateComment' })
+    expect(intent.conditions[0].action.captureDataType).toBe('supportRateComment')
+  })
+
+  it('CSAT: trocar o tipo PRESERVA o bloco error intacto (preserve-and-patch)', () => {
+    const intent = createIntentTemplate('csatNode', BOT_ID, 'x')
+    const errorBefore = intent.conditions[0].action.error
+    updateActionFields(intent, 'captureCsat', { captureDataType: 'supportRateComment' })
+    // O dropdown só toca captureDataType — o error (gerido pela seção "Em caso de erro") fica igual.
+    expect(intent.conditions[0].action.error).toBe(errorBefore)
+  })
+
+  it('CSAT: captureDataType desconhecido de import sobrevive ao round-trip', () => {
+    const intent = createIntentTemplate('csatNode', BOT_ID, 'x')
+    // Valor que a plataforma pode adicionar no futuro — preservado como <option> extra no painel.
+    intent.conditions[0].action.captureDataType = 'futureUnknownType'
+    updateActionFields(intent, 'captureCsat', { captureDataType: 'futureUnknownType' })
+    expect(intent.conditions[0].action.captureDataType).toBe('futureUnknownType')
+  })
+
   it('grava external = {type, apiName} como strings na condição da Chamada de API', () => {
     const intent = createIntentTemplate('apiCallNode', BOT_ID, 'x')
     expect(updateActionFields(intent, 'external', { externalType: 'request', apiName: 'endpoint-id-123' })).toEqual({ ok: true })
