@@ -802,6 +802,34 @@ describe('updateActionFields / updateSetDataItems', () => {
     expect(intent.conditions[0].action.entity).toBe('')
   })
 
+  it('Pedido addToCart: grava orderType e variable na condição order', () => {
+    const intent = createIntentTemplate('orderNode', BOT_ID, 'x')
+    expect(updateActionFields(intent, 'order', { orderType: 'addToCart', variable: '@api.abc.name' })).toEqual({ ok: true })
+    const action = intent.conditions[0].action
+    expect(action.orderType).toBe('addToCart')
+    expect(action.variable).toBe('@api.abc.name')
+  })
+
+  it('Pedido generateOrder: grava orderType e PRESERVA variable (não passa o campo)', () => {
+    const intent = createIntentTemplate('orderNode', BOT_ID, 'x')
+    // Estado vindo do import: generateOrder com variable preenchida (a plataforma
+    // mantém o valor, só ignora) — a serialização NÃO deve apagá-lo.
+    intent.conditions[0].action.variable = '@api.abc.name'
+    updateActionFields(intent, 'order', { orderType: 'generateOrder' })
+    expect(intent.conditions[0].action.orderType).toBe('generateOrder')
+    expect(intent.conditions[0].action.variable).toBe('@api.abc.name')
+  })
+
+  it('Pedido: alternar addToCart → generateOrder preserva a variável digitada', () => {
+    const intent = createIntentTemplate('orderNode', BOT_ID, 'x')
+    updateActionFields(intent, 'order', { orderType: 'addToCart', variable: '@custom.item' })
+    expect(intent.conditions[0].action.variable).toBe('@custom.item')
+    // Troca de modo sem passar variable: o valor anterior sobrevive.
+    updateActionFields(intent, 'order', { orderType: 'generateOrder' })
+    expect(intent.conditions[0].action.orderType).toBe('generateOrder')
+    expect(intent.conditions[0].action.variable).toBe('@custom.item')
+  })
+
   it('grava external = {type, apiName} como strings na condição da Chamada de API', () => {
     const intent = createIntentTemplate('apiCallNode', BOT_ID, 'x')
     expect(updateActionFields(intent, 'external', { externalType: 'request', apiName: 'endpoint-id-123' })).toEqual({ ok: true })

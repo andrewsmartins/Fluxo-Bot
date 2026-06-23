@@ -1,10 +1,12 @@
 import type { FlowNodeData } from '../../types'
 import { NodeShell, NodePreview, NodePill } from './NodeShell'
+import { ORDER_ACTIONS } from '../DetailPanel'
 
-const ORDER_LABELS: Record<string, string> = {
-  generateOrder: 'Gerar pedido',
-  addToCart:     'Adicionar ao carrinho',
-}
+// Rótulos do pill derivam da MESMA fonte do dropdown do editor (ORDER_ACTIONS) —
+// dropdown e canvas nunca divergem (ex.: "Adicionar item" para addToCart).
+const ORDER_LABELS: Record<string, string> = Object.fromEntries(
+  ORDER_ACTIONS.map(a => [a.value, a.label]),
+)
 
 /** action.type = order — pedido (gerar pedido / adicionar ao carrinho). */
 export function OrderNode({ data, selected }: { data: FlowNodeData; selected?: boolean }) {

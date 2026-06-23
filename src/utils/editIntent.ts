@@ -724,6 +724,7 @@ export function updateActionFields(
     entity: string
     externalType: string
     apiName: string
+    orderType: string
   }>,
   condIdx?: number,
 ): EditResult {
@@ -741,6 +742,10 @@ export function updateActionFields(
   // Loja física: storeType vazio cai pra null; entity é o id da Lista (string).
   if (fields.storeType !== undefined) cond.action.storeType = fields.storeType || null
   if (fields.entity !== undefined) cond.action.entity = fields.entity
+  // Pedido: orderType é 'addToCart' | 'generateOrder' (ou legado preservado). Em
+  // generateOrder a serialização NÃO passa `variable` → o valor subjacente fica
+  // intacto (preserve-and-patch), como a própria plataforma faz.
+  if (fields.orderType !== undefined) cond.action.orderType = fields.orderType
   // Chamada de API: grava external = { type, apiName } como STRINGS (fidelidade ao
   // export real; o template usa arrays vazios). Toca SÓ o external — error.next e o
   // resto da ação ficam preservados. apiName=id do endpoint.

@@ -39,6 +39,16 @@ const EXTERNAL_TYPES = [
   { value: 'findStore', label: 'Mapeamento de Loja' },
 ]
 
+// Nó "Pedido" (action.type === 'order'): "Tipo de ação" com dois valores —
+// "Adicionar item" (`addToCart`, abre picker @ → action.variable) e "Gerar pedido"
+// (`generateOrder`, sem campos). Fonte única do rótulo (dropdown + pill do OrderNode).
+// orderType fora-da-lista (legado/import) é preservado como <option> extra.
+const ORDER_ADD_TO_CART = 'addToCart'
+export const ORDER_ACTIONS = [
+  { value: ORDER_ADD_TO_CART, label: 'Adicionar item' },
+  { value: 'generateOrder', label: 'Gerar pedido' },
+]
+
 /** Lê `external.type`/`external.apiName` tolerante a array/string (export real usa string; template usa []). */
 function firstStringOf(v: unknown): string {
   if (Array.isArray(v)) return v.length ? String(v[0]) : ''
@@ -286,6 +296,11 @@ interface Draft {
   externalType: string
   /** Id do endpoint escolhido — grava em `action.external.apiName`. '' = nenhum. */
   externalApiName: string
+  // Nó "Pedido" (action.type === 'order').
+  /** Tipo de ação — 'addToCart'/'generateOrder' (preserva legado fora-da-lista). */
+  orderType: string
+  /** Variável do "Adicionar item" (texto livre via picker @) — grava em `action.variable`. */
+  orderVariable: string
   setDataItems: BulkUpdateItem[]
   // Lista de condições (modos group/solo) — estrutura da intenção
   conditions: DraftCondition[]
@@ -416,6 +431,9 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
   const apiCond = mode === 'condition'
     ? (scopedCond?.action.type === 'external' ? scopedCond : undefined)
     : intent.conditions.find(c => c.action.type === 'external')
+  const orderCond = mode === 'condition'
+    ? (scopedCond?.action.type === 'order' ? scopedCond : undefined)
+    : intent.conditions.find(c => c.action.type === 'order')
 
   return {
     name: intent.name,
@@ -465,6 +483,10 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
     // Chamada de API: type tolerante a array/string, default 'request'; apiName é o id do endpoint.
     externalType: firstStringOf(apiCond?.action.external?.type) || EXTERNAL_REQUEST,
     externalApiName: firstStringOf(apiCond?.action.external?.apiName),
+    // Pedido: orderType ausente/null cai em 'generateOrder' (default seguro, sem campos);
+    // a variável (só usada no addToCart) é preservada se vier string no import.
+    orderType: orderCond?.action.orderType || 'generateOrder',
+    orderVariable: typeof orderCond?.action.variable === 'string' ? orderCond.action.variable : '',
     setDataItems: (Array.isArray(setDataCond?.action.bulkUpdate) ? setDataCond.action.bulkUpdate : [])
       .map(i => ({ ...i })),
     conditions: intent.conditions.map((c, i) => ({
@@ -2294,6 +2316,58 @@ function StoreActionSection({ storeType, storeEntity, invalid, isDark, inputCls,
   )
 }
 
+interface OrderActionSectionProps {
+  orderType: string
+  orderVariable: string
+  /** `true` quando addToCart + variável vazia (gate do "Aplicar"). */
+  invalid: boolean
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+  onChangeType: (v: string) => void
+  onChangeVariable: (v: string) => void
+}
+
+/**
+ * Seção "Pedido" (nó `action.type === 'order'`): "Tipo de ação" — "Adicionar item"
+ * (`addToCart`, revela o picker @ que grava `action.variable`) e "Gerar pedido"
+ * (`generateOrder`, sem campos; o `variable` subjacente é preservado). A variável é
+ * texto livre (picker @ reutilizável) porque não há endpoint que liste "variáveis de
+ * pedido" — são produzidas por nós anteriores. orderType salvo fora do conjunto
+ * (legado/import) vira <option> extra — anti-corrupção, igual ao storeType.
+ */
+function OrderActionSection({ orderType, orderVariable, invalid, isDark, inputCls, labelCls, onChangeType, onChangeVariable }: OrderActionSectionProps) {
+  const legacyType = orderType && !ORDER_ACTIONS.some(a => a.value === orderType) ? orderType : null
+  const isAddToCart = orderType === ORDER_ADD_TO_CART
+
+  return (
+    <Section title="Pedido" isDark={isDark}>
+      <div className="flex flex-col gap-2.5">
+        <label className="flex flex-col gap-1">
+          <span className={labelCls}>Tipo de ação</span>
+          <select className={inputCls} value={orderType} onChange={e => onChangeType(e.target.value)}>
+            {ORDER_ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+            {legacyType && <option value={legacyType}>{legacyType}</option>}
+          </select>
+        </label>
+
+        {isAddToCart && (
+          <label className="flex flex-col gap-1">
+            <span className={labelCls}>Variável</span>
+            <VariablePicker value={orderVariable} onChange={onChangeVariable} isDark={isDark} inputCls={inputCls} />
+          </label>
+        )}
+
+        {invalid && (
+          <p className={`text-[11px] leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+            Informe a variável do item para salvar.
+          </p>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 interface ApiActionSectionProps {
   externalType: string
   externalApiName: string
@@ -3096,6 +3170,13 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
       if (kind === 'apiCallNode') {
         results.push(updateActionFields(intent, 'external', { externalType: draft.externalType, apiName: draft.externalApiName }, ci))
       }
+      if (kind === 'orderNode') {
+        // addToCart grava a variável (trimada); generateOrder/legado NÃO passa
+        // `variable` → o valor subjacente é preservado (preserve-and-patch, D2).
+        results.push(draft.orderType === ORDER_ADD_TO_CART
+          ? updateActionFields(intent, 'order', { orderType: ORDER_ADD_TO_CART, variable: draft.orderVariable.trim() }, ci)
+          : updateActionFields(intent, 'order', { orderType: draft.orderType }, ci))
+      }
       // Seção "Em caso de erro" (7 nós de ação): diff das mensagens de fallback no
       // container 'error' + destino do erro (setActionErrorNext aplica o acoplamento
       // intentBot↔redirect e fixa type:'error'+action:'intent'). Sem gate.
@@ -3194,6 +3275,10 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   // Chamada de API exige uma API escolhida — sem ela gravaria external.apiName vazio.
   const apiInvalid = !!draft && kind === 'apiCallNode' && !draft.externalApiName.trim()
 
+  // Pedido: "Adicionar item" exige a variável preenchida; "Gerar pedido" nunca trava.
+  const orderInvalid = !!draft && kind === 'orderNode'
+    && draft.orderType === ORDER_ADD_TO_CART && !draft.orderVariable.trim()
+
   // Transferência: só os tipos COM campo (vendedor/time/variável) exigem valor;
   // "Devolver ao vendedor"/"Pelo endereço físico" (sem campo) nunca bloqueiam.
   const transferInvalid = !!draft && kind === 'transferNode'
@@ -3208,11 +3293,12 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
 
   // "Aplicar" fica bloqueado enquanto houver dado de captura, variável de
   // Editar informação ou tempo de envio inválido.
-  const applyBlocked = captureInvalid || setDataInvalid || delayInvalid || storeInvalid || apiInvalid || transferInvalid
+  const applyBlocked = captureInvalid || setDataInvalid || delayInvalid || storeInvalid || apiInvalid || transferInvalid || orderInvalid
   const applyHint = captureInvalid ? ' (selecione um dado)'
     : setDataInvalid ? ' (preencha variável e valor)'
     : storeInvalid ? ' (selecione uma lista)'
     : apiInvalid ? ' (selecione uma API)'
+    : orderInvalid ? ' (informe a variável)'
     : transferInvalid ? ' (defina o destino)'
     : delayInvalid ? ' (tempo: 1–30s)' : ''
 
@@ -3597,6 +3683,19 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                 labelCls={labelCls}
                 onChangeType={v => set('externalType', v)}
                 onChangeApiName={v => set('externalApiName', v)}
+              />
+            )}
+
+            {showContent && draft && kind === 'orderNode' && (
+              <OrderActionSection
+                orderType={draft.orderType}
+                orderVariable={draft.orderVariable}
+                invalid={orderInvalid}
+                isDark={isDark}
+                inputCls={inputCls}
+                labelCls={labelCls}
+                onChangeType={v => set('orderType', v)}
+                onChangeVariable={v => set('orderVariable', v)}
               />
             )}
 

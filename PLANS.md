@@ -1,11 +1,24 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 <!-- HANDOFF:START -->
-## 🔄 Handoff
+## 🔄 Handoff — 2026-06-23
 
-**Sem trabalho pendente.** A última sessão concluiu e commitou a feature "Em caso de erro" (`action.error`) nos 7 nós de ação — **v0.25.0** (commit `495b47e`). Próximo foco: a definir.
+**Foco da próxima sessão:** implementar o **editor do nó Pedido** (dropdown "Tipo de ação"). Plano completo e aprovado no PLANS.md § "Nó Pedido — dropdown 'Tipo de ação' (planejado)". Esta sessão foi só interrogatório (`/interrogar`) — **nenhum código foi escrito**.
 
-**Pendência menor (validação):** confirmar com token real os caminhos COLLECTION/TEMPLATE no `action.error` e intenções vindas da API (detalhes no archive § "Em caso de erro").
+**Onde paramos:** branch `feat/error-action-section` (não troquei de branch). Só editei o `PLANS.md` (adicionei a seção do plano do Pedido + este handoff). A feature anterior "Em caso de erro" (v0.25.0, commit `495b47e`) segue **commitada, NÃO mergeada e sem PR** — decisão de PR ainda pendente, mas saiu do foco.
+
+**Fios soltos:**
+- **Implementar o nó Pedido** conforme o plano. Ordem sugerida: começar por `editIntent.ts:updateActionFields` (adicionar `orderType`) + testes unitários, depois draft/parse/serialização no `DetailPanel.tsx`, depois o componente `OrderActionSection` e o `ORDER_LABELS` do `OrderNode.tsx`.
+- **Confirmar o termo "Adicionar item"** vs. o rótulo oficial da tela do construtor OmniChat (pendência registrada no plano; decidimos unificar em "Adicionar item" salvo evidência do contrário).
+- **PR da `feat/error-action-section` → `main`** continua não decidido (provavelmente criar branch nova `feat/order-node-editor` a partir de onde fizer sentido antes de codar o Pedido).
+
+**Armadilhas desta sessão:** nos 2 JSONs de exemplo do Pedido, `generateOrder` **mantém `action.variable` preenchida** — a plataforma não limpa, só ignora. Por isso decidimos NÃO tocar em `variable` no modo `generateOrder` (preserve-and-patch). `updateActionFields` ([editIntent.ts:713](src/utils/editIntent.ts#L713)) já grava `variable` (linha 738) mas **não** grava `orderType` — falta adicionar esse campo. `VariablePicker` ([DetailPanel.tsx:1805](src/components/DetailPanel.tsx#L1805)) é o picker `@` reutilizável. Toda a feature é mirror da `StoreActionSection` ([:2229](src/components/DetailPanel.tsx#L2229)) — usar como molde (dropdown + campo condicional + gate âmbar do "Aplicar").
+
+**Próximo passo imediato:** criar branch para a feature do Pedido e implementar `updateActionFields` aceitando `orderType` + teste unitário do round-trip (`addToCart` grava `variable`, `generateOrder` preserva).
+
+**Ponteiros:** PLANS.md § "Nó Pedido — dropdown 'Tipo de ação' (planejado)" (plano + 5 decisões + plano de implementação com linhas-âncora). Arquivos: [OrderNode.tsx](src/components/nodes/OrderNode.tsx), [DetailPanel.tsx](src/components/DetailPanel.tsx), [editIntent.ts](src/utils/editIntent.ts), `intentTemplates.ts` (template cria `orderType: 'generateOrder'`).
+
+**Skills sugeridas:** `/code-review` antes de commitar; `/verify` ou `/run` para a validação visual no viewer (passo final manual).
 
 <!-- HANDOFF:END -->
 
@@ -113,6 +126,32 @@ Alvo: o modelo `BotIntent[]` é a fonte de verdade; o canvas é uma projeção e
 **Como foi testado:** parse JSON OK + simulação do grafo `parseFlow` (action→NodeKind e validação de que todo `next.intent.id`/`choices[]` existe na lista, ids únicos, menus 100% conectados). IDs de time/usuário da Parte 8 obtidos ao vivo (read-only, retailer `5rFc8fXg1G`, token de sessão). Pendente: validar visualmente no viewer e, se for dar push, confirmar contra a API real (em especial o nó de API com `apiName` placeholder e o `context`).
 
 **Próximas partes:** estender a partir da Mensagem (hoje folha após o Encerrar) com novos tipos de nó conforme necessário.
+
+## Nó Pedido — dropdown "Tipo de ação" (planejado)
+
+> Interrogatório 2026-06-23. Hoje o `OrderNode` ([OrderNode.tsx](src/components/nodes/OrderNode.tsx)) é só visual (pill com o rótulo do `orderType`) e **não há editor** no DetailPanel. Esta feature adiciona o editor.
+
+**Objetivo (1 frase):** dar ao nó Pedido um editor com dropdown "Tipo de ação" — **Adicionar item** (`orderType: addToCart`, abre picker de variável → `action.variable`) e **Gerar pedido** (`orderType: generateOrder`, sem campos novos).
+
+**Decisões (com o porquê):**
+1. **Picker `@` livre** para a variável do "Adicionar item" — reusa `VariablePicker` ([DetailPanel.tsx:1805](src/components/DetailPanel.tsx#L1805)). Não existe endpoint que liste "variáveis de pedido" (são produzidas por nós anteriores, ex.: `@api.<uuid>.name`); dropdown fechado não tem fonte e quebraria o caso real. Consistente com captura/setData.
+2. **`action.variable` só é gravada no modo `addToCart`.** Em `generateOrder` o campo some da UI e o valor subjacente é **preservado verbatim** (preserve-and-patch) — é o que a própria plataforma faz (nos 2 JSONs de exemplo, `generateOrder` mantém `variable` preenchida e só ignora). Alternar o dropdown não destrói o valor digitado (vive no draft enquanto o painel está aberto).
+3. **Gate do "Aplicar"** quando `addToCart` + variável vazia (espelha a Loja física, aviso âmbar). Validação = não-vazio (picker é texto livre; não dá pra validar existência). `generateOrder` nunca trava.
+4. **Rótulo unificado em "Adicionar item"** no dropdown E no pill do canvas — `ORDER_ACTIONS` (`{value,label}`) vira fonte única; `ORDER_LABELS` do `OrderNode` deriva dela. Hoje o pill diz "Adicionar ao carrinho"; muda para "Adicionar item". (Reavaliar se a tela oficial da OmniChat usar outro termo.)
+5. **`orderType` desconhecido de import** (fora de `addToCart`/`generateOrder`) preservado como `<option>` extra — anti-corrupção, igual a `storeType`/`captureDataType`.
+
+**Plano de implementação (mirror da `StoreActionSection`):**
+- `editIntent.ts updateActionFields` ([:713](src/utils/editIntent.ts#L713)): adicionar `orderType?: string` aos `fields` → `if (fields.orderType !== undefined) cond.action.orderType = fields.orderType`. `variable` já é tratado (linha 738).
+- Draft: novos campos `orderType: string` e `orderVariable: string`.
+- Parse (buildDraft, ~[:462](src/components/DetailPanel.tsx#L462)): derivar `orderCond` (mirror `storeCond` ~[:413](src/components/DetailPanel.tsx#L413)); `orderType: orderCond?.action.orderType || 'generateOrder'`; `orderVariable: typeof orderCond?.action.variable === 'string' ? orderCond.action.variable : ''`.
+- Serialização (~[:3093](src/components/DetailPanel.tsx#L3093)): `if (kind === 'orderNode')` → `addToCart`: `updateActionFields(intent,'order',{orderType:'addToCart',variable:draft.orderVariable.trim()},ci)`; senão (`generateOrder`/legado): `{orderType:draft.orderType}` (NÃO passar `variable` → preserva). **Decisão menor:** `variable` é trimada na escrita (o exemplo tem espaço final, provável artefato; setData já trima).
+- Novo `OrderActionSection` (mirror `StoreActionSection`): dropdown `ORDER_ACTIONS` + `<option>` legado; `VariablePicker` condicional quando `addToCart`; aviso âmbar do gate.
+- Render do `OrderActionSection` quando `kind === 'orderNode'` (mirror ~[:3579](src/components/DetailPanel.tsx#L3579)) + somar à condição `invalid` do "Aplicar".
+- `OrderNode.tsx`: `ORDER_LABELS.addToCart` → "Adicionar item" (ou derivar de `ORDER_ACTIONS` exportado).
+
+**Como será testado (decisão: unitário, sem Playwright):** round-trip em `editIntent.test`/`intentTemplates.test` — (a) parse `addToCart` com `variable` → draft; (b) parse `generateOrder`; (c) serialização grava `variable` só em `addToCart`; (d) alternância de modo preserva o valor; (e) `orderType` gravado correto. O risco real é o JSON do `action`, 100% coberto por unitário. UI (dropdown mostra/esconde campo) é baixo risco → validação visual manual no viewer como passo final.
+
+**Riscos/pendências:** sem fonte para validar se a `variable` existe de fato (só não-vazio); termo "Adicionar item" vs. termo oficial da plataforma (confirmar na tela do construtor se possível).
 
 ## Melhorias paralelas (independentes das fases)
 
