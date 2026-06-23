@@ -291,13 +291,15 @@
     },
     {
       "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
-      "keywords": [],
+      "keywords": [
+        "tipo"
+      ],
       "advanced": {
         "active": false,
         "endpointId": null
       },
       "name": "Menu_Tipos_Condicao",
-      "context": null,
+      "context": "de947f17-fd04-4d0d-8c1f-f485788ec346",
       "id": "816ca6bb-515b-4bad-92e1-415e49164dfd",
       "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
       "category": "Menu",
@@ -417,14 +419,14 @@
     {
       "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
       "keywords": [
-        "teste"
+        "cabeçalho"
       ],
       "advanced": {
         "active": false,
         "endpointId": null
       },
       "name": "teste_contexto_palavra_chave",
-      "context": "5645aefc-c57b-418e-a812-bdb084be5b59",
+      "context": "de947f17-fd04-4d0d-8c1f-f485788ec346",
       "id": "13f4b47e-18bf-45c4-8662-6577b8b03733",
       "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
       "category": "Teste Cabeçalho",
@@ -3149,13 +3151,15 @@
     },
     {
       "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
-      "keywords": [],
+      "keywords": [
+        "ações"
+      ],
       "advanced": {
         "active": false,
         "endpointId": null
       },
       "name": "Menu_Acoes",
-      "context": null,
+      "context": "de947f17-fd04-4d0d-8c1f-f485788ec346",
       "id": "ac74062e-f580-401c-9ec6-5f5dc4b17b8e",
       "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
       "category": "Menu",
