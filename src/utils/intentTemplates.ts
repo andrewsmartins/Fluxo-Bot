@@ -94,7 +94,7 @@ export function createConditionTemplate(actionType = 'none'): Condition {
 
 /**
  * Monta o `action` canônico de um NodeKind criável, com os defaults específicos
- * do tipo (transfer → direct4group + erro p/ start; capture → free + erro; choice
+ * do tipo (transfer → direct4userPrevious + erro p/ start; capture → free + erro; choice
  * → choices vazio; order → generateOrder; csat → supportRate). Compartilhado pela
  * criação de intenção (paleta) e pela criação de condição tipada (painel/merge),
  * para os dois caminhos nascerem idênticos.
@@ -106,7 +106,9 @@ function buildKindAction(kind: CreatableKind, botId: string): Action {
   // obriga a preencher variável e valor antes de aplicar.
   if (kind === 'setDataNode') action.bulkUpdate = [{ variable: '', value: '' }]
   if (kind === 'transferNode') {
-    action.transferType = 'direct4group'
+    // 'direct4userPrevious' ("Devolver ao vendedor") é o único destino SEM campo,
+    // então o nó recém-criado nasce VÁLIDO (não força abrir picker/preencher valor).
+    action.transferType = 'direct4userPrevious'
     action.error = canonicalError(botId)
   }
   if (kind === 'captureNode') {

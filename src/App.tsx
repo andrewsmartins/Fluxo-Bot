@@ -14,6 +14,8 @@ import { TeamsContext, type TeamsStatus } from './contexts/TeamsContext'
 import { fetchStoreTeams, fetchActiveBots, type Team, type Bot } from './utils/teams'
 import { fetchStoreCollections, type Collection } from './utils/collections'
 import { fetchStoreEntities, type StoreEntity } from './utils/entities'
+import { fetchSupervisedUsers, type StoreUser } from './utils/users'
+import { fetchBotEndpoints, type BotEndpoint } from './utils/endpoints'
 import { fetchStoreMessageTemplates, type MessageTemplate } from './utils/messageTemplates'
 import { uploadMedia, type UploadMediaType } from './utils/uploadMedia'
 import { fetchServerIntents, type FetchLike } from './utils/pushFlow'
@@ -93,6 +95,13 @@ export default function App() {
   const [entities, setEntities]             = useState<StoreEntity[]>([])
   const [entitiesStatus, setEntitiesStatus] = useState<TeamsStatus>('idle')
   const [entitiesError, setEntitiesError]   = useState<string | null>(null)
+  const [endpoints, setEndpoints]             = useState<BotEndpoint[]>([])
+  const [endpointsStatus, setEndpointsStatus] = useState<TeamsStatus>('idle')
+  const [endpointsError, setEndpointsError]   = useState<string | null>(null)
+  // Vendedores (usuários supervisionados) da conta — picker do nó "Transferência". Carregados sob demanda.
+  const [users, setUsers]             = useState<StoreUser[]>([])
+  const [usersStatus, setUsersStatus] = useState<TeamsStatus>('idle')
+  const [usersError, setUsersError]   = useState<string | null>(null)
   // IDs de nó com destaque "duplicando / recém-duplicado" (borda esmeralda animada).
   // Estado transitório de UI — nunca entra no modelo nem no histórico.
   const [highlightIds, setHighlightIds] = useState<Set<string>>(() => new Set())
@@ -716,6 +725,12 @@ export default function App() {
     setEntities([])
     setEntitiesStatus('idle')
     setEntitiesError(null)
+    setEndpoints([])
+    setEndpointsStatus('idle')
+    setEndpointsError(null)
+    setUsers([])
+    setUsersStatus('idle')
+    setUsersError(null)
   }, [sessionToken])
 
   // Carrega os times da loja sob demanda (picker @team). Usa o token global e o
@@ -911,6 +926,70 @@ export default function App() {
 
   const entitiesById = useMemo(() => new Map(entities.map(en => [en.id, en])), [entities])
 
+  // Carrega os endpoints (APIs) do bot sob demanda (picker "Nome da API" do nó
+  // "Chamada de API"). Mesmo padrão de loadEntities: token global + botId do fluxo,
+  // ref anti-concorrência, sem logar o token. Endpoint por botId direto.
+  const endpointsLoadingRef = useRef(false)
+  const loadEndpoints = useCallback(async () => {
+    if (endpointsLoadingRef.current) return
+    const token = sessionToken.trim()
+    const botId = botIdOf(parsedDataRef.current)
+    if (!token) {
+      setEndpointsStatus('error')
+      setEndpointsError('Defina o token de sessão (botão de chave na barra) para carregar as APIs.')
+      return
+    }
+    if (!botId) {
+      setEndpointsStatus('error')
+      setEndpointsError('Fluxo sem botId — não dá para descobrir as APIs.')
+      return
+    }
+    endpointsLoadingRef.current = true
+    setEndpointsStatus('loading')
+    setEndpointsError(null)
+    try {
+      const list = await fetchBotEndpoints({ fetch: browserFetch, token, botId })
+      setEndpoints(list)
+      setEndpointsStatus('loaded')
+    } catch (e) {
+      setEndpointsStatus('error')
+      setEndpointsError(e instanceof Error ? e.message : 'Falha ao carregar as APIs.')
+    } finally {
+      endpointsLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  const endpointsById = useMemo(() => new Map(endpoints.map(ep => [ep.id, ep])), [endpoints])
+
+  // Carrega os vendedores (usuários supervisionados) da conta sob demanda (picker
+  // "Por vendedor → nome" do nó "Transferência"). É por CONTA do token (sem botId),
+  // então espelha o loadBots; ref anti-concorrência, sem logar o token.
+  const usersLoadingRef = useRef(false)
+  const loadUsers = useCallback(async () => {
+    if (usersLoadingRef.current) return
+    const token = sessionToken.trim()
+    if (!token) {
+      setUsersStatus('error')
+      setUsersError('Defina o token de sessão (botão de chave na barra) para listar os vendedores.')
+      return
+    }
+    usersLoadingRef.current = true
+    setUsersStatus('loading')
+    setUsersError(null)
+    try {
+      const list = await fetchSupervisedUsers({ fetch: browserFetch, token })
+      setUsers(list)
+      setUsersStatus('loaded')
+    } catch (e) {
+      setUsersStatus('error')
+      setUsersError(e instanceof Error ? e.message : 'Falha ao carregar os vendedores.')
+    } finally {
+      usersLoadingRef.current = false
+    }
+  }, [sessionToken])
+
+  const usersById = useMemo(() => new Map(users.map(u => [u.objectId, u])), [users])
+
   const requestToken = useCallback(() => setTokenOpen(true), [])
   const hasToken = !!sessionToken.trim()
   const uploadFile = useCallback(async (file: File, type: UploadMediaType) => {
@@ -926,6 +1005,8 @@ export default function App() {
       bots, botsStatus, botsError, loadBots,
       botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
       entities, entitiesStatus, entitiesError, loadEntities, entitiesById,
+      endpoints, endpointsStatus, endpointsError, loadEndpoints, endpointsById,
+      users, usersStatus, usersError, loadUsers, usersById,
     }),
     [
       teams, teamsStatus, teamsError, loadTeams, hasToken, requestToken, teamsById, uploadFile,
@@ -934,6 +1015,8 @@ export default function App() {
       bots, botsStatus, botsError, loadBots,
       botIntents, botIntentsStatus, botIntentsError, loadBotIntents,
       entities, entitiesStatus, entitiesError, loadEntities, entitiesById,
+      endpoints, endpointsStatus, endpointsError, loadEndpoints, endpointsById,
+      users, usersStatus, usersError, loadUsers, usersById,
     ],
   )
 

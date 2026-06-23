@@ -5,8 +5,11 @@
  * funções; aqui não há React nem DOM.
  *
  * Caminho confirmado por sonda read-only na API real (bot de testes, 2026-06-22):
- *   `GET <execute-api>/v1/{botId}/entities` — por `botId` DIRETO, sem o passo
- *   `retailerId` dos times/coleções. Envelope `{ list: [...] }`.
+ *   `GET <execute-api>/v1/{botId}/entities?fullObject=true` — por `botId` DIRETO,
+ *   sem o passo `retailerId` dos times/coleções. Envelope `{ list: [...] }`.
+ *   ATENÇÃO: o `?fullObject=true` é OBRIGATÓRIO — sem ele a API devolve só
+ *   `{ name, id }` (sem `type`), e o picker do nó "Loja física" (que filtra
+ *   `type === 'store'`) ficaria sempre vazio.
  *
  * Segurança: o token chega por parâmetro, vai só nos headers e NUNCA é logado nem
  * devolvido. O `fetch` é injetável (deps) para os testes rodarem sem rede — igual
@@ -32,7 +35,7 @@ export interface StoreEntity {
  * falhar.
  */
 export async function fetchStoreEntities(deps: Deps & { botId: string }): Promise<StoreEntity[]> {
-  const res = await deps.fetch(`${API}/v1/${deps.botId}/entities`, { headers: sessionHeaders(deps.token) })
+  const res = await deps.fetch(`${API}/v1/${deps.botId}/entities?fullObject=true`, { headers: sessionHeaders(deps.token) })
   if (!res.ok) {
     throw new Error(`não foi possível listar as listas do bot (status ${res.status})`)
   }

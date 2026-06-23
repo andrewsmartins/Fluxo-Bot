@@ -19,6 +19,10 @@ samples/
 # Arquivo de workspace pessoal do editor
 *.code-workspace
 
+# Logos/artes soltas na raiz (não referenciadas no app)
+/Omnichat Logo*.png
+/Omnichat-Logo*.svg
+
 # Editor / SO
 .vscode/
 .idea/

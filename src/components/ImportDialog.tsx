@@ -19,6 +19,25 @@ export function ImportDialog({ hasFlow, onGenerate, onClose }: ImportDialogProps
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  /**
+   * Carrega o fluxo de exemplo (`public/masterFlow.json`) — sample sintético
+   * principal para testar a ferramenta sem ter um JSON real em mãos. Busca pelo
+   * `BASE_URL` (respeita o base `/FlowViewer/` do gh-pages) e já gera o fluxo.
+   */
+  async function handleLoadExample() {
+    setError(null)
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}masterFlow.json`)
+      if (!res.ok) throw new Error(`status ${res.status}`)
+      const sample = await res.text()
+      setText(sample)
+      const result = onGenerate(sample)
+      if (result) setError(result)
+    } catch {
+      setError('Não foi possível carregar o fluxo de exemplo.')
+    }
+  }
+
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -56,9 +75,18 @@ export function ImportDialog({ hasFlow, onGenerate, onClose }: ImportDialogProps
         </div>
 
         <div className="p-4 flex flex-col gap-3">
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Cole o JSON do bot (resposta de <code className="font-mono">GET /v1/{'{botId}'}/intents</code>) ou carregue um arquivo.
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Cole o JSON do bot (resposta de <code className="font-mono">GET /v1/{'{botId}'}/intents</code>) ou carregue um arquivo.
+            </p>
+            <button
+              type="button"
+              onClick={handleLoadExample}
+              className={`shrink-0 text-[11px] font-medium underline ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+            >
+              Carregar exemplo
+            </button>
+          </div>
 
           <textarea
             value={text}

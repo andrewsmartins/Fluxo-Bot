@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react'
 import type { Bot, Team } from '../utils/teams'
 import type { Collection } from '../utils/collections'
 import type { StoreEntity } from '../utils/entities'
+import type { StoreUser } from '../utils/users'
+import type { BotEndpoint } from '../utils/endpoints'
 import type { MessageTemplate } from '../utils/messageTemplates'
 import type { UploadMediaType } from '../utils/uploadMedia'
 import type { BotIntent } from '../types'
@@ -79,6 +81,26 @@ export interface TeamsContextValue {
   loadEntities: () => void
   /** Mapa id→lista, para a Fase 3 (editor do nó) mostrar o nome do que foi salvo. */
   entitiesById: ReadonlyMap<string, StoreEntity>
+  // ─── Endpoints (APIs) — picker "Nome da API" do nó "Chamada de API" (mesmo padrão) ─
+  /** Endpoints (APIs cadastradas) do bot — alimenta o picker "Nome da API". */
+  endpoints: BotEndpoint[]
+  endpointsStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `endpointsStatus === 'error'`. */
+  endpointsError: string | null
+  /** Dispara o carregamento dos endpoints do bot (idempotente). */
+  loadEndpoints: () => void
+  /** Mapa id→endpoint, para o editor mostrar o nome da API salva (apiName = id). */
+  endpointsById: ReadonlyMap<string, BotEndpoint>
+  // ─── Vendedores (usuários supervisionados) — picker "Por vendedor → nome" do nó "Transferência" ─
+  /** Vendedores da conta — alimenta o picker do tipo `direct4user` (value = objectId). */
+  users: StoreUser[]
+  usersStatus: TeamsStatus
+  /** Mensagem de erro amigável (sem token), quando `usersStatus === 'error'`. */
+  usersError: string | null
+  /** Dispara o carregamento dos vendedores da conta (idempotente). */
+  loadUsers: () => void
+  /** Mapa objectId→vendedor, para o editor mostrar o nome do vendedor salvo. */
+  usersById: ReadonlyMap<string, StoreUser>
 }
 
 const EMPTY: TeamsContextValue = {
@@ -113,6 +135,16 @@ const EMPTY: TeamsContextValue = {
   entitiesError: null,
   loadEntities: () => {},
   entitiesById: new Map(),
+  endpoints: [],
+  endpointsStatus: 'idle',
+  endpointsError: null,
+  loadEndpoints: () => {},
+  endpointsById: new Map(),
+  users: [],
+  usersStatus: 'idle',
+  usersError: null,
+  loadUsers: () => {},
+  usersById: new Map(),
 }
 
 export const TeamsContext = createContext<TeamsContextValue>(EMPTY)

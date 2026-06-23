@@ -731,7 +731,7 @@ describe('addCondition tipada (Marco D — escolher o tipo da condição)', () =
     addCondition(intent, 'transferNode')
     addCondition(intent, 'endNode')
     expect(intent.conditions[1].action.type).toBe('transfer')
-    expect(intent.conditions[1].action.transferType).toBe('direct4group')   // default do tipo
+    expect(intent.conditions[1].action.transferType).toBe('direct4userPrevious')   // default do tipo (sem campo → nasce válido)
     expect(intent.conditions[1].action.error?.next.intent).toBe(`${BOT_ID}-start`)
     expect(intent.conditions[2].action.type).toBe('endConversation')
   })
@@ -799,6 +799,25 @@ describe('updateActionFields / updateSetDataItems', () => {
     updateActionFields(intent, 'store', { storeType: '', entity: '' })
     expect(intent.conditions[0].action.storeType).toBeNull()
     expect(intent.conditions[0].action.entity).toBe('')
+  })
+
+  it('grava external = {type, apiName} como strings na condição da Chamada de API', () => {
+    const intent = createIntentTemplate('apiCallNode', BOT_ID, 'x')
+    expect(updateActionFields(intent, 'external', { externalType: 'request', apiName: 'endpoint-id-123' })).toEqual({ ok: true })
+    const action = intent.conditions[0].action
+    expect(action.external).toEqual({ type: 'request', apiName: 'endpoint-id-123' })
+  })
+
+  it('trocar o tipo de integração preserva action.error.next', () => {
+    const intent = createIntentTemplate('apiCallNode', BOT_ID, 'x')
+    const cond = intent.conditions[0]
+    // Simula a config manual do error.next dos exemplos reais (não intrínseca ao tipo).
+    cond.action.error = { next: { type: 'context', redirect: 'continueFlow', intent: 'algum-destino' }, assistant_says: [] }
+    updateActionFields(intent, 'external', { externalType: 'findStore', apiName: 'endpoint-id-123' })
+    expect(cond.action.external).toEqual({ type: 'findStore', apiName: 'endpoint-id-123' })
+    // error.next intacto — o editor toca SÓ o external.
+    expect(cond.action.error?.next.redirect).toBe('continueFlow')
+    expect(cond.action.error?.next.intent).toBe('algum-destino')
   })
 
   it('rejeita tipo de ação que a intenção não tem', () => {

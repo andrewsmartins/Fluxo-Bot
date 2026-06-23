@@ -660,6 +660,8 @@ export function updateActionFields(
     multipleFields: string[]
     storeType: string
     entity: string
+    externalType: string
+    apiName: string
   }>,
   condIdx?: number,
 ): EditResult {
@@ -677,6 +679,16 @@ export function updateActionFields(
   // Loja física: storeType vazio cai pra null; entity é o id da Lista (string).
   if (fields.storeType !== undefined) cond.action.storeType = fields.storeType || null
   if (fields.entity !== undefined) cond.action.entity = fields.entity
+  // Chamada de API: grava external = { type, apiName } como STRINGS (fidelidade ao
+  // export real; o template usa arrays vazios). Toca SÓ o external — error.next e o
+  // resto da ação ficam preservados. apiName=id do endpoint.
+  if (fields.externalType !== undefined || fields.apiName !== undefined) {
+    const ext = cond.action.external ?? { type: '', apiName: '' }
+    cond.action.external = {
+      type: fields.externalType ?? ext.type,
+      apiName: fields.apiName ?? ext.apiName,
+    }
+  }
   touch(intent)
   return { ok: true }
 }

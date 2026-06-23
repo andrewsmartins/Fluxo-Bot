@@ -1,0 +1,3471 @@
+{
+  "list": [
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "context": null,
+      "name": "start",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "id": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start",
+      "category": "start",
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+              "id": "5645aefc-c57b-418e-a812-bdb084be5b59"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "context": null,
+          "name": "Start",
+          "variable": null,
+          "action": {
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "storeType": null,
+            "captureDataType": null,
+            "variable": null,
+            "transferType": null,
+            "choices": null,
+            "type": "none",
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": []
+            }
+          ],
+          "type": "any",
+          "intent": null,
+          "value": "any"
+        }
+      ],
+      "priority": 0,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "mensagem_boas_vindas",
+      "context": null,
+      "id": "5645aefc-c57b-418e-a812-bdb084be5b59",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Mensagem",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "de947f17-fd04-4d0d-8c1f-f485788ec346",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Hello world!",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "encerrar_cabecalho",
+      "context": null,
+      "id": "f19f108f-5219-4f01-8adf-05d8b97f2453",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Encerramento",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "endConversation",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": "",
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Fim dos testes de Cabeçalho. Até logo! 👋",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "Menu_Testes",
+      "context": null,
+      "id": "de947f17-fd04-4d0d-8c1f-f485788ec346",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Menu",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "choice",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": [
+              "13f4b47e-18bf-45c4-8662-6577b8b03733",
+              "816ca6bb-515b-4bad-92e1-415e49164dfd",
+              "ac74062e-f580-401c-9ec6-5f5dc4b17b8e"
+            ],
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "fileName": "",
+                  "messageConfig": {
+                    "header": "Menu de Testes",
+                    "buttons": [
+                      {
+                        "description": "Cabeçalho, anexos e prioridade (sequência de testes)",
+                        "id": "e2e5b045-8ca2-4095-a14c-4f0c28f5e68a",
+                        "text": "Teste Cabeçalho"
+                      },
+                      {
+                        "description": "Testes por tipo de mensagem (em breve)",
+                        "id": "d973cefa-006f-4640-a411-2b9c7a43ab00",
+                        "text": "Teste por Tipo"
+                      },
+                      {
+                        "description": "Testes por tipo de ação do nó (captura, edição, loja, API, transferência, aguardar)",
+                        "id": "fe3bbf1c-9828-4b6f-ab82-9251510a0e1d",
+                        "text": "Teste por Ação"
+                      }
+                    ],
+                    "title": "Ver testes",
+                    "type": "text",
+                    "body": "Selecione a categoria de teste que deseja executar:",
+                    "footer": "masterFlow — bot de testes"
+                  },
+                  "type": "LIST",
+                  "content": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "Menu_Tipos_Condicao",
+      "context": null,
+      "id": "816ca6bb-515b-4bad-92e1-415e49164dfd",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Menu",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "choice",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": [
+              "461d5a94-c69d-46d4-be6f-1f90367371f2",
+              "f8851dbe-63da-4b12-962b-0e62feb064a4",
+              "ab4d5c44-14e5-48d8-9cf8-3f19b8ca43be",
+              "33f08382-7d0a-41cc-aced-c2fe2e4ee3f2",
+              "e564daaf-8442-414e-b66f-586ca35dab4c",
+              "f1eb746f-ffe9-4835-a6d1-d3d1088f2144",
+              "f33f0b8a-0452-49ee-a4b8-e7aae1db6195",
+              "344d3a0a-633e-4c6f-879a-0b1238461154"
+            ],
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "fileName": "",
+                  "messageConfig": {
+                    "header": "Teste por Tipo de Condição",
+                    "buttons": [
+                      {
+                        "description": "Contexto vinculado a uma intenção",
+                        "id": "84b6ec99-1631-423e-8a34-4cc7860288db",
+                        "text": "Contexto é igual a"
+                      },
+                      {
+                        "description": "Compara a última intenção atendida",
+                        "id": "917a18b0-2ab9-442b-ac6b-eff1c5eb384f",
+                        "text": "A última intenção foi"
+                      },
+                      {
+                        "description": "Variável sem valor preenchido",
+                        "id": "8825bcaa-7971-4053-b4ff-523258dc93e2",
+                        "text": "O valor está vazio"
+                      },
+                      {
+                        "description": "Variável possui algum valor",
+                        "id": "3aae6f80-8151-4b83-813f-a56018728f4a",
+                        "text": "Valor existe"
+                      },
+                      {
+                        "description": "Variável igual a um valor exato",
+                        "id": "70c516db-8151-48e0-90f8-fee7e06ccadf",
+                        "text": "Valor é igual a"
+                      },
+                      {
+                        "description": "Variável contém um dos termos",
+                        "id": "9364d640-3c2d-48aa-b367-6980a1e1ae88",
+                        "text": "Valor contém"
+                      },
+                      {
+                        "description": "Total numérico acima do limite",
+                        "id": "765d5d28-2243-4c7d-8fc6-482cf986eaf0",
+                        "text": "Total é maior que"
+                      },
+                      {
+                        "description": "Total numérico igual ao valor",
+                        "id": "6eb614c9-ad47-4f1f-a695-71d794333864",
+                        "text": "Total é igual a"
+                      }
+                    ],
+                    "title": "Ver tipos",
+                    "type": "text",
+                    "body": "Escolha o tipo de condição que deseja testar:",
+                    "footer": "masterFlow — bot de testes"
+                  },
+                  "type": "LIST",
+                  "content": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [
+        "teste"
+      ],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_contexto_palavra_chave",
+      "context": "5645aefc-c57b-418e-a812-bdb084be5b59",
+      "id": "13f4b47e-18bf-45c4-8662-6577b8b03733",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "657895d6-511d-4cc9-a844-e11c24ce1362",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Teste de Contexto + Palavra-chave",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_anexo_imagem_prioridade_baixa",
+      "context": null,
+      "id": "657895d6-511d-4cc9-a844-e11c24ce1362",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0.25,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d34a1159-f095-479e-8aa6-f8d994956156",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "IMAGE",
+                  "content": "https://prod-file-service.s3.amazonaws.com/5rFc8fXg1G/images/3b07b2e3-53cb-4027-ba23-adaa3f68b025_Screenshot_14.jpg",
+                  "fileName": "Screenshot_14.jpg"
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_anexo_pdf_prioridade_media",
+      "context": null,
+      "id": "d34a1159-f095-479e-8aa6-f8d994956156",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0.5,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "83ffe1b3-b0b5-4031-8c96-e2880e9f6020",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "FILE",
+                  "content": "https://prod-file-service.s3.amazonaws.com/5rFc8fXg1G/documents/38b2dcf4-9726-429f-a29e-4c810fdf7b97_Status-do-Pedido-n-o.pdf",
+                  "fileName": "Status do Pedido não aparece na mensagem.pdf"
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_anexo_video_prioridade_alta",
+      "context": null,
+      "id": "83ffe1b3-b0b5-4031-8c96-e2880e9f6020",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0.75,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "afd9d1fb-1c28-49bb-af8c-45ae0f977d53",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "VIDEO",
+                  "content": "https://prod-file-service.s3.amazonaws.com/5rFc8fXg1G/videos/aa95fd56-47b2-409f-969c-4a6f64b1953e_Whizz-Agent.mp4",
+                  "fileName": "Whizz Agent.mp4"
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_anexo_colecao_prioridade_muito_alta",
+      "context": null,
+      "id": "afd9d1fb-1c28-49bb-af8c-45ae0f977d53",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 1,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "f51414bf-2b20-4200-b423-5e9f6bf9eea6",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "COLLECTION",
+                  "fileName": "",
+                  "collectionId": "72ae0Dqbfo"
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_flow",
+      "context": null,
+      "id": "f51414bf-2b20-4200-b423-5e9f6bf9eea6",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0,
+      "conditions": [
+        {
+          "type": "any",
+          "name": "Condição Padrão",
+          "variable": "",
+          "value": "any",
+          "valueNumber": "",
+          "values": "",
+          "intent": "",
+          "context": "",
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEMPLATE",
+                  "content": "Olá {{1}}, como vai?\n\nAqui é da Omnichat.",
+                  "fileName": "",
+                  "title": "Teste Flow",
+                  "messageTemplateId": "1PytiMByYDhA",
+                  "messageTemplateHeaderToken": "",
+                  "messageTemplateTokens": [
+                    "@customer.name"
+                  ],
+                  "messageConfig": {
+                    "type": "text",
+                    "body": "",
+                    "buttons": [
+                      {
+                        "id": "f25de003-7a6c-47bc-86ab-c14100920ee1",
+                        "text": "Flow Button",
+                        "type": "FLOW"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "action": {
+            "type": "none",
+            "bulkUpdate": [],
+            "variable": "",
+            "value": "",
+            "choices": "",
+            "entity": "",
+            "transferType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "singleField",
+            "multipleFields": "",
+            "conversationType": "",
+            "storeType": "",
+            "orderType": "",
+            "lastMessageTextParams": {
+              "position": null,
+              "pattern": null
+            },
+            "external": {
+              "type": null,
+              "apiName": null
+            }
+          },
+          "fallbackIntents": [],
+          "next": {
+            "redirect": "continueFlow",
+            "type": "context",
+            "action": "intent",
+            "intent": {
+              "id": "f19f108f-5219-4f01-8adf-05d8b97f2453",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          }
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_contexto",
+      "context": null,
+      "id": "461d5a94-c69d-46d4-be6f-1f90367371f2",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Contexto é igual a",
+          "variable": null,
+          "context": "816ca6bb-515b-4bad-92e1-415e49164dfd",
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Contexto é igual a",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "context",
+          "value": "any",
+          "intent": "816ca6bb-515b-4bad-92e1-415e49164dfd"
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_ultima_intencao",
+      "context": null,
+      "id": "f8851dbe-63da-4b12-962b-0e62feb064a4",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "A última intenção foi",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: A última intenção foi",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "lastIntent",
+          "value": "any",
+          "intent": "5645aefc-c57b-418e-a812-bdb084be5b59"
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_vazio",
+      "context": null,
+      "id": "ab4d5c44-14e5-48d8-9cf8-3f19b8ca43be",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": "",
+          "fallbackIntents": [],
+          "values": "",
+          "name": "O valor está vazio",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: O valor está vazio",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "empty",
+          "value": "any",
+          "intent": ""
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_existe",
+      "context": null,
+      "id": "33f08382-7d0a-41cc-aced-c2fe2e4ee3f2",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Valor existe",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Valor existe",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "exists",
+          "value": "any",
+          "intent": null
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_igual",
+      "context": null,
+      "id": "e564daaf-8442-414e-b66f-586ca35dab4c",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": "",
+          "fallbackIntents": [],
+          "values": "",
+          "name": "Valor é igual a",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Valor é igual a",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "equals",
+          "value": "A",
+          "intent": ""
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_contem",
+      "context": null,
+      "id": "f1eb746f-ffe9-4835-a6d1-d3d1088f2144",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": "",
+          "fallbackIntents": [],
+          "values": [
+            "sim",
+            "ok"
+          ],
+          "name": "Valor contém",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Valor contém",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "contains",
+          "value": "any",
+          "intent": ""
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_total_maior",
+      "context": null,
+      "id": "f33f0b8a-0452-49ee-a4b8-e7aae1db6195",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": "1",
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Total é maior que",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Total é maior que",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "totalIsGreaterThan",
+          "value": "any",
+          "intent": null
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_tipo_total_igual",
+      "context": null,
+      "id": "344d3a0a-633e-4c6f-879a-0b1238461154",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Tipo",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": "1",
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Total é igual a",
+          "variable": "@custom.teste",
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "✅ Caiu em: Total é igual a",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "totalIsEqual",
+          "value": "any",
+          "intent": null
+        },
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "87638340-279b-40cb-8bfc-8786d663b952",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Senão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "none",
+            "conversationType": null,
+            "external": {
+              "type": null,
+              "apiName": null
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "↪️ Caiu no Senão (fallback)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "else",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_captura_um",
+      "context": null,
+      "id": "b66f70bb-8821-40b8-b6c6-21584c4180e8",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "3174738b-3d0a-49b4-bcef-2b99a7b319d7",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": "mail",
+            "captureDataTypesCategory": "singleField",
+            "type": "captureData",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Capturar 1 informação (E-mail)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_captura_varios",
+      "context": null,
+      "id": "3174738b-3d0a-49b4-bcef-2b99a7b319d7",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "multipleFields",
+            "type": "captureData",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": [
+              "fullName",
+              "name",
+              "mail",
+              "fullPhoneNumber",
+              "cpf",
+              "cnpj",
+              "zipcode",
+              "addressStreet",
+              "addressNumber",
+              "addressComplement",
+              "gender",
+              "birthDate"
+            ],
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Capturar várias informações (dados pessoais)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_editar_um",
+      "context": null,
+      "id": "9202bf6c-6940-4345-9728-1f850fdef8bb",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "dab0bf12-9c2c-47bc-8e02-d4e75af36f64",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "setData",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": [
+              {
+                "variable": "@customer.name",
+                "value": "Cliente Exemplo"
+              }
+            ],
+            "transferType": "",
+            "multipleFields": "",
+            "choices": null,
+            "value": "",
+            "entity": "",
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Editar 1 variável (@customer.name)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_editar_varios",
+      "context": null,
+      "id": "dab0bf12-9c2c-47bc-8e02-d4e75af36f64",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "setData",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": [
+              {
+                "variable": "@customer.name",
+                "value": "Cliente Exemplo"
+              },
+              {
+                "variable": "@customer.email",
+                "value": "exemplo@teste.com"
+              },
+              {
+                "variable": "@custom.origem",
+                "value": "masterFlow"
+              }
+            ],
+            "transferType": "",
+            "multipleFields": "",
+            "choices": null,
+            "value": "",
+            "entity": "",
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Editar várias variáveis",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_loja",
+      "context": null,
+      "id": "ec857865-357a-4b93-a6d4-c1666eb801b4",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": "first",
+            "captureDataType": null,
+            "captureDataTypesCategory": null,
+            "type": "store",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": null,
+            "transferType": null,
+            "multipleFields": null,
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Ações sobre a loja física (primeira loja)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_api",
+      "context": null,
+      "id": "d633c374-c7f1-424a-86ec-43b40f8295d1",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "external",
+            "conversationType": "",
+            "external": {
+              "type": "request",
+              "apiName": "API_EXEMPLO"
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": null,
+            "value": "",
+            "entity": "",
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Chamada de API (request) — apiName placeholder",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_busca_simples",
+      "context": null,
+      "id": "f5cc6fe2-c7ee-42d7-bb75-56eae1026d6d",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "search4group",
+            "multipleFields": "",
+            "choices": null,
+            "value": "UrAnEmtASL",
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Busca simples (grupo)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_busca_avancada",
+      "context": null,
+      "id": "946532ec-95e6-4560-8822-97e3ec8f9441",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "direct4group",
+            "multipleFields": "",
+            "choices": null,
+            "value": "S1Cl3fbnFG",
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Busca avançada (grupo)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_busca_usuario",
+      "context": null,
+      "id": "a9135610-a8fe-4fa4-99be-be152c65042e",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "search4user",
+            "multipleFields": "",
+            "choices": null,
+            "value": "H8eCHFdDdc",
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Busca por usuário",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_usuario_direto",
+      "context": null,
+      "id": "1709bb85-9b4c-4cd8-ae73-4ccd5560911b",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "direct4user",
+            "multipleFields": "",
+            "choices": null,
+            "value": "7AetrEiHgI",
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Usuário direto",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_endereco_fisico",
+      "context": null,
+      "id": "6190e5ac-f24e-4631-bad4-9b3e7e282819",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "directFromBranch",
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Pelo endereço físico",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_devolver_vendedor",
+      "context": null,
+      "id": "a20c1444-87e8-48c5-a97f-5dc173351653",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "",
+            "type": "transfer",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": "direct4userPrevious",
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: Devolver ao vendedor",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "Menu_Transferencia",
+      "context": null,
+      "id": "dee5361f-250e-4e3e-93a2-18a46af69a2c",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Menu",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "choice",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": [
+              "f5cc6fe2-c7ee-42d7-bb75-56eae1026d6d",
+              "946532ec-95e6-4560-8822-97e3ec8f9441",
+              "a9135610-a8fe-4fa4-99be-be152c65042e",
+              "1709bb85-9b4c-4cd8-ae73-4ccd5560911b",
+              "6190e5ac-f24e-4631-bad4-9b3e7e282819",
+              "a20c1444-87e8-48c5-a97f-5dc173351653",
+              "96a9bd7b-e8a3-4610-ad79-93fa687947f5"
+            ],
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "fileName": "",
+                  "messageConfig": {
+                    "header": "Transferência de atendimento",
+                    "buttons": [
+                      {
+                        "description": "Transferência por busca simples de grupo (search4group)",
+                        "id": "02dd136f-fb42-4506-964e-2edfc8fb47d3",
+                        "text": "Busca simples"
+                      },
+                      {
+                        "description": "Transferência direta para grupo (direct4group)",
+                        "id": "34632b82-0286-44d2-8a25-ac7752c470fe",
+                        "text": "Busca avançada"
+                      },
+                      {
+                        "description": "Transferência por busca de usuário (search4user)",
+                        "id": "7c0a0a35-9a65-4ea3-b240-660268b1dea0",
+                        "text": "Busca por usuário"
+                      },
+                      {
+                        "description": "Transferência direta para usuário (direct4user)",
+                        "id": "f211b59e-4838-471a-b7f6-fb7dd73cf073",
+                        "text": "Usuário direto"
+                      },
+                      {
+                        "description": "Transfere pela loja física selecionada (directFromBranch)",
+                        "id": "600bc0a6-24f6-4c0c-9050-1355a0b21a2b",
+                        "text": "Pelo endereço físico"
+                      },
+                      {
+                        "description": "Devolve ao vendedor anterior (direct4userPrevious)",
+                        "id": "cf4a8c3e-3b26-4abd-b6f0-533cf18118f9",
+                        "text": "Devolver ao vendedor"
+                      },
+                      {
+                        "description": "Redireciona para outro bot do retailer (next action=bot)",
+                        "id": "81bf3971-f3ee-4f05-b624-abfd6986b339",
+                        "text": "Para outro bot"
+                      }
+                    ],
+                    "title": "Ver tipos",
+                    "type": "text",
+                    "body": "Escolha o tipo de transferência para testar:",
+                    "footer": "masterFlow — bot de testes"
+                  },
+                  "type": "LIST",
+                  "content": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_aguardar",
+      "context": null,
+      "id": "026323b0-8e0f-47b0-b3d5-7e5f29a03e4e",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": "singleField",
+            "type": "waitForInteraction",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": [],
+            "transferType": null,
+            "multipleFields": "",
+            "choices": null,
+            "value": null,
+            "entity": null
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Aguardar interação do cliente",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "Menu_Acoes",
+      "context": null,
+      "id": "ac74062e-f580-401c-9ec6-5f5dc4b17b8e",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Menu",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "choice",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": [
+              "b66f70bb-8821-40b8-b6c6-21584c4180e8",
+              "9202bf6c-6940-4345-9728-1f850fdef8bb",
+              "ec857865-357a-4b93-a6d4-c1666eb801b4",
+              "d633c374-c7f1-424a-86ec-43b40f8295d1",
+              "dee5361f-250e-4e3e-93a2-18a46af69a2c",
+              "026323b0-8e0f-47b0-b3d5-7e5f29a03e4e"
+            ],
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "fileName": "",
+                  "messageConfig": {
+                    "header": "Teste por Ação",
+                    "buttons": [
+                      {
+                        "description": "Captura de 1 dado e de vários (captureData)",
+                        "id": "b0c8c884-0d30-481b-b46b-c17801c5b97a",
+                        "text": "Capturar informação"
+                      },
+                      {
+                        "description": "Edita 1 e várias variáveis (setData)",
+                        "id": "776fbaf5-d941-4ce0-804d-5d731a6870cc",
+                        "text": "Editar informação"
+                      },
+                      {
+                        "description": "Ações sobre a loja física (store)",
+                        "id": "d3dee855-14ac-45a3-ba12-dd734136eb9e",
+                        "text": "Loja física"
+                      },
+                      {
+                        "description": "Chamada externa de API (external)",
+                        "id": "fae28ed6-d084-4bba-988d-ee890c126ec7",
+                        "text": "Chamada de API"
+                      },
+                      {
+                        "description": "Tipos de transferência de atendimento (transfer)",
+                        "id": "425cb119-965d-415d-a5db-60566e6e9397",
+                        "text": "Transferência"
+                      },
+                      {
+                        "description": "Aguarda interação do cliente (waitForInteraction)",
+                        "id": "8bc75e10-d4d3-4eb3-a9ff-e39e1b2cb379",
+                        "text": "Aguardar interação"
+                      }
+                    ],
+                    "title": "Ver ações",
+                    "type": "text",
+                    "body": "Selecione o tipo de ação do nó que deseja testar:",
+                    "footer": "masterFlow — bot de testes"
+                  },
+                  "type": "LIST",
+                  "content": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "encerrar_tipo",
+      "context": null,
+      "id": "87638340-279b-40cb-8bfc-8786d663b952",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Encerramento",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "endConversation",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": "",
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Fim dos testes por Tipo. Até logo! 👋",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "encerrar_acao",
+      "context": null,
+      "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Encerramento",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "endConversation",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": "",
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Fim dos testes por Ação. Até logo! 👋",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Mon, 22 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_transfer_outro_bot",
+      "context": null,
+      "id": "96a9bd7b-e8a3-4610-ad79-93fa687947f5",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "waitInteraction",
+            "action": "bot",
+            "type": "context",
+            "intent": {
+              "id": "8df3c1e7-a8c9-4bad-ac5a-2855462da840-start",
+              "botId": "8df3c1e7-a8c9-4bad-ac5a-2855462da840"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "none",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": null,
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Transferência: para outro bot (Andrews - Cadastro de clientes)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    }
+  ]
+}

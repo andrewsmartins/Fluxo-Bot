@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fetchStoreEntities } from './entities'
+import { fetchBotEndpoints } from './endpoints'
 import type { FetchLike } from './pushFlow'
 
 const TOKEN = 'r:fake-session-token'
@@ -31,49 +31,48 @@ function recordingFetch(
   return { fetch, calls }
 }
 
-describe('fetchStoreEntities — lista as Listas (entities) do bot', () => {
-  // Tipos reais da API (sonda 2026-06-22): store, static, orderItems, api.
-  const entitiesBody = {
+describe('fetchBotEndpoints — lista os endpoints (APIs) do bot', () => {
+  // Shape real da API (sonda 2026-06-22): { id, name, type, method, url, ... }.
+  const endpointsBody = {
     list: [
-      { id: '97f92ce3-ae7c-40cf-bbf7-5e6ab1858280', name: 'Endereco', type: 'store' },
-      { id: 'b1c2d3', name: 'Atributos', type: 'static' },
+      { id: '0af2957e-204b-44d0-9236-261dfab4bc43', name: 'Pokemon', type: 'custom', method: 'GET' },
+      { id: 'a1b2c3', name: 'Estoque', type: 'custom', method: 'POST' },
     ],
   }
 
   it('mapeia para {id, name, type}, ordena por nome e bate no endpoint por botId com fullObject', async () => {
-    const { fetch, calls } = recordingFetch(() => ({ status: 200, body: entitiesBody }))
-    const entities = await fetchStoreEntities({ fetch, token: TOKEN, botId: BOT })
-    expect(entities).toEqual([
-      { id: 'b1c2d3', name: 'Atributos', type: 'static' },
-      { id: '97f92ce3-ae7c-40cf-bbf7-5e6ab1858280', name: 'Endereco', type: 'store' },
+    const { fetch, calls } = recordingFetch(() => ({ status: 200, body: endpointsBody }))
+    const endpoints = await fetchBotEndpoints({ fetch, token: TOKEN, botId: BOT })
+    expect(endpoints).toEqual([
+      { id: 'a1b2c3', name: 'Estoque', type: 'custom' },
+      { id: '0af2957e-204b-44d0-9236-261dfab4bc43', name: 'Pokemon', type: 'custom' },
     ])
-    // endpoint por botId direto (sem passo retailerId) + fullObject (senão a API
-    // omite o `type` e o picker da Loja física filtraria 0 listas).
-    expect(calls[0].url).toContain(`/v1/${BOT}/entities?fullObject=true`)
+    // endpoint por botId direto (sem passo retailerId) + fullObject (fidelidade à sonda).
+    expect(calls[0].url).toContain(`/v1/${BOT}/endpoints?fullObject=true`)
     // token só nos headers de sessão (Bearer + x-parse-session-token)
     expect(calls[0].headers.authorization).toBe(`Bearer ${TOKEN}`)
     expect(calls[0].headers['x-parse-session-token']).toBe(TOKEN)
   })
 
-  it('usa o id como rótulo quando a lista não tem name e type vazio quando ausente', async () => {
+  it('usa o id como rótulo quando o endpoint não tem name e type vazio quando ausente', async () => {
     const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ id: 'sem-nome' }] } }))
-    expect(await fetchStoreEntities({ fetch, token: TOKEN, botId: BOT })).toEqual([
+    expect(await fetchBotEndpoints({ fetch, token: TOKEN, botId: BOT })).toEqual([
       { id: 'sem-nome', name: 'sem-nome', type: '' },
     ])
   })
 
   it('ignora entradas sem id e trata lista ausente como vazia', async () => {
-    const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ name: 'sem id' }, { id: 'ok', name: 'Ok', type: 'store' }] } }))
-    expect(await fetchStoreEntities({ fetch, token: TOKEN, botId: BOT })).toEqual([
-      { id: 'ok', name: 'Ok', type: 'store' },
+    const { fetch } = recordingFetch(() => ({ status: 200, body: { list: [{ name: 'sem id' }, { id: 'ok', name: 'Ok', type: 'custom' }] } }))
+    expect(await fetchBotEndpoints({ fetch, token: TOKEN, botId: BOT })).toEqual([
+      { id: 'ok', name: 'Ok', type: 'custom' },
     ])
     const empty = recordingFetch(() => ({ status: 200, body: {} }))
-    expect(await fetchStoreEntities({ fetch: empty.fetch, token: TOKEN, botId: BOT })).toEqual([])
+    expect(await fetchBotEndpoints({ fetch: empty.fetch, token: TOKEN, botId: BOT })).toEqual([])
   })
 
   it('lança quando a leitura falha (status != 2xx), sem expor o token', async () => {
     const { fetch } = recordingFetch(() => ({ status: 403, body: { error: 'denied' } }))
-    const promise = fetchStoreEntities({ fetch, token: TOKEN, botId: BOT })
+    const promise = fetchBotEndpoints({ fetch, token: TOKEN, botId: BOT })
     await expect(promise).rejects.toThrow(/status 403/)
     await expect(promise).rejects.not.toThrow(new RegExp(TOKEN))
   })

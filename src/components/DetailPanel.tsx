@@ -29,6 +29,23 @@ const STORE_FIRST = 'first'
 const STORE_ACTIONS = [{ value: STORE_FIRST, label: 'Selecionar a primeira loja' }]
 const STORE_ENTITY_TYPE = 'store'
 
+// Nó "Chamada de API" (action.type === 'external'): "Tipo de Integração Externa"
+// (external.type) com dois valores; nó novo nasce em 'request'. O `type` HTTP do
+// endpoint (custom, …) é OUTRA coisa — não filtra o picker. Valor fora-da-lista é
+// preservado como <option> extra (anti-corrupção de import, igual ao storeType).
+const EXTERNAL_REQUEST = 'request'
+const EXTERNAL_TYPES = [
+  { value: EXTERNAL_REQUEST, label: 'Chamada' },
+  { value: 'findStore', label: 'Mapeamento de Loja' },
+]
+
+/** Lê `external.type`/`external.apiName` tolerante a array/string (export real usa string; template usa []). */
+function firstStringOf(v: unknown): string {
+  if (Array.isArray(v)) return v.length ? String(v[0]) : ''
+  if (typeof v === 'string') return v
+  return ''
+}
+
 const KIND_LABELS_LIGHT: Record<NodeKind, { label: string; color: string }> = {
   startNode:       { label: 'Início',          color: 'bg-emerald-100 text-emerald-700' },
   choiceNode:      { label: 'Escolha',          color: 'bg-blue-100 text-blue-700' },
@@ -63,13 +80,52 @@ const KIND_LABELS_DARK: Record<NodeKind, { label: string; color: string }> = {
   intentGroupNode: { label: 'Intenção',         color: 'bg-slate-800 text-slate-400' },
 }
 
-const TRANSFER_TYPES = [
-  { value: 'direct4group',        label: 'Grupo direto' },
-  { value: 'search4group',        label: 'Busca de grupo' },
-  { value: 'direct4user',         label: 'Usuário direto' },
-  { value: 'direct4userPrevious', label: 'Atendente anterior' },
-  { value: 'direct4userCurrent',  label: 'Atendente atual' },
+// Nó "Transferência": seletor de 2 níveis espelhando a plataforma. Nível 1 =
+// categoria; "Por vendedor"/"Por time" têm um nível 2 (sub-opção) que decide o
+// `transferType` final e o tipo de campo. Fonte única dos 6 destinos.
+const TRANSFER_CATEGORIES = [
+  { value: 'userPrevious', label: 'Devolver ao vendedor' },
+  { value: 'branch',       label: 'Pelo endereço físico' },
+  { value: 'user',         label: 'Por vendedor' },
+  { value: 'group',        label: 'Por time' },
 ]
+
+/** Campo que cada destino exige: picker de vendedor/time (objectId), variável/texto, ou nenhum. */
+type TransferField = 'none' | 'userPicker' | 'teamPicker' | 'variable'
+
+// transferType → categoria/sub-opção/campo. Usado pelo buildDraft (derivar do
+// salvo) e pelo gate (saber se o tipo exige valor).
+const TRANSFER_MAP: Record<string, { category: string; sub: string | null; field: TransferField }> = {
+  direct4userPrevious: { category: 'userPrevious', sub: null,       field: 'none' },
+  directFromBranch:    { category: 'branch',       sub: null,       field: 'none' },
+  direct4user:         { category: 'user',         sub: 'name',     field: 'userPicker' },
+  search4user:         { category: 'user',         sub: 'email',    field: 'variable' },
+  direct4group:        { category: 'group',        sub: 'simple',   field: 'teamPicker' },
+  search4group:        { category: 'group',        sub: 'advanced', field: 'variable' },
+}
+
+// Sub-opções por categoria (nível 2). Categorias ausentes aqui não têm nível 2.
+const TRANSFER_SUBS: Record<string, { value: string; label: string; transferType: string }[]> = {
+  user: [
+    { value: 'name',  label: 'Busca por nome', transferType: 'direct4user' },
+    { value: 'email', label: 'Por e-mail',     transferType: 'search4user' },
+  ],
+  group: [
+    { value: 'simple',   label: 'Busca simples',  transferType: 'direct4group' },
+    { value: 'advanced', label: 'Busca avançada', transferType: 'search4group' },
+  ],
+}
+
+// transferType das categorias SEM nível 2 (mapeamento direto 1↔1).
+const TRANSFER_NOSUB: Record<string, string> = {
+  userPrevious: 'direct4userPrevious',
+  branch:       'directFromBranch',
+}
+
+/** Campo exigido por um transferType (default 'none' para legados/desconhecidos). */
+function transferFieldOf(transferType: string): TransferField {
+  return TRANSFER_MAP[transferType]?.field ?? 'none'
+}
 
 /** Opções de gatilho (ConditionType) — os 10 tipos oficiais da plataforma. */
 const COND_TYPE_OPTIONS = Object.entries(CONDITION_TYPE_LABELS).map(([value, label]) => ({ value, label }))
@@ -213,6 +269,11 @@ interface Draft {
   storeType: string
   /** Id da Lista (`@entity`) escolhida — grava em `action.entity`. '' = nenhuma. */
   storeEntity: string
+  // Nó "Chamada de API" (action.type === 'external').
+  /** Tipo de Integração Externa — 'request'/'findStore' (preserva legado fora-da-lista). */
+  externalType: string
+  /** Id do endpoint escolhido — grava em `action.external.apiName`. '' = nenhum. */
+  externalApiName: string
   setDataItems: BulkUpdateItem[]
   // Lista de condições (modos group/solo) — estrutura da intenção
   conditions: DraftCondition[]
@@ -319,6 +380,9 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
   const storeCond = mode === 'condition'
     ? (scopedCond?.action.type === 'store' ? scopedCond : undefined)
     : intent.conditions.find(c => c.action.type === 'store')
+  const apiCond = mode === 'condition'
+    ? (scopedCond?.action.type === 'external' ? scopedCond : undefined)
+    : intent.conditions.find(c => c.action.type === 'external')
 
   return {
     name: intent.name,
@@ -361,6 +425,9 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
     // Loja física: storeType ausente/null cai na única opção ('first'); entity é o id da Lista.
     storeType: storeCond?.action.storeType || STORE_FIRST,
     storeEntity: typeof storeCond?.action.entity === 'string' ? storeCond.action.entity : '',
+    // Chamada de API: type tolerante a array/string, default 'request'; apiName é o id do endpoint.
+    externalType: firstStringOf(apiCond?.action.external?.type) || EXTERNAL_REQUEST,
+    externalApiName: firstStringOf(apiCond?.action.external?.apiName),
     setDataItems: (Array.isArray(setDataCond?.action.bulkUpdate) ? setDataCond.action.bulkUpdate : [])
       .map(i => ({ ...i })),
     conditions: intent.conditions.map((c, i) => ({
@@ -2190,6 +2257,255 @@ function StoreActionSection({ storeType, storeEntity, invalid, isDark, inputCls,
   )
 }
 
+interface ApiActionSectionProps {
+  externalType: string
+  externalApiName: string
+  /** `true` quando nenhuma API está escolhida (gate do "Aplicar"). */
+  invalid: boolean
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+  onChangeType: (v: string) => void
+  onChangeApiName: (v: string) => void
+}
+
+/**
+ * Seção "Chamada de API" (nó `action.type === 'external'`): "Tipo de Integração
+ * Externa" (external.type: 'request'/'findStore') + "Nome da API" (escolhe um
+ * endpoint cadastrado, grava o id em `action.external.apiName`). O picker da API
+ * auto-carrega os endpoints pelo token de sessão (mesmo padrão da Loja física),
+ * tratando os caminhos infelizes: sem token, carregando, erro+retry e vazio. A API
+ * salva fora do conjunto (legado/import/endpoint excluído) é preservada como
+ * <option> extra.
+ */
+function ApiActionSection({ externalType, externalApiName, invalid, isDark, inputCls, labelCls, onChangeType, onChangeApiName }: ApiActionSectionProps) {
+  const { endpoints, endpointsStatus, endpointsError, loadEndpoints, endpointsById, hasToken, requestToken } = useTeams()
+
+  // Auto-carrega os endpoints ao montar quando há token (igual ao picker da Loja física).
+  useEffect(() => {
+    if (hasToken && endpointsStatus === 'idle') loadEndpoints()
+  }, [hasToken, endpointsStatus, loadEndpoints])
+
+  // API salva fora da lista (legado/import/endpoint excluído) vira <option> extra.
+  const legacyApi = externalApiName && !endpoints.some(e => e.id === externalApiName)
+    ? (endpointsById.get(externalApiName)?.name ?? externalApiName)
+    : null
+  const legacyType = externalType && !EXTERNAL_TYPES.some(t => t.value === externalType) ? externalType : null
+
+  const mutedCls = `text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`
+
+  return (
+    <Section title="Chamada de API" isDark={isDark}>
+      <div className="flex flex-col gap-2.5">
+        <label className="flex flex-col gap-1">
+          <span className={labelCls}>Tipo de Integração Externa</span>
+          <select className={inputCls} value={externalType} onChange={e => onChangeType(e.target.value)}>
+            {EXTERNAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            {legacyType && <option value={legacyType}>{legacyType}</option>}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className={labelCls}>Nome da API</span>
+          {!hasToken ? (
+            <span className={mutedCls}>
+              <button type="button" className="font-medium text-blue-500 hover:text-blue-600" onClick={requestToken}>
+                Insira o token de sessão
+              </button>
+              {' '}para carregar as APIs.
+            </span>
+          ) : (endpointsStatus === 'idle' || endpointsStatus === 'loading') ? (
+            <span className={mutedCls}>Carregando APIs…</span>
+          ) : endpointsStatus === 'error' ? (
+            <div className="flex flex-col gap-1">
+              <span className={`text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>{endpointsError}</span>
+              <button type="button" className="self-start text-xs font-medium text-blue-500 hover:text-blue-600" onClick={() => loadEndpoints()}>
+                Tentar de novo
+              </button>
+            </div>
+          ) : (endpoints.length === 0 && !legacyApi) ? (
+            <span className={mutedCls}>Nenhuma API cadastrada.</span>
+          ) : (
+            <select className={inputCls} value={externalApiName} onChange={e => onChangeApiName(e.target.value)}>
+              <option value="">— Selecione —</option>
+              {endpoints.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              {legacyApi && <option value={externalApiName}>{legacyApi}</option>}
+            </select>
+          )}
+        </label>
+
+        {invalid && (
+          <p className={`text-[11px] leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+            Selecione uma API para salvar.
+          </p>
+        )}
+      </div>
+    </Section>
+  )
+}
+
+interface TransferActionSectionProps {
+  transferType: string
+  transferValue: string
+  /** `true` quando o tipo exige valor e ele está vazio (gate do "Aplicar"). */
+  invalid: boolean
+  isDark: boolean
+  inputCls: string
+  labelCls: string
+  /** Atualiza tipo+valor juntos — trocar categoria/sub-opção zera o valor. */
+  onChange: (transferType: string, transferValue: string) => void
+}
+
+/**
+ * Seção "Transferência" (nó `action.type === 'transfer'`): seletor de 2 níveis
+ * espelhando a plataforma. Nível 1 = categoria (Devolver ao vendedor · Pelo
+ * endereço físico · Por vendedor · Por time); para "Por vendedor"/"Por time"
+ * aparece o nível 2 (forma de busca) e então o campo adaptativo — picker de
+ * vendedor (grava objectId), picker de time (grava objectId), input de
+ * variável/texto (grava a string), ou nenhum campo. Os pickers auto-carregam
+ * pelo token de sessão (mesmo padrão da Loja física), com os caminhos infelizes
+ * sem-token/loading/erro+retry/vazio. Um transferType legado/desconhecido (ex.
+ * `direct4userCurrent`) é preservado como categoria extra, sem sub nem campo.
+ */
+function TransferActionSection({ transferType, transferValue, invalid, isDark, inputCls, labelCls, onChange }: TransferActionSectionProps) {
+  const {
+    users, usersStatus, usersError, loadUsers, usersById,
+    teams, status: teamsStatus, error: teamsError, loadTeams, byId: teamsById,
+    hasToken, requestToken,
+  } = useTeams()
+
+  const entry = TRANSFER_MAP[transferType]
+  const field = entry?.field ?? 'none'
+  const category = entry?.category ?? transferType   // legado: a própria string vira a categoria
+  const sub = entry?.sub ?? null
+  const legacyCategory = !entry && transferType ? transferType : null
+  const subs = TRANSFER_SUBS[category]
+
+  // Auto-carrega só o picker relevante quando há token (igual à Loja física).
+  useEffect(() => {
+    if (!hasToken) return
+    if (field === 'userPicker' && usersStatus === 'idle') loadUsers()
+    if (field === 'teamPicker' && teamsStatus === 'idle') loadTeams()
+  }, [hasToken, field, usersStatus, teamsStatus, loadUsers, loadTeams])
+
+  const changeCategory = (newCat: string) => {
+    if (newCat === category) return
+    const newSubs = TRANSFER_SUBS[newCat]
+    const newType = newSubs ? newSubs[0].transferType : (TRANSFER_NOSUB[newCat] ?? newCat)
+    onChange(newType, '')   // trocar categoria zera o valor
+  }
+  const changeSub = (newSub: string) => {
+    const t = subs?.find(s => s.value === newSub)?.transferType
+    if (t) onChange(t, '')   // trocar a forma de busca zera o valor (o campo muda de natureza)
+  }
+
+  const mutedCls = `text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`
+  const errorCls = `text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`
+
+  // Picker reusável (vendedor/time): mesma estrutura de estados da Loja física.
+  const renderPicker = (cfg: {
+    label: string
+    items: { id: string; name: string }[]
+    statusP: string
+    errorP: string | null
+    retry: () => void
+    emptyLabel: string
+    legacyLabel: string | null
+  }) => (
+    <label className="flex flex-col gap-1">
+      <span className={labelCls}>{cfg.label}</span>
+      {!hasToken ? (
+        <span className={mutedCls}>
+          <button type="button" className="font-medium text-blue-500 hover:text-blue-600" onClick={requestToken}>
+            Insira o token de sessão
+          </button>
+          {' '}para carregar.
+        </span>
+      ) : (cfg.statusP === 'idle' || cfg.statusP === 'loading') ? (
+        <span className={mutedCls}>Carregando…</span>
+      ) : cfg.statusP === 'error' ? (
+        <div className="flex flex-col gap-1">
+          <span className={errorCls}>{cfg.errorP}</span>
+          <button type="button" className="self-start text-xs font-medium text-blue-500 hover:text-blue-600" onClick={cfg.retry}>
+            Tentar de novo
+          </button>
+        </div>
+      ) : (cfg.items.length === 0 && !cfg.legacyLabel) ? (
+        <span className={mutedCls}>{cfg.emptyLabel}</span>
+      ) : (
+        <select className={inputCls} value={transferValue} onChange={e => onChange(transferType, e.target.value)}>
+          <option value="">— Selecione —</option>
+          {cfg.items.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
+          {cfg.legacyLabel && <option value={transferValue}>{cfg.legacyLabel}</option>}
+        </select>
+      )}
+    </label>
+  )
+
+  return (
+    <Section title="Transferência" isDark={isDark}>
+      <div className="flex flex-col gap-2.5">
+        <label className="flex flex-col gap-1">
+          <span className={labelCls}>Tipo de transferência</span>
+          <select className={inputCls} value={category} onChange={e => changeCategory(e.target.value)}>
+            {TRANSFER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            {legacyCategory && <option value={legacyCategory}>{legacyCategory}</option>}
+          </select>
+        </label>
+
+        {subs && (
+          <label className="flex flex-col gap-1">
+            <span className={labelCls}>Forma de busca</span>
+            <select className={inputCls} value={sub ?? ''} onChange={e => changeSub(e.target.value)}>
+              {subs.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </label>
+        )}
+
+        {field === 'userPicker' && renderPicker({
+          label: 'Vendedor',
+          items: users.map(u => ({ id: u.objectId, name: u.name })),
+          statusP: usersStatus,
+          errorP: usersError,
+          retry: () => loadUsers(),
+          emptyLabel: 'Nenhum vendedor encontrado.',
+          legacyLabel: transferValue && !users.some(u => u.objectId === transferValue)
+            ? (usersById.get(transferValue)?.name ?? transferValue) : null,
+        })}
+
+        {field === 'teamPicker' && renderPicker({
+          label: 'Time',
+          items: teams.map(t => ({ id: t.objectId, name: t.name })),
+          statusP: teamsStatus,
+          errorP: teamsError,
+          retry: () => loadTeams(),
+          emptyLabel: 'Nenhum time cadastrado.',
+          legacyLabel: transferValue && !teams.some(t => t.objectId === transferValue)
+            ? (teamsById.get(transferValue) ?? transferValue) : null,
+        })}
+
+        {field === 'variable' && (
+          <label className="flex flex-col gap-1">
+            <span className={labelCls}>{sub === 'email' ? 'E-mail (variável ou texto)' : 'Variável de busca'}</span>
+            <input
+              className={`${inputCls} font-mono`}
+              value={transferValue}
+              placeholder={sub === 'email' ? '@customer.email' : '@custom.time'}
+              onChange={e => onChange(transferType, e.target.value)}
+            />
+          </label>
+        )}
+
+        {invalid && (
+          <p className={`text-[11px] leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+            {field === 'variable' ? 'Preencha o valor para salvar.' : 'Selecione uma opção para salvar.'}
+          </p>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 interface DetailPanelProps {
   node: Node<FlowNodeData>
   intent: BotIntent | null
@@ -2398,7 +2714,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
           ),
       )
       if (kind === 'transferNode') {
-        results.push(updateActionFields(intent, 'transfer', { transferType: draft.transferType, value: draft.transferValue }, ci))
+        results.push(updateActionFields(intent, 'transfer', { transferType: draft.transferType, value: draft.transferValue.trim() }, ci))
       }
       if (kind === 'captureNode') {
         // Modo múltiplo: sentinela em captureDataType + array em multipleFields.
@@ -2416,6 +2732,9 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
       }
       if (kind === 'storeNode') {
         results.push(updateActionFields(intent, 'store', { storeType: draft.storeType, entity: draft.storeEntity }, ci))
+      }
+      if (kind === 'apiCallNode') {
+        results.push(updateActionFields(intent, 'external', { externalType: draft.externalType, apiName: draft.externalApiName }, ci))
       }
     }
 
@@ -2505,6 +2824,14 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   // Loja física exige uma Lista escolhida — sem ela gravaria action.entity vazio.
   const storeInvalid = !!draft && kind === 'storeNode' && !draft.storeEntity.trim()
 
+  // Chamada de API exige uma API escolhida — sem ela gravaria external.apiName vazio.
+  const apiInvalid = !!draft && kind === 'apiCallNode' && !draft.externalApiName.trim()
+
+  // Transferência: só os tipos COM campo (vendedor/time/variável) exigem valor;
+  // "Devolver ao vendedor"/"Pelo endereço físico" (sem campo) nunca bloqueiam.
+  const transferInvalid = !!draft && kind === 'transferNode'
+    && transferFieldOf(draft.transferType) !== 'none' && !draft.transferValue.trim()
+
   // Com o toggle de tempo de envio ligado, os segundos precisam ser inteiro em [1,30].
   const delayInvalid = !!draft && draft.delayActive && (() => {
     if (!/^\d+$/.test(draft.delaySeconds)) return true
@@ -2514,10 +2841,12 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
 
   // "Aplicar" fica bloqueado enquanto houver dado de captura, variável de
   // Editar informação ou tempo de envio inválido.
-  const applyBlocked = captureInvalid || setDataInvalid || delayInvalid || storeInvalid
+  const applyBlocked = captureInvalid || setDataInvalid || delayInvalid || storeInvalid || apiInvalid || transferInvalid
   const applyHint = captureInvalid ? ' (selecione um dado)'
     : setDataInvalid ? ' (preencha variável e valor)'
     : storeInvalid ? ' (selecione uma lista)'
+    : apiInvalid ? ' (selecione uma API)'
+    : transferInvalid ? ' (defina o destino)'
     : delayInvalid ? ' (tempo: 1–30s)' : ''
 
   return (
@@ -2930,23 +3259,15 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
             )}
 
             {showContent && draft && kind === 'transferNode' && (
-              <Section title="Transferência" isDark={isDark}>
-                <div className="flex flex-col gap-2">
-                  <label className="flex flex-col gap-1">
-                    <span className={labelCls}>Tipo</span>
-                    <select className={inputCls} value={draft.transferType} onChange={e => set('transferType', e.target.value)}>
-                      {TRANSFER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      {!TRANSFER_TYPES.some(t => t.value === draft.transferType) && draft.transferType && (
-                        <option value={draft.transferType}>{draft.transferType}</option>
-                      )}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className={labelCls}>Destino (ID do grupo/usuário)</span>
-                    <input className={`${inputCls} font-mono`} value={draft.transferValue} onChange={e => set('transferValue', e.target.value)} />
-                  </label>
-                </div>
-              </Section>
+              <TransferActionSection
+                transferType={draft.transferType}
+                transferValue={draft.transferValue}
+                invalid={transferInvalid}
+                isDark={isDark}
+                inputCls={inputCls}
+                labelCls={labelCls}
+                onChange={(t, v) => setDraft(d => d ? { ...d, transferType: t, transferValue: v } : d)}
+              />
             )}
 
             {showContent && draft && kind === 'captureNode' && (() => {
@@ -3077,6 +3398,19 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                 labelCls={labelCls}
                 onChangeType={v => set('storeType', v)}
                 onChangeEntity={v => set('storeEntity', v)}
+              />
+            )}
+
+            {showContent && draft && kind === 'apiCallNode' && (
+              <ApiActionSection
+                externalType={draft.externalType}
+                externalApiName={draft.externalApiName}
+                invalid={apiInvalid}
+                isDark={isDark}
+                inputCls={inputCls}
+                labelCls={labelCls}
+                onChangeType={v => set('externalType', v)}
+                onChangeApiName={v => set('externalApiName', v)}
               />
             )}
 
@@ -3257,10 +3591,21 @@ function ReadOnlyStart({ intent, isDark }: { intent: BotIntent; isDark: boolean 
 }
 
 function ReadOnlyExternal({ node, isDark }: { node: Node<FlowNodeData>; isDark: boolean }) {
+  const { bots, botIntents } = useTeams()
+  const botId    = node.data.externalBotId    ?? ''
+  const intentId = node.data.externalIntentId ?? ''
+
+  // O nó no canvas já dispara os fetchs (bots + intenções do destino); aqui só lemos
+  // os mapas resolvidos. Sem token / ainda não carregado, cai para o ID cru.
+  const botName    = bots.find(b => b.botId === botId)?.name ?? null
+  const intentName = (botIntents[botId] ?? []).find(i => i.id === intentId)?.name ?? null
+
   return (
     <Section title="Destino externo (somente leitura)" isDark={isDark}>
-      <InfoRow label="Bot ID"    value={node.data.externalBotId    ?? '-'} isDark={isDark} />
-      <InfoRow label="Intent ID" value={node.data.externalIntentId ?? '-'} isDark={isDark} />
+      <InfoRow label="Bot"      value={botName    ?? botId    ?? '-'} isDark={isDark} />
+      <InfoRow label="Intenção" value={intentName ?? intentId ?? '-'} isDark={isDark} />
+      <InfoRow label="Bot ID"    value={botId    || '-'} isDark={isDark} />
+      <InfoRow label="Intent ID" value={intentId || '-'} isDark={isDark} />
     </Section>
   )
 }
