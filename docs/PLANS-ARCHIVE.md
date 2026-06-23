@@ -4,6 +4,64 @@
 > Não entra no contexto das retomadas de sessão — consulte sob demanda. O índice de uma linha por fase fica no fim do `PLANS.md`.
 > Ordem: features standalone recentes primeiro; a seção "## Fases" segue a ordem cronológica original (Fase 1 → 16) por legibilidade histórica.
 
+## Feature — Seção "Em caso de erro" (action.error) nos 7 nós de ação
+
+> **PLANEJADA em 2026-06-22** (interrogatório). Branch atual: `feat/execution-delay`. Os 7 nós de ação — **Capturar informação** (`captureNode`), **Editar informação** (`setDataNode`), **Ações loja física** (`storeNode`), **Chamada API** (`apiCallNode`), **Transferência de atendimento** (`transferNode`), **Pedido** (`orderNode`), **Captura CSAT** (`csatNode`) — ganham uma seção colapsável **"Em caso de erro"** no [DetailPanel](src/components/DetailPanel.tsx), que edita `action.error.assistant_says` (mensagens de fallback) e `action.error.next` (próximo fluxo após o erro). Hoje o `action.error` é só preservado no import (transfer/capture nascem com `canonicalError`; os outros 5 nem isso) — nunca editável.
+
+**Objetivo (uma frase):** seção colapsável "Em caso de erro" com (1) botão "+ Adicionar mensagem" (editor rico exceto BUTTON/LIST), (2) "Próximo fluxo após o erro" via `IntentSelect` (default Start) e (3) dois rádios mutuamente exclusivos — *seguir o próximo fluxo* (`continueFlow`, padrão) **ou** *aguardar interação do cliente* (`waitInteraction`).
+
+### Estrutura JSON alvo (`action.error`)
+```jsonc
+"error": {
+  "assistant_says": [{ "channel": "any", "messages": [ /* TEXT/IMAGE/FILE/VIDEO/COLLECTION/TEMPLATE */ ] }],
+  "next": {
+    "redirect": "continueFlow",          // ou "waitInteraction"
+    "type": "error",
+    "intent": "<botId>-start",           // id da intenção escolhida (default = start sintética)
+    "intentBot": "",                     // ACOPLADO: continueFlow→"" ; waitInteraction→<botId>
+    "action": "intent"
+  }
+}
+```
+> Os 2 exemplos do Andy têm o MESMO `intent` (`<botId>-start`); a única diferença entre continueFlow e waitInteraction é `redirect` **e** `intentBot` → daí a regra de acoplamento (D3).
+
+### Decisões (interrogatório 2026-06-22)
+1. **D1 — Um componente compartilhado** `ErrorActionSection`, renderizado para os 7 `kind`s (espelha `StoreActionSection`/`ApiActionSection`). DRY.
+2. **D2 — Seletor "Próximo fluxo após o erro" = só intenções locais** (mesmo bot). Reusa `IntentSelect` com `intents` do fluxo (`parsedDataRef.current?.list`, [App.tsx:1075](src/App.tsx#L1075)) — já inclui a intenção sintética `start` (`id: ${botId}-start`, `category:'start'`, [intentTemplates.ts:185](src/utils/intentTemplates.ts#L185)), então o default Start = `value` inicial `${botId}-start` e renderiza como "start". **Cross-bot descartado** (não pedido; traria picker de bots + token + forma-objeto). `error.next.intent` = id string; `action:'intent'`.
+3. **D3 — `intentBot` acoplado ao `redirect`:** `continueFlow` → `intentBot:''`; `waitInteraction` → `intentBot:<botId atual>`. Replica exatamente os 2 JSONs do Andy.
+4. **D4 — Editor de mensagens de erro = rico EXCETO BUTTON/LIST** (TEXT, IMAGE, FILE, VIDEO, COLLECTION, TEMPLATE). BUTTON/LIST mapeiam posicionalmente para `action.choices` (o `removeMessage` bloqueia quando `action.type==='choice'`, [editIntent.ts:119](src/utils/editIntent.ts#L119)) — sem `choices` no erro, virariam config órfã. O "+ Adicionar Resposta" some as opções Botões/Lista quando o alvo é o erro.
+5. **D10 — `continueFlow` como padrão em TUDO.** `canonicalError` ([intentTemplates.ts:77](src/utils/intentTemplates.ts#L77)) muda de `redirect:'waitInteraction'`+`intentBot:botId` para `redirect:'continueFlow'`+`intentBot:''` (coerente com D3). Os 7 tipos nascem iguais.
+6. **D9 — Eager:** `canonicalError(botId)` passa a entrar nos 7 templates criáveis em `buildKindAction` ([intentTemplates.ts:102](src/utils/intentTemplates.ts#L102)) — hoje só transfer/capture (linhas 112,119). **Andy confirmou que a plataforma aceita `action.error` nos 7 tipos** (order/csat/store/apiCall/setData incluídos). Todo nó editado materializa `action.error`.
+7. **Sem gate.** A seção sempre tem default válido (Start + continueFlow) e mensagens são opcionais → nunca bloqueia "Aplicar".
+8. **Colapsada por padrão**; clique expande.
+
+### Implementação (mapa) — decisões técnicas (minhas, não do Andy)
+- **Container das mensagens:** `MessageRef` ([editIntent.ts:12](src/utils/editIntent.ts#L12)) ganha `container?: 'condition' | 'error'` (default `'condition'`). Um helper `saysOf(cond, container)` resolve `cond.assistant_says` **ou** `cond.action.error.assistant_says` (criando `error`/`assistant_says` se faltar). `getMessage`/`updateMessageText`/`addTextMessage`/`addMediaMessage`/`addCollectionMessage`/`addTemplateMessage`/`removeMessage` passam a resolver via `saysOf`. Reusa a máquina inteira sem duplicar.
+- **Draft + render separados:** novo `listErrorMessages(intent)` (walks `conditions → action.error.assistant_says`) e `draft.errorMessages` separado de `draft.messages`, para a seção de erro e a de respostas ficarem isoladas no painel. O Apply (hoje em [DetailPanel.tsx:2683-2713](src/components/DetailPanel.tsx#L2683)) é parametrizado por `container`: roda o mesmo diff (update TEXT / remove refs / add novas) para os dois conjuntos.
+- **Writer do `error.next`:** helper focado (estender `updateActionFields` [editIntent.ts:651](src/utils/editIntent.ts#L651) com um `errorNext`, ou novo `setActionErrorNext`) que grava `redirect`/`intent`/`intentBot` aplicando o acoplamento da D3; `type:'error'`+`action:'intent'` fixos.
+- **Componente `ErrorActionSection`:** `<Section title="Em caso de erro">` colapsável, gated por `kind ∈ {7 tipos}`. Dentro: lista+editor das `errorMessages` (reuso dos editores por tipo, sem Botões/Lista), `IntentSelect` (default Start), 2 rádios redirect. Estados de COLLECTION/TEMPLATE (token/loading/erro) idênticos ao editor principal.
+- **Release:** CHANGELOG (Adicionado) + bump (lote atual ou novo MINOR conforme o que já estiver não-commitado).
+
+### Fases (1 por sessão, fecha com /handoff)
+> Acoplamento baixo: a Fase 1 é 100% utils testáveis (sem React), entrega a máquina pronta; a Fase 2 só consome o que a Fase 1 expôs; a Fase 3 é release + validação manual. Cada fase abre relendo só este bloco do PLANS + o handoff anterior.
+
+- **Fase 1 — Máquina de mensagens por container + writer do `error.next` + templates (sem React, testável): ✅ CONCLUÍDA 2026-06-23.**
+  - **`editIntent.ts`:** `MessageRef` ganha `container?: 'condition' | 'error'` (default `'condition'`); helper interno `saysOf(cond, container)` resolve `cond.assistant_says` ou `cond.action.error.assistant_says` (cria `error`/`assistant_says` quando ausente). Refatorar `getMessage`/`updateMessageText`/`addTextMessage`/`addMediaMessage`/`addCollectionMessage`/`addTemplateMessage`/`removeMessage` para resolver via `saysOf`. Novo `listErrorMessages(intent)` (walks `conditions → action.error.assistant_says`, mesma forma de `EditableMessage` com `container:'error'` no ref). Novo writer `setActionErrorNext(intent, condIdx, { redirect, intent, })` aplicando o acoplamento da D3 (`type:'error'`+`action:'intent'` fixos).
+  - **`intentTemplates.ts`:** `canonicalError` → `redirect:'continueFlow'`+`intentBot:''` (D10); `buildKindAction` passa a chamar `canonicalError(botId)` para os **7** kinds (hoje só transfer/capture — D9).
+  - **Testes (vitest):** funções de mensagem com `container:'error'` (add/remove/update caem no container de erro; cria estrutura ausente; `container` omitido = comportamento atual → não-regressão); `setActionErrorNext` (continueFlow→`intentBot:''`, waitInteraction→`<botId>`); template dos 7 kinds nasce com `action.error` em continueFlow. Alvo: `tsc` + suíte verdes. **Sem CHANGELOG/bump** (camada interna ainda não consumida).
+- **Fase 2 — `ErrorActionSection` no painel + Draft + Apply: ✅ CONCLUÍDA 2026-06-23.**
+  - **`Draft`:** + `errorMessages` (cópia de trabalho separada de `messages`) + `errorRedirect`/`errorIntent`. `buildDraft` inicializa de `listErrorMessages(intent)` + `cond.action.error.next` (tolerante: `redirect` default `'continueFlow'`, `intent` default `${botId}-start`).
+  - **Componente `ErrorActionSection`** (`<Section title="Em caso de erro">` colapsável, gated por `kind ∈ {7 tipos}`): lista+editores das `errorMessages` (reuso dos editores por tipo **sem** Botões/Lista — D4), `IntentSelect` (default Start, `intents` do fluxo), 2 rádios redirect. Estados COLLECTION/TEMPLATE (token/loading/erro) idênticos ao editor principal.
+  - **Apply:** parametrizar o diff de mensagens existente ([DetailPanel.tsx:2683-2713](src/components/DetailPanel.tsx#L2683)) por `container` e rodá-lo também para `errorMessages`; aplicar `setActionErrorNext` na condição-alvo (`ci ?? 0`). Sem gate. Alvo: `tsc` + suíte + build verdes. (Validação visual manual pendente p/ Fase 3.)
+- **Fase 3 — Validação manual + release: ✅ CONCLUÍDA 2026-06-23.** Branch própria `feat/error-action-section`. Validação visual via Playwright sobre o `masterFlow.json` (5 dos 7 kinds — order/csat compartilham o mesmo `ErrorActionSection`): seção renderiza/colapsa, `IntentSelect` default Start, 2 rádios, menu "+ Adicionar Resposta" do erro **sem** Botão/Lista (D4), e **round-trip real por export** confirmando o acoplamento D3 (waitInteraction→`intentBot:<botId>`; troca p/ continueFlow→`intentBot:""`, com `type:error`/`action:intent`/`intent` preservados). `/code-review` (alto esforço) aplicou 3 correções: acoplamento `intentBot` no `applyNodeDelete` ([editFlow.ts](src/utils/editFlow.ts)); fallback de `intent` vazio no `setActionErrorNext` ([editIntent.ts](src/utils/editIntent.ts)); deduplicação `ERROR_ACTION_KINDS`→`ACTION_KINDS_WITH_ERROR` (fonte única). CHANGELOG (Adicionado) + bump **v0.25.0** (package.json + package-lock). tsc + 376 testes + build verdes. **Pendente p/ Andy:** validar com token real os caminhos COLLECTION/TEMPLATE no erro e intenções vindas da API.
+
+### Riscos / como testar
+- **Acoplamento `intentBot` (unitário, principal):** `continueFlow` → `intentBot:''`; `waitInteraction` → `intentBot:<botId>`; troca de rádio reescreve o campo.
+- **Funções de mensagem com `container:'error'` (unitário):** add/remove/update caem em `action.error.assistant_says`; cria `error`/`assistant_says` quando ausentes; `container` omitido segue em `cond.assistant_says` (não-regressão).
+- **Round-trip (manual):** importar os 7 kinds → editar mensagens + intenção + rádio → export bate, demais campos preservados. Importar nó com `error.next.redirect` fora dos 2 conhecidos → preservar (risco menor, só 2 valores conhecidos na plataforma); `intent` fora do fluxo → `IntentSelect` mostra "(fora do fluxo)".
+- **Caminho-infeliz:** fluxo sem `start` carregada → default `${botId}-start` aparece como "(fora do fluxo)"; COLLECTION/TEMPLATE no erro sem token → CTA de token (mesmos estados do editor principal).
+- **Não-regressão:** `tsc` + `vitest` + build verdes; editor de respostas normal e templates de criação seguem idênticos (transfer/capture continuam nascendo com `action.error`, agora em continueFlow).
+
 ## Feature — Nó "Chamada de API" editável (Tipo de Integração + picker de Endpoint)
 
 > **PLANEJADA em 2026-06-22** (interrogatório). Branch atual: `feat/execution-delay`. Dar editor ao nó **Chamada de API** (`apiCallNode` = `action.type:'external'`) — hoje só visual em [ApiCallNode.tsx](src/components/nodes/ApiCallNode.tsx)/read-only no [DetailPanel](src/components/DetailPanel.tsx). Clone quase mecânico da plumbing da feature "Loja física"/`@entity` (mesmo padrão de service → contexto → editor gated por `kind`).
