@@ -864,7 +864,7 @@
             "type": "context",
             "action": "intent",
             "intent": {
-              "id": "f19f108f-5219-4f01-8adf-05d8b97f2453",
+              "id": "0854a107-9aaf-4d9c-b382-e6cf3762f313",
               "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
             }
           }
@@ -3200,7 +3200,9 @@
               "ec857865-357a-4b93-a6d4-c1666eb801b4",
               "d633c374-c7f1-424a-86ec-43b40f8295d1",
               "dee5361f-250e-4e3e-93a2-18a46af69a2c",
-              "026323b0-8e0f-47b0-b3d5-7e5f29a03e4e"
+              "026323b0-8e0f-47b0-b3d5-7e5f29a03e4e",
+              "b423d1f0-b91b-43d4-b73e-001d4d9755a5",
+              "bde8a7af-0019-4c4c-ad1c-098cb81921cb"
             ],
             "value": "",
             "entity": ""
@@ -3243,6 +3245,16 @@
                         "description": "Aguarda interação do cliente (waitForInteraction)",
                         "id": "8bc75e10-d4d3-4eb3-a9ff-e39e1b2cb379",
                         "text": "Aguardar interação"
+                      },
+                      {
+                        "description": "Gera pedido / adiciona item ao carrinho (order)",
+                        "id": "32919419-94a0-4bdf-9f37-02fae5114871",
+                        "text": "Pedido"
+                      },
+                      {
+                        "description": "Avaliação de atendimento — nota e comentário (captureCsat)",
+                        "id": "a341e943-7e68-4819-9699-6d0bbe639f3c",
+                        "text": "Captura CSAT"
                       }
                     ],
                     "title": "Ver ações",
@@ -3470,6 +3482,446 @@
       ],
       "executionDelay": null,
       "updatedAt": "Mon, 22 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Tue, 23 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_pedido_gerar",
+      "context": null,
+      "id": "b423d1f0-b91b-43d4-b73e-001d4d9755a5",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "643ff1c7-df85-4a93-8998-afa85608d0d6",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "generateOrder",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": null,
+            "type": "order",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": null,
+            "transferType": null,
+            "multipleFields": null,
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Pedido — Gerar pedido (generateOrder)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Tue, 23 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Tue, 23 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_pedido_carrinho",
+      "context": null,
+      "id": "643ff1c7-df85-4a93-8998-afa85608d0d6",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "addToCart",
+            "storeType": null,
+            "captureDataType": null,
+            "captureDataTypesCategory": null,
+            "type": "order",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "@custom.produto",
+            "bulkUpdate": null,
+            "transferType": null,
+            "multipleFields": null,
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Pedido — Adicionar item ao carrinho (addToCart)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Tue, 23 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Tue, 23 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_csat_nota",
+      "context": null,
+      "id": "bde8a7af-0019-4c4c-ad1c-098cb81921cb",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "94256b40-4e9d-4cb1-bd96-70728ad7d998",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": "supportRate",
+            "captureDataTypesCategory": null,
+            "type": "captureCsat",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": null,
+            "transferType": null,
+            "multipleFields": null,
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Captura CSAT — Nota da avaliação (supportRate)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Tue, 23 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Tue, 23 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "acao_csat_comentario",
+      "context": null,
+      "id": "94256b40-4e9d-4cb1-bd96-70728ad7d998",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste por Ação",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "redirect": "continueFlow",
+            "action": "intent",
+            "type": "context",
+            "intent": {
+              "id": "d33d8d18-64a5-43bb-8e4a-9af74148ce8e",
+              "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786"
+            }
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": null,
+            "storeType": null,
+            "captureDataType": "supportRateComment",
+            "captureDataTypesCategory": null,
+            "type": "captureCsat",
+            "conversationType": null,
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": null,
+            "bulkUpdate": null,
+            "transferType": null,
+            "multipleFields": null,
+            "choices": null,
+            "value": null,
+            "entity": null,
+            "error": {
+              "next": {
+                "redirect": "waitInteraction",
+                "action": "intent",
+                "intentBot": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+                "type": "error",
+                "intent": "2a3859ff-62d5-4c01-ae60-6ae2f812e786-start"
+              },
+              "assistant_says": [
+                {
+                  "channel": "any",
+                  "messages": []
+                }
+              ]
+            }
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "TEXT",
+                  "content": "Ação: Captura CSAT — Comentário da avaliação (supportRateComment)",
+                  "fileName": ""
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Tue, 23 Jun 2026 12:00:00 GMT"
+    },
+    {
+      "createdAt": "Tue, 23 Jun 2026 12:00:00 GMT",
+      "keywords": [],
+      "advanced": {
+        "active": false,
+        "endpointId": null
+      },
+      "name": "teste_botoes",
+      "context": null,
+      "id": "0854a107-9aaf-4d9c-b382-e6cf3762f313",
+      "botId": "2a3859ff-62d5-4c01-ae60-6ae2f812e786",
+      "category": "Teste Cabeçalho",
+      "priority": 0,
+      "conditions": [
+        {
+          "next": {
+            "type": "context"
+          },
+          "valueNumber": null,
+          "fallbackIntents": [],
+          "values": null,
+          "name": "Condição Padrão",
+          "variable": null,
+          "context": null,
+          "action": {
+            "orderType": "",
+            "storeType": "",
+            "captureDataType": "",
+            "captureDataTypesCategory": "",
+            "type": "choice",
+            "conversationType": "",
+            "external": {
+              "type": [],
+              "apiName": []
+            },
+            "lastMessageTextParams": {
+              "pattern": null,
+              "position": null
+            },
+            "variable": "",
+            "bulkUpdate": "",
+            "transferType": "",
+            "multipleFields": "",
+            "choices": [
+              "f19f108f-5219-4f01-8adf-05d8b97f2453",
+              "f19f108f-5219-4f01-8adf-05d8b97f2453"
+            ],
+            "value": "",
+            "entity": ""
+          },
+          "assistant_says": [
+            {
+              "channel": "any",
+              "messages": [
+                {
+                  "type": "BUTTON",
+                  "content": null,
+                  "messageConfig": {
+                    "header": null,
+                    "buttons": [
+                      {
+                        "description": null,
+                        "id": "1a2280c4-033b-4807-9d68-7d195cc44d0d",
+                        "text": "Voltar ao início"
+                      },
+                      {
+                        "description": null,
+                        "id": "df39d4e9-f249-42ad-862d-a2e3484a0892",
+                        "text": "Encerrar"
+                      }
+                    ],
+                    "body": "Teste de mensagem do tipo Botão (BUTTON): escolha uma opção.",
+                    "title": null,
+                    "type": "text",
+                    "footer": "masterFlow • bot de testes"
+                  }
+                }
+              ]
+            }
+          ],
+          "type": "any",
+          "value": "any",
+          "intent": null
+        }
+      ],
+      "executionDelay": null,
+      "updatedAt": "Tue, 23 Jun 2026 12:00:00 GMT"
     }
   ]
 }
