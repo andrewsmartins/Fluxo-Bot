@@ -255,7 +255,22 @@ tipos, zero React/DOM) — rodando via **`tsx`** (sem build separado), SDK
 pelo backend de produto depois. Extrair para pacote de monorepo só quando houver 2
 consumidores reais (Fase 5) — estrutura à frente da necessidade hoje.
 
-### Fase 4 — Resolvers sobre a API OmniChat
+### Fase 4 — Resolvers sobre a API OmniChat ✅ concluída
+
+> **Resultado (2026-06-24, branch `feat/mcp-tools-spike`, commits `2f2c33b` docs + `01deed6`
+> feat):** **8 tools read-only** em [src/tools/resolvers.ts](src/tools/resolvers.ts) (classe
+> `Resolvers`: helpers de normalização/match/erro+AUTH/cache) expostas no
+> [mcp/server.ts](mcp/server.ts): `find_team`/`list_teams`, `find_user`, `find_bot`/`list_bots`,
+> `list_api_integrations`, `list_entities`, `list_intents`. Cada uma envolve uma função de fetch
+> já existente (não reescrita); `fetchSupervisedUsers` ganhou param `search` opcional (decisão 6).
+> Token lido de `flow-viewer.env` no startup do MCP (nunca chega ao modelo). **23 testes** com
+> `fetch` injetado + **smoke read-only real verde ponta a ponta** ([scripts/smoke-phase4-resolvers.ts](scripts/smoke-phase4-resolvers.ts)):
+> `find_team("Financeiro")`→`S1Cl3fbnFG` (= ID da Parte 8), `find_bot("Cadastro")` acha o alvo
+> cross-bot da Parte 10, `find_user` confirma o `search` server-side. Suíte cheia verde (421);
+> tsc do app e `mcp:typecheck` limpos. Code-review (alto esforço) só achou concordância pt-BR
+> (corrigida). **`getBotId()` não foi criado** — `FlowStore.mainBotId` já existia e foi reusado.
+> **Riscos (a)/(b)/(c) fechados.** Próximo natural: Fase 2 (`NODE_CATALOG`) ou exercitar o MCP
+> completo (criar nó + resolver alvo + conectar) com IA real.
 
 > **Decisões fechadas no interrogatório de 2026-06-24** (skill `interrogar`). Substituem o
 > esboço anterior (Q7/Q8) — em especial o **pré-load eager** foi revertido para **sob demanda**.
