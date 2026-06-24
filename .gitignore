@@ -29,6 +29,9 @@ samples/
 Thumbs.db
 .DS_Store
 
+# Backups de sessão da camada de tools do agente (FlowStore.beginMutation → <arquivo>.bak)
+*.bak
+
 # Logs
 *.log
 npm-debug.log*

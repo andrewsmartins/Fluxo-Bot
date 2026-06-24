@@ -3,25 +3,45 @@
 <!-- HANDOFF:START -->
 ## 🔄 Handoff — 2026-06-23
 
-**Foco da próxima sessão:** **construir a Parte 12 do `masterFlow`** — os nós faltantes (Pedido, CSAT e mensagem BUTTON). O plano já está **interrogado e fechado** no corpo do PLANS.md (§ "Parte 12 — … (PLANEJADA)"). É só implementar.
+**Foco da próxima sessão:** iniciar a **Fase 1 (spike)** da feature **"Agente de IA que
+constrói nós (Claude Code CLI + servidor MCP local)"** — camada de tools fina (TS puro) sobre
+o arquivo de fluxo, **sem IA ainda**: provar `create_node`+`set_action_field`+`connect`+
+`validate` contra fluxos reais.
 
-**Onde paramos:** branch `feat/order-node-editor`. Nesta sessão **só editamos dados do `masterFlow`** (nenhuma mudança de código-fonte). Concluído e validado: **Parte 10** (7ª opção "Transferência para outro bot" no `Menu_Transferencia`) e **Parte 11** (ajustes de `context`+`keywords` em 3 nós de entrada de categoria). Estado: **37 intenções**. Depois mapeamos a cobertura de `NodeKind` e interrogamos a Parte 12.
+**Onde paramos:** branch `feat/order-node-editor`. Sessão foi **só design/interrogatório
+(zero código)**. Promovi o antigo handoff "Plano A" a uma **seção de feature no corpo** do
+PLANS (§ "Agente de IA que constrói nós…", logo após "Arquitetura alvo"), com as **5 fases
+detalhadas e interrogadas** (Q1–Q10, todas com rastro `(Q#)` no texto). Encolhi este handoff
+para ponteiro. Nada commitado além do edit do PLANS.md.
 
-**⚠️ Armadilha crítica (resolvida nesta sessão):** o `masterFlow.json` **NÃO está na raiz** do repo. O arquivo real servido pelo app é **`public/masterFlow.json`**; `dist/masterFlow.json` é saída de build (regenerada por `npm run build`, **não editar à mão**). Os build scripts antigos usavam `PATH="d:/Fluxo/masterFlow.json"` que resolvia para `public/`. **Sempre editar `public/masterFlow.json`.** Outra: o **Python nativo do Windows não entende paths MSYS** (`/d/Fluxo/...`) — usar `d:/Fluxo/...`. E o **Bash roda em sandbox** com overlay; escritas persistem, mas `ls`/Glob podem divergir — conferir com `python -c` + path estilo Windows.
+**Decisões-chave do interrogatório (estão na seção, não reabrir):** ordem **spike-primeiro**
+(1 spike → 2 catálogo → 3 MCP → 4 resolvers → 5 produto); `validate` é tool separada (sem
+gate por escrita); undo = snapshot por sessão + `revert` na camada de storage (**não** depende
+de git); retorno compacto (sem JSON cru); leitura via `list_nodes`+`describe_node`; MCP no
+mesmo repo via `tsx`; resolvers com falha explícita + pré-load eager no startup.
 
-**Fios soltos / a fazer na Parte 12 (5 nós novos → 42 intenções):**
-- `Menu_Acoes` (6→8 itens): item **Pedido** → `acao_pedido_gerar` (orderType `generateOrder`, sem campos) → `acao_pedido_carrinho` (orderType `addToCart`, `action.variable="@custom.produto"`) → `encerrar_acao`; item **CSAT** → `acao_csat_nota` (captureCsat, `captureDataType:supportRate`) → `acao_csat_comentario` (`supportRateComment`) → `encerrar_acao`.
-- **BUTTON** no fim da cadeia Cabeçalho: `teste_flow` → `teste_botoes` (action `choice`, `messages[].type:"BUTTON"`, 2 botões, ambos → `encerrar_cabecalho`).
-- `order`/`csat` carregam bloco `error`→start (estão em `ACTION_KINDS_WITH_ERROR`); `choice` não. Formas confirmadas: `intentTemplates.ts` (`buildKindAction`), spec `MODELO-INTENCAO-OMNICHAT.md:102`, e shape do BUTTON em `samples/sample01-v2.json` (nó `confirmar_cadastro`).
-- Atualizar os contadores de entrada dos encerramentos (`encerrar_acao` 5→9; `encerrar_cabecalho` 1→2) e o rótulo da Parte 12 de "(PLANEJADA)" para concluída no PLANS.
+**Armadilhas desta sessão (não redescobrir):**
+1. **A UI NÃO lê o arquivo de fluxo ao vivo** — `public/masterFlow.json` só é buscado sob
+   demanda no botão "Carregar exemplo" ([ImportDialog.tsx:27](src/components/ImportDialog.tsx#L27));
+   depois tudo é estado React em memória. O agente e a UI são ilhas que só se cruzam pelo
+   arquivo. (Corrigiu uma premissa errada minha sobre "raio de explosão".)
+2. **A rede de segurança não pode depender de git** — o produto (Fase 5) não tem repo; por
+   isso o undo vive na camada de tools (snapshot agnóstico de ambiente), não em `git checkout`.
+3. As funções a envolver são **TS puro/Node-safe** (intentTemplates/editIntent/editFlow só
+   importam tipos) — o MCP importa `src/utils` direto, sem build de browser.
 
-**Padrão de build (desta sessão):** script Python em scratchpad (`build_partN.py`), `io.open(encoding='utf-8')` + `json.dump(indent=2, ensure_ascii=False)` + newline final; `PYTHONIOENCODING=utf-8`. Sempre validar depois: ids únicos, todo `next.intent.id`/`choices[]` existe, action→NodeKind certo, contagem de entradas dos sinks.
+**Próximo passo imediato:** começar a Fase 1 pela tool mais simples — `create_node(kind)`
+envolvendo `createIntentTemplate` ([intentTemplates.ts](src/utils/intentTemplates.ts)) + o
+load/save/snapshot da camada de storage, com teste round-trip em vitest usando
+`public/masterFlow.json` como fixture (amostra mínima: 1 nó simples).
 
-**Próximo passo imediato:** ler `public/masterFlow.json`, pegar os ids de `Menu_Acoes`, `encerrar_acao`, `encerrar_cabecalho`, `teste_flow` e o nó que hoje encadeia para `encerrar_cabecalho`; então escrever `build_part12.py`.
+**Threads parados (não perder, ortogonais):** editor do nó **Pedido** (planejado no corpo,
+não implementado); **PRs/merge** das v0.25–v0.27 pendentes; **commit** do CSAT v0.27.0
+pendente; masterFlow parado/completo na Parte 12.
 
-**Ponteiros:** PLANS.md § "Parte 12 … (PLANEJADA)" (decisões completas do interrogatório). Arquivo de dados: `public/masterFlow.json`. Referências de forma: [intentTemplates.ts](src/utils/intentTemplates.ts) (`buildKindAction`, linhas ~117-144), [types.ts](src/types.ts#L130) (NodeKind), `samples/sample01-v2.json` (BUTTON real), `docs/MODELO-INTENCAO-OMNICHAT.md` (linhas 102/132-133).
-
-**Skills sugeridas:** implementar direto (plano já interrogado); ao terminar, validação por script como nas partes anteriores. PR/`gh` continua pendente como decisão à parte (ver corpo do PLANS — features v0.25/v0.26 ainda sem merge), mas é ortogonal ao `masterFlow`.
+**Skills sugeridas ao retomar:** `/interrogar` só se surgir decisão nova de design não
+coberta (Q1–Q10 já fecharam o desenho); `/code-review` antes de commitar a Fase 1; `/verify`
+ou os `smoke-*.mjs` para validar.
 
 <!-- HANDOFF:END -->
 
@@ -88,6 +108,170 @@ Alvo: o modelo `BotIntent[]` é a fonte de verdade; o canvas é uma projeção e
 - Exportar = remontar `{ list: [...] }` a partir dos intents (originais + patches).
   Nunca reconstruir campos não editados — **preservar e aplicar patch**, não
   serializar do zero.
+
+## Agente de IA que constrói nós (Claude Code CLI + servidor MCP local)
+
+> Promovido do handoff em 2026-06-23 após interrogatório (skill `interrogar`). Esta é a
+> **feature-foco** das próximas sessões; o handoff no topo aponta pra cá. O masterFlow
+> (parado/completo na Parte 12) deixa de ser o foco.
+
+**Objetivo (1 frase):** um agente de IA que **constrói e edita nós do fluxo operando
+ferramentas** (nunca escrevendo JSON cru), via **Claude Code CLI + um servidor MCP local**
+sobre o arquivo de fluxo, estruturado desde já para virar produto depois.
+
+**Decisões-âncora (travadas no design original — NÃO reabrir):**
+- O agente **opera tools, nunca escreve JSON cru**. As tools envolvem as funções que já
+  existem; a validade fica no código, não na memória do modelo.
+- O **servidor MCP é a peça durável** — o mesmo conjunto de tools é reusado no
+  caminho-produto; só troca o cliente.
+- **Local:** Claude Code lança o MCP como **subprocesso por stdio** — zero portas, zero
+  rede de entrada. Único tráfego é **de saída** (API Anthropic + API OmniChat). O gh-pages
+  **NÃO** fala com o MCP — site e agente são ilhas que só se cruzam pelo **arquivo de fluxo
+  em disco** (a UI lê o arquivo só sob demanda via "Carregar exemplo"/import — ela NÃO o lê
+  ao vivo; ver [ImportDialog.tsx:27](src/components/ImportDialog.tsx#L27)).
+- **Token** vive na **camada de tools** (`OMNI_TOKEN` de `flow-viewer.env`), nunca chega ao
+  modelo, nunca é logado. **Resolver por nome → gravar por ID** (o ID sempre vem de resposta
+  real da API ⇒ mata referência alucinada).
+- **Modelo:** default `claude-sonnet-4-6`; subir p/ `claude-opus-4-8` se errar a sequência
+  em pedidos compostos.
+
+**Ordem revista (interrogatório 2026-06-23, Q1 — spike-primeiro).** O refactor do catálogo
+(antiga Fase A) foi **adiado para depois do spike**: provar o conceito contra fluxos reais
+antes do refactor caro que toca o [DetailPanel.tsx](src/components/DetailPanel.tsx) (~3500
+linhas, 383 testes — o arquivo mais arriscado). De-risca e respeita "amostra mínima antes de
+escalar". Nova ordem: **1 spike → 2 catálogo → 3 MCP → 4 resolvers → 5 produto.**
+
+### Fase 1 — Spike: camada de tools sobre o arquivo de fluxo (sem IA) ✅ concluída
+
+> **Resultado (2026-06-23, branch `feat/mcp-tools-spike`):** entregue em
+> [src/tools/flowStore.ts](src/tools/flowStore.ts) (storage: load/save/snapshot/revert + `.bak`,
+> agnóstico de git) + [src/tools/flowTools.ts](src/tools/flowTools.ts) (tools com retorno
+> compacto: `create_node`/`set_action_field`/`set_choices`/`connect`/`validate`/`revert` +
+> leitura `list_nodes`/`describe_node`). **15 testes** round-trip em
+> [src/tools/flowTools.test.ts](src/tools/flowTools.test.ts) (fixture `public/masterFlow.json`),
+> `tsc` limpo, suíte cheia verde (398 testes). Code-review aplicado: gate de tipo
+> (array só em `multipleFields`), guarda de fluxo sem início, e rótulo cross-bot
+> (`next.action==='bot'` → "outro bot"). **Pendente:** ainda há um sharp edge conhecido —
+> `set_action_field`/`connect` operam por `condIdx` (default 0); nós-grupo (`intentGroupNode`,
+> 2+ condições) só são parcialmente endereçáveis. OK para a spike (nós de condição única);
+> generalizar quando a Fase 3 (MCP) ou um caso real exigir.
+
+**Objetivo:** camada de tools fina (TS puro) que carrega/muta/salva o arquivo de fluxo,
+lendo as fontes de verdade **espalhadas que já existem** (sem refactor ainda). Provar
+`create_node`+`set_field`+`connect`+`validate` contra fluxos reais **antes** de plugar
+qualquer modelo.
+
+**Tools (envolvem o que já existe):**
+- `create_node(kind)` → `createIntentTemplate`/`createConditionForKind` ([intentTemplates.ts](src/utils/intentTemplates.ts)) — cria nó com defaults do kind.
+- `set_action_field(...)` → `updateActionFields`/`addTextMessage` ([editIntent.ts](src/utils/editIntent.ts)).
+- `set_choices(...)` → `setChoices` ([editIntent.ts](src/utils/editIntent.ts)).
+- `connect(...)` → `applyConnect` ([editFlow.ts](src/utils/editFlow.ts)).
+- `validate()` → `validateFlow` ([validateFlow.ts](src/utils/validateFlow.ts)) — devolve `{errors, warnings}`.
+- `revert()` → restaura o snapshot de sessão (camada de storage).
+- **Leitura:** `list_nodes()` (mapa compacto: nome, id, kind, category, alvo) + `describe_node(id)` (campos de um nó, compacto).
+
+**Decisões (com o porquê):**
+1. **`validate` é tool separada; mutações salvam sem gate (Q2).** Validar a cada escrita
+   reprovaria estados intermediários válidos (nó criado mas ainda não conectado). O agente
+   chama `validate` quando quer (tipicamente no fim). `validateFlow` já separa `errors`
+   (bloqueiam export) de `warnings` (informam); nó órfão **não** é erro, ref quebrada **é**
+   — mas "resolver por nome→ID" praticamente elimina ref quebrada.
+2. **Undo próprio na camada de storage: snapshot por sessão + `revert` (Q3).** A primeira
+   mutação da sessão copia o estado; `revert` volta ao início. **NÃO depende de git** (o
+   produto não comita — o usuário final não tem repo). Local = `.bak` ao lado; produto =
+   versão anterior no storage do fluxo. **1 snapshot, não pilha** — o mais simples que cobre
+   interrupção/caminho-errado; subir para N níveis depois é só guardar mais snapshots, sem
+   mudar a interface do `revert`.
+3. **Retorno = confirmação compacta, nunca JSON cru (Q4).** `create_node`→"criado nó X
+   (id …) kind=…"; `connect`→"X→Y"; `validate`→relatório. Mantém o anchor (o modelo não
+   raciocina sobre JSON bruto) e o contexto enxuto (em 42 nós, repetir nodes inteiros
+   estoura contexto).
+4. **Leitura: `list_nodes` + `describe_node`, ambos compactos (Q5).** Dois usos distintos:
+   **orientar-se** (mapa do fluxo) vs **inspecionar antes de editar** (campos de um nó). Só
+   `list_nodes` levaria a edição cega; um `get_flow` inteiro incha contexto e ainda falta
+   detalhe de campo. Mesma filosofia "listar barato / descrever sob demanda" dos resolvers
+   (Fase 4) e do `describe_node_type` (Fase 3).
+
+**Como será testado (Q9):** unitário round-trip em vitest (`load → muta → save → reload →
+assert`) usando `public/masterFlow.json` como fixture — cobre a **orquestração**
+load/save/snapshot/revert que as funções subjacentes (já testadas) não cobrem. Amostra
+mínima escalando: 1 nó simples → 1 nó com bloco `error` + captura múltipla → 3 nós
+conectados. Sem IA nesta fase.
+
+### Fase 2 — Centralizar `NODE_CATALOG` (refactor/limpeza, com valor próprio)
+
+**Objetivo:** consolidar a verdade hoje espalhada (NodeKind [types.ts:130](src/types.ts#L130),
+`actionToNodeKind` [nodeMeta.ts](src/utils/nodeMeta.ts), defaults
+[intentTemplates.ts](src/utils/intentTemplates.ts)/[captureFields.ts](src/utils/captureFields.ts),
+const do [DetailPanel.tsx](src/components/DetailPanel.tsx)) num único `NODE_CATALOG`. Alimenta
+o DetailPanel (limpeza com valor próprio) **e** o manifesto enxuto + `describe_node_type` da
+Fase 3.
+
+**Por que depois do spike:** toca o arquivo mais arriscado (DetailPanel, 383 testes) — só
+pagar esse custo depois que o spike provar que o caminho agente/MCP entrega valor. No spike,
+o manifesto/catálogo é escrito **à mão, mínimo**; esta fase vira a fonte derivada. Gate:
+suíte verde antes e depois.
+
+### Fase 3 — Empacotar como servidor MCP (stdio)
+
+**Objetivo:** expor a camada de tools como servidor MCP que o Claude Code lança por stdio +
+config do Claude Code + **manifesto enxuto** (14 kinds, 1 linha cada, campos que cada um
+pede) sempre no contexto + tool `describe_node_type(kind)` sob demanda.
+
+**Decisões (Q6):** **mesmo repo** (pasta `mcp/` no FlowViewer), importando `src/utils`
+**direto** — confirmado TS puro/Node-safe ([intentTemplates.ts](src/utils/intentTemplates.ts)/
+[editIntent.ts](src/utils/editIntent.ts)/[editFlow.ts](src/utils/editFlow.ts) só importam
+tipos, zero React/DOM) — rodando via **`tsx`** (sem build separado), SDK
+`@modelcontextprotocol/sdk` por stdio. A camada de tools segue **fonte única**, reusável
+pelo backend de produto depois. Extrair para pacote de monorepo só quando houver 2
+consumidores reais (Fase 5) — estrutura à frente da necessidade hoje.
+
+### Fase 4 — Resolvers sobre a API OmniChat
+
+**Objetivo:** tools que resolvem **nome → ID** batendo na API — as **mesmas chamadas dos
+entity pickers** do DetailPanel (reusar): `list_teams`/`find_team`, `find_user`,
+`list_bots`/`list_intents`, `list_api_integrations`, `list_entities`/`list_variables`.
+
+**Decisões (com o porquê):**
+1. **Falha explícita; o agente para e pergunta; gravação só aceita ID de `resolve` real
+   (Q7).** O modelo **nunca inventa ID**. Subtipos distintos (não um "erro" genérico):
+   `AUTH_FAILED` (sem retry — "renove o `OMNI_TOKEN`"); `API_ERROR`/timeout (1 retry, depois
+   reporta e para); `EMPTY_LIST` (para e pergunta — eventual **placeholder autorizado por
+   humano**, gravado via `set_action_field` normal, marcado, **não** via resolver — preserva
+   o workflow de fluxo-exemplo da Parte 8 sem o modelo fabricar ID); `NOT_FOUND` (devolve
+   **candidatos próximos** para desambiguar — lado fuzzy do "resolver por nome").
+2. **Pré-load eager das listas pequenas no startup + sob demanda das grandes; sem TTL
+   (Q8).** Listas **pequenas** (times, bots, APIs) → buscadas **assim que o token entra**
+   (startup do MCP) e cacheadas pela sessão: sem stall no meio da construção, consciência
+   imediata do que existe, e **falha rápida em token ruim** (descobre no startup, não no
+   meio do fluxo). Listas **grandes** (usuários, produtos) → **busca sob demanda** cacheada
+   por query (não dá pra pré-carregar todos). **Sem TTL** (sessão curta, single-user;
+   invalidação por relógio resolveria um problema que quase não ocorre). Falha de pré-load
+   por **API fora do ar** = avisa e **inicia mesmo assim** (degradado; resolvers retêm sob
+   demanda); só **auth** bloqueia.
+
+### Fase 5 — Produto (direcional, NÃO detalhar agora)
+
+Cliente Claude Code → **backend** com tool runner do SDK (ou MCP connector); o **frontend
+executa as tools via relay** (WebSocket/SSE) para a **key ficar no servidor**. Backend em
+nuvem (Render/Fly/Workers), **nunca** no roteador de casa; gh-pages segue só frontend.
+
+**Não detalhar agora (Q10):** depende de decisões de produto ainda não tomadas (hosting,
+transporte do relay, modelo de auth do usuário final) — detalhar seria especulação que
+envelhece mal. O que importa preservar **já são anchors**: camada de tools agnóstica de
+transporte, token na camada de tools, **storage abstrato** (reforçado pela Q3). Enquanto as
+Fases 1–4 respeitarem isso, a Fase 5 segue viável.
+
+**Riscos/pendências:**
+- Pureza Node das funções confirmada hoje (só tipos) — re-verificar se o spike puxar novas
+  deps de browser para `src/utils`.
+- API interna não documentada (risco já registrado) — o round-trip real é a rede de
+  segurança.
+- O refactor do `NODE_CATALOG` (Fase 2) arrisca os 383 testes do DetailPanel — por isso
+  adiado para pós-spike e feito com a suíte verde como gate.
+- Threads ortogonais que não podem se perder: editor do nó **Pedido** (planejado, não
+  implementado), **PRs/merge** das v0.25–v0.27 pendentes, **commit** do CSAT v0.27.0
+  pendente.
 
 ## masterFlow.json — fluxo de exemplo canônico (construído por partes)
 
