@@ -339,6 +339,11 @@ flowchart TB
 8. **Transporte WebSocket; uma sessão do Agent SDK viva por chat** (contexto + MCP persistem entre
    turnos — é por isso que a decisão 6 é necessária). Modelo = o default do CLI (Opus 4.8); pode
    passar `model` no `query()` se quiser. SSE+POST seria a alternativa de transporte.
+   > **Correção empírica (verificado 2026-06-25 no `/verify` do passo 4):** o **contexto** persiste
+   > (via `resume`), mas o **subprocesso MCP NÃO** — o Agent SDK re-spawna o MCP a cada turno
+   > (armadilha #2). Logo o `fromFile` do boot já lê o flush, e a **decisão 6 (`reloadFromFile`)
+   > ficou redundante** neste caminho (mantida como rede/Fase 5). Confirmado por teste diferencial:
+   > flush do masterFlow original → o agente para de ver o nó criado no turno anterior.
 
 **Ordem de build (amostra mínima primeiro — de-risca o desconhecido antes da UI):**
 1. ✅ **Smoke do backend (sem UI):** script Node com o Agent SDK `query()`, auth do CLI, `FLOW_FILE`

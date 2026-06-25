@@ -92,9 +92,14 @@ export class FlowStore {
 
   /**
    * Relê o arquivo do disco e atualiza o modelo em memória se o conteúdo
-   * divergiu desde o último `fromFile`/`save`. É o gatilho de sincronia
-   * do agente: o backend chama isto no início de cada turno para que o
-   * agente enxergue edições manuais feitas pelo front entre turnos.
+   * divergiu desde o último `fromFile`/`save`. Era o gatilho de sincronia
+   * pensado para um MCP persistente entre turnos.
+   *
+   * NOTA (verificado 2026-06-25): no PoC local da caixinha de chat o MCP **sobe
+   * novo a cada turno** (o Agent SDK re-spawna o subprocesso mesmo no `resume`),
+   * então o `fromFile` do boot já enxerga o flush do canvas — este método é
+   * **redundante** nesse caminho. Mantido como rede de segurança e para a Fase 5
+   * (caso o MCP passe a viver entre turnos, basta chamá-lo no início de cada tool).
    *
    * Retorna `true` se houve reload, `false` se o arquivo não mudou.
    * No-op (retorna `false`) em store de memória (`filePath === null`).
