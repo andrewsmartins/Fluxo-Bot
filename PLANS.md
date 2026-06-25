@@ -1,56 +1,53 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 <!-- HANDOFF:START -->
-## 🔄 Handoff — 2026-06-24 (Fase 2 + nó Pedido fechados; sem feature pendente — escolher próximo)
+## 🔄 Handoff — 2026-06-25 (plano da caixinha de chat — PoC local do agente)
 
-**Foco da próxima sessão:** **escolher o próximo trabalho real** — não há feature pendente. Esta
-sessão descobriu que o **nó Pedido já estava implementado e lançado (v0.26.0, commit `5c43d69`,
-2026-06-23)**: o handoff anterior apontava-o como "não implementado" por engano. Os docs foram
-sincronizados (§"Nó Pedido" movida para o archive; índice e este handoff corrigidos). Candidatos
-abertos: (a) **limpeza de branches mergeadas** (decisão pendente, abaixo); (b) **Fase 5 — Produto**
-(direcional, **bloqueada** em decisões de produto, ver PLANS §"Fase 5"); (c) **melhorias paralelas**
-(`elkjs` no layout, ver §"Melhorias paralelas").
+**Foco da próxima sessão:** **escrever o smoke do passo 1** do plano da caixinha de chat — provar
+que o **Claude Agent SDK, autenticado pela assinatura do CLI (sem key), dirige o `mcp/server.ts`
+por stdio e streama eventos de tool**. É o único elo NÃO-verificado; o resto é montar peças que já
+existem. Plano completo em PLANS § "Caixinha de chat na página — PoC local do agente construtor".
 
-**Onde paramos:** branch **`main`**, em sincronia com `origin/main` (após o commit de sync de docs
-desta sessão). Fase 2 (`NODE_CATALOG`) e nó Pedido (v0.26.0) ambos **mergeados na `main`** e verdes.
-Refactor da Fase 2 sem mudança de comportamento: fatos kind-level centralizados em
-[src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts); `nodeMeta`/`intentTemplates`/MCP/DetailPanel/paleta
-**derivam** dele.
+**Onde paramos:** branch de feature (este commit). Sessão de **planejamento puro** (interrogatório,
+skill `interrogar`) — **nenhum código de produto tocado**. Saída: nova seção no PLANS com objetivo,
+diagrama Mermaid, **8 decisões travadas**, ordem de build (amostra mínima primeiro) e plano de teste
+do caminho infeliz. Este commit também carrega o **sync de docs da Fase 2** da sessão anterior
+(PLANS + `docs/PLANS-ARCHIVE.md`), que seguia não-commitado no working tree.
 
-**Fios soltos / meio-feito:** nada de código. **Pendente (decisão do Andy, não respondida):**
-**limpeza de branches mergeadas** — opções: (a) só as 3 do ciclo recente (`feat/node-catalog`,
-`feat/mcp-tools-spike`, `feat/order-node-editor`, local+remota), (b) varrer TODAS as mergeadas
-(**10 locais / 5 remotas** órfãs já em `main` — lista via `git branch --merged main`), ou (c) pular.
-**Dívida de doc (fora do escopo do sync):** o `CHANGELOG.md` só tem seções por versão até `[0.14.0]`;
-de 0.15→0.27 nada ganhou seção própria (padrão pré-existente, não só o nó Pedido).
+**Decisões-âncora travadas (não reabrir sem novo interrogatório):** (1) PoC **local só no dev build**
+(gh-pages segue read-only — mixed-content); (2) motor = **Claude Agent SDK headless com auth do CLI**
+(sem `ANTHROPIC_API_KEY`); (3) canvas **auto-reload por turno** (JSON inteiro no evento
+`flow-updated`); (4) UX **texto streaming + atividade de tools**; (5) agente+manual **coexistem por
+handoff-de-turno + lock**; (6) precisa de **`reloadFromFile()` novo no FlowStore** (hoje lê só no
+boot — [flowStore.ts:38-42](src/tools/flowStore.ts#L38-L42)); (7) **snapshot por turno + guard de
+parseFlow**; (8) **WebSocket + 1 sessão do SDK por chat**.
 
-**Armadilhas (gotchas — não redescobrir):**
-1. **Dois sistemas de label** (decisão da Fase 2): badge/canvas CURTO ("Aguarda", "Variável") vive
-   no `KIND_LABELS_LIGHT/DARK` do DetailPanel (Sistema B, +cor=tema, consumidor único); paleta/MCP
-   DESCRITIVO ("Aguardar interação", …) é o `label` do `NODE_CATALOG` (Sistema P). NÃO consolidar.
-2. **MCP em execução roda o código ANTIGO** (sobe no boot via `.mcp.json`); mudanças nas tools só
-   após **reiniciar o Claude Code**. Para testar ao vivo, subir `tsx mcp/server.ts` em processo
-   novo via stdio JSON-RPC (caminho **absoluto** `D:/Fluxo/...`); apontar `FLOW_FILE` p/ **cópia
-   descartável** se for criar/editar (não tocar `public/masterFlow.json`). Não deixar smoke no repo.
-3. **`save()` do MCP normaliza CRLF→LF no `FLOW_FILE`** — diff só de EOL restaura com
-   `git checkout -- public/masterFlow.json`.
-4. **`git merge` não aceita `-F -` (stdin)** — usar `-m` ou `-F arquivo`.
-5. **GUI:** a paleta só aparece depois de carregar/criar fluxo ("Novo fluxo" → "Criar fluxo"); o nó
-   de início nasce **sob o painel da paleta** (top-left), que intercepta o clique — fricção de UX
-   pré-existente (anotada no `/verify`, candidata a ajuste futuro).
-6. **Confiar no git, não no rótulo do handoff** — esta sessão pegou um foco fantasma porque o
-   handoff dizia "não implementado" sem cruzar com `git log`. Ao retomar, validar o estado real.
+**Fios soltos / meio-feito:** nada de código novo. **Pendente:** escrever o smoke (passo 1). A
+decisão antiga de **limpeza de branches mergeadas** (10 locais / 5 remotas órfãs em `main`) segue
+não respondida.
 
-**Próximo passo imediato:** decidir a limpeza de branches (a/b/c acima); depois escolher entre as
-frentes abertas (Fase 5 está bloqueada em produto, então provavelmente melhorias paralelas ou uma
-nova feature a definir).
+**Armadilhas (gotchas relevantes para a próxima fase):**
+1. **MCP roda o código ANTIGO** (sobe no boot via `.mcp.json`) — o `reloadFromFile()` novo só vale
+   após **reiniciar o Claude Code**. O smoke roda o MCP em **processo novo** (`tsx mcp/server.ts`,
+   caminho **absoluto** `D:/Fluxo/...`), `FLOW_FILE` p/ **cópia descartável** (nunca
+   `public/masterFlow.json`). Não deixar smoke no repo.
+2. **`save()` do MCP normaliza CRLF→LF** no `FLOW_FILE`.
+3. **Mixed-content:** caixinha só no dev (localhost); usar **proxy WS do Vite** p/ mesma origem.
+4. **Auth de assinatura do CLI** usada programaticamente: limites de rate + ToS miram interativo —
+   OK p/ PoC interna; Fase 5 troca por key server-side.
+5. **Confiar no git, não no rótulo do handoff** — validar o estado real ao retomar.
 
-**Ponteiros:** Fase 2 no merge `e701026` (commits `ab2b0e5`/`5788e28`/`b290d00`/`086dffb`); nó Pedido
-em `5c43d69` (v0.26.0) — plano arquivado em [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md) §"Nó Pedido";
-Fase 5 (produto, direcional) em PLANS §"Fase 5"; melhorias em PLANS §"Melhorias paralelas".
+**Próximo passo imediato:** branch de feature; escrever script Node (~30 linhas) com o Agent SDK
+`query()`, `FLOW_FILE` descartável e prompt fixo ("crie um nó de mensagem"); assert: chegam eventos
+de stream **E** o arquivo mudou. Se passar, todo o resto é montagem.
 
-**Skills sugeridas ao retomar:** `/interrogar` se for desenhar uma feature nova antes de codar;
-`/code-review` antes de commitar; `/verify` para validar UI ao vivo (gotcha 2, processo novo).
+**Ponteiros:** plano em PLANS § "Caixinha de chat na página"; [flowStore.ts:38-42](src/tools/flowStore.ts#L38-L42)
+(precisa de reload); [mcp/server.ts](mcp/server.ts) (19 tools) + [src/tools/](src/tools/) (camada
+durável); `.mcp.json`; round-trip de export (Fase 1/v0.6.0) reusado no flush canvas→arquivo; Fase 5
+(produto) em PLANS §"Fase 5".
+
+**Skills sugeridas ao retomar:** `/verify` p/ validar a caixinha ao vivo (gotcha 1, processo novo);
+`/code-review` antes de commitar código.
 
 <!-- HANDOFF:END -->
 
@@ -150,19 +147,32 @@ antes do refactor caro que toca o [DetailPanel.tsx](src/components/DetailPanel.t
 linhas, 383 testes — o arquivo mais arriscado). De-risca e respeita "amostra mínima antes de
 escalar". Nova ordem: **1 spike → 2 catálogo → 3 MCP → 4 resolvers → 5 produto.**
 
-> **Fases 1, 3, 4 e 4b ✅ concluídas e mergeadas na `main`** (merge `15cbf54`, 2026-06-24).
-> Detalhes completos (decisões + resultados) em [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md).
-> Seguem vivas abaixo apenas a **Fase 2** (refactor adiado, ainda pendente) e a **Fase 5**
-> (produto, direcional).
+> **Fases 1, 2, 3, 4 e 4b ✅ concluídas e mergeadas na `main`** (spike: merge `15cbf54`;
+> Fase 2: merge `e701026`; ambos 2026-06-24). Detalhes do spike (Fases 1/3/4/4b) em
+> [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md). Segue viva abaixo apenas a **Fase 5**
+> (produto, direcional); a **Fase 2** permanece logo abaixo como **registro de decisões
+> concluídas** (não migrada ao archive: PLANS abaixo do limiar de ~600 linhas).
 
-### Fase 2 — Centralizar `NODE_CATALOG` (refactor/limpeza, com valor próprio)
+### Fase 2 — Centralizar `NODE_CATALOG` (refactor/limpeza) ✅ CONCLUÍDA (mergeada)
 
-**Objetivo (1 frase):** criar um único `src/utils/nodeCatalog.ts` (Node-pure) como fonte de
-verdade *por tipo de nó*, do qual derivam as constantes hoje duplicadas em ≥4 arquivos, e do
-qual o manifesto MCP passa a **derivar** em vez de duplicar à mão.
+> **Resultado (2026-06-24, merge `e701026`, branch `feat/node-catalog`):** entregue em
+> [src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts) — `NODE_CATALOG` (11 `CreatableKind`)
+> como fonte única kind-level (`label`/`actionType`/`creatable`/`hasError`/`summary`/`fields`).
+> `nodeMeta.ts` (`actionToNodeKind`), `intentTemplates.ts` (`CREATABLE_KINDS`/`*_LABELS`/
+> `ACTION_KINDS_WITH_ERROR`), [mcp/nodeManifest.ts](mcp/nodeManifest.ts) (rename de
+> `mcp/nodeCatalog.ts`, agora formatador fino) e [DetailPanel.tsx](src/components/DetailPanel.tsx)
+> **derivam** do catálogo. Os 4 commits do plano abaixo executados na ordem
+> (`ab2b0e5`→`5788e28`→`b290d00`→`086dffb`); teste golden em
+> [src/utils/nodeCatalog.test.ts](src/utils/nodeCatalog.test.ts) trava label/actionType/hasError.
+> **Suíte cheia verde (453 testes), `mcp:typecheck` limpo** (revalidado 2026-06-25). Sem mudança
+> de comportamento. As decisões abaixo ficam como registro do **porquê** do código atual.
+
+**Objetivo (entregue):** um único `src/utils/nodeCatalog.ts` (Node-pure) como fonte de
+verdade *por tipo de nó*, do qual derivam as constantes antes duplicadas em ≥4 arquivos, e do
+qual o manifesto MCP passou a **derivar** em vez de duplicar à mão.
 
 > Plano fechado por interrogatório (skill `interrogar`) em 2026-06-24. As decisões abaixo
-> estão TRAVADAS — não reabrir sem novo interrogatório.
+> estão TRAVADAS — registro do raciocínio; não reabrir sem novo interrogatório.
 
 **Verdade espalhada hoje (o alvo):** `NodeKind` [types.ts:130](src/types.ts#L130);
 `actionToNodeKind`/`CONDITION_TYPE_LABELS`/`PRIORITY_LABELS` [nodeMeta.ts](src/utils/nodeMeta.ts);
@@ -205,19 +215,18 @@ qual o manifesto MCP passa a **derivar** em vez de duplicar à mão.
    exports/assinaturas **preservados**. Os `if (kind===…)` do `buildKindAction` são lógica de
    inicialização, não tabela — declarativizá-los arrisca os testes de template sem ganho.
 
-**Plano de migração (incremental, 4 commits, `npm test` verde como gate entre cada um):**
-1. Criar `nodeCatalog.ts` + re-derivar as constantes antigas *nos arquivos atuais* (`nodeMeta`,
-   `intentTemplates`), **sem mudar exports/assinaturas**. Suíte verde prova derivação fiel.
-2. Apontar `mcp/nodeManifest.ts` (rename) para o catálogo; `mcp:typecheck` + smoke efêmero.
-3. **DetailPanel** (commit isolado — o arriscado): trocar `KIND_LABELS_*`/`KIND_OPTIONS` pela
-   leitura do catálogo (label do catálogo; cor do tema à parte). Vermelho aqui aponta direto.
-4. Limpeza: remover consts mortas; conferir zero duplicação remanescente.
+**Plano de migração executado (4 commits, `npm test` verde como gate entre cada um):**
+1. ✅ `ab2b0e5` — criou `nodeCatalog.ts` + re-derivou as constantes antigas *nos arquivos atuais*
+   (`nodeMeta`, `intentTemplates`), **sem mudar exports/assinaturas**. Suíte verde provou derivação fiel.
+2. ✅ `5788e28` — apontou `mcp/nodeManifest.ts` (rename de `mcp/nodeCatalog.ts`) para o catálogo;
+   `mcp:typecheck` + smoke efêmero.
+3. ✅ `b290d00` — **DetailPanel** (commit isolado, o arriscado): trocou `KIND_LABELS_*`/`KIND_OPTIONS`
+   pela leitura do catálogo (label do catálogo; cor do tema à parte).
+4. ✅ `086dffb` — limpeza: removeu consts mortas e o re-export-andaime; zero duplicação remanescente.
 
-**Como será testado:** os 383 testes são o gate primário (consomem labels/options/defaults via
-exports preservados). **Antes do commit 3**, verificar se há cobertura de render das badges/labels
-do DetailPanel; se não houver, adicionar âncora mínima "catálogo → label renderizado" para a rede
-de segurança não depender só de leitura manual. Fallback defensivo de label/cor (`catalog[kind]?.label ?? kind`)
-preservado igual a hoje.
+**Como foi testado:** os testes do projeto foram o gate primário (consomem labels/options/defaults via
+exports preservados) — suíte cheia verde após cada commit, **453 testes hoje**. Fallback defensivo de
+label/cor (`catalog[kind]?.label ?? kind`) preservado igual a antes.
 
 **Riscos/dívida nomeada:**
 - **Sub-enums adiados (divergência descritiva MCP↔DetailPanel nos valores de campo).** Aceita
@@ -245,8 +254,111 @@ Fases 1–4 respeitarem isso, a Fase 5 segue viável.
   deps de browser para `src/utils`.
 - API interna não documentada (risco já registrado) — o round-trip real é a rede de
   segurança.
-- O refactor do `NODE_CATALOG` (Fase 2) arrisca os 383 testes do DetailPanel — por isso
-  adiado para pós-spike e feito com a suíte verde como gate.
+- ~~O refactor do `NODE_CATALOG` (Fase 2) arrisca os 383 testes do DetailPanel.~~ ✅ Resolvido:
+  Fase 2 mergeada (merge `e701026`) com a suíte verde como gate em cada um dos 4 commits.
+
+### Caixinha de chat na página — PoC local do agente construtor (planejada)
+
+> Plano fechado por interrogatório (skill `interrogar`) em 2026-06-25. Decisões TRAVADAS abaixo —
+> registro do raciocínio; não reabrir sem novo interrogatório. É a **prova de conceito local da
+> Fase 5**: uma demo quase-real de "construir fluxo por chat" rodando 100% na máquina do Andy,
+> sem chave da Anthropic.
+
+**Objetivo (1 frase):** uma caixinha de chat integrada à página do FlowViewer que conversa com o
+agente construtor de fluxos, **rodando local via Claude Agent SDK + o CLI já logado** (sem
+`ANTHROPIC_API_KEY`), reusando o `mcp/server.ts` (stdio) que já existe.
+
+```mermaid
+flowchart TB
+  subgraph browser["Browser — Vite dev (localhost:5173)"]
+    cx["Caixinha de chat<br/>(texto + atividade de tools)"]
+    cv["Canvas FlowViewer<br/>(projeção; trava durante o turno)"]
+  end
+  subgraph back["Backend Node local (mesma máquina)"]
+    ws["Ponte WebSocket"]
+    sdk["Claude Agent SDK — query()<br/>(loop de tool-use + streaming)"]
+  end
+  cli["Claude Code CLI<br/>(auth de assinatura, sem key)"]
+  mcp["mcp/server.ts (stdio, via .mcp.json)<br/>FlowStore em memória → 19 tools"]
+  file[("work.flow.json<br/>arquivo de trabalho descartável")]
+
+  cx -- "mensagem (WS)" --> ws
+  cx -. "ENVIAR: flush canvas→arquivo + trava" .-> file
+  ws --> sdk
+  sdk -- "dirige" --> cli
+  cli -- "spawn stdio" --> mcp
+  mcp -- "save()/auto-reload" --> file
+  sdk -- "stream: texto + tool_use (WS)" --> cx
+  ws -- "fim do turno: lê arquivo → flow-updated{json}" --> cv
+  cv -- "parseFlow → re-render + destrava" --> cv
+```
+
+**Decisões (com o porquê):**
+1. **Escopo: PoC local, só no dev build.** A caixinha vive no `npm run dev` (localhost). gh-pages
+   publicado segue **read-only** (HTTPS não alcança backend em localhost — mixed-content; usar
+   **proxy WS do Vite** p/ manter mesma origem). Sem hosting, sem auth de usuário final. É a
+   "amostra mínima" antes de escalar p/ a Fase 5.
+2. **Motor: Claude Agent SDK headless (Claude Code como lib).** Único caminho viável **sem key**:
+   o SDK cru da Messages API (`@anthropic-ai/sdk`) exige `ANTHROPIC_API_KEY`; o Agent SDK roda
+   dirigindo o binário `claude`, herdando a **auth do login do CLI** (assinatura). Token vive no
+   cofre do CLI — nunca no backend, nunca no modelo. Sobe o `mcp/server.ts` por **stdio** reusando
+   o `.mcp.json` existente. Nota: o "MCP connector" da Messages API (`mcp-client-2025-11-20`) **não**
+   serve — ele só fala com MCP **remoto por URL**, não stdio.
+3. **Sincronia do canvas: auto-reload por turno.** Ao fim do turno o backend lê o arquivo e manda
+   o **JSON inteiro embutido no evento `flow-updated`** (sem endpoint de fetch, sem cache do Vite,
+   sem esbarrar no gotcha #3 CRLF). A UI joga no `parseFlow` e re-renderiza. Mantém o anchor "site↔
+   agente só se cruzam pelo arquivo em disco" — o backend faz a ponte de leitura.
+4. **UX: texto streaming + linha de atividade de tools** ("criando nó Menu…", "conectando A→B…").
+   Sai de graça do stream do Agent SDK (eventos `assistant` + `tool_use`/`tool_result`). É o que
+   vende a demo.
+5. **Autoria: agente + manual COEXISTEM, por handoff de turno + lock.** O arquivo é a verdade nas
+   fronteiras de turno: ao ENVIAR, o front serializa o canvas → grava o arquivo (reusa o
+   **round-trip de exportar**, Fase 1/v0.6.0) e **trava o canvas** (read-only); o agente recarrega
+   o arquivo no início do turno, edita, salva; ao fim, `flow-updated` → re-render + destrava. **Um
+   escritor por vez** ⇒ sem corrida de escrita.
+6. **Gatilho do reload (sem acoplar backend↔MCP):** adicionar `reloadFromFile()` ao
+   [FlowStore](src/tools/flowStore.ts) — hoje `fromFile()` lê **só no boot** (L38-42) e mantém o
+   modelo em memória pela vida do processo, então o agente NUNCA enxergaria edições manuais. O
+   store guarda o estado do que salvou por último; no início de cada tool, se o disco ≠ último-salvo,
+   recarrega. Seguro porque o canvas fica travado no turno ⇒ o único escritor externo (front) só
+   grava entre turnos.
+7. **Rede de segurança: snapshot por turno + guard de parse.** O backend copia o arquivo ANTES de
+   cada turno (não só no início da sessão como o `revert` do MCP faz), expondo **"desfazer último
+   turno"** na caixinha. Guard: se o JSON do `flow-updated` não passar no `parseFlow`, a UI
+   **mantém o último canvas bom + toast de erro** (nunca branqueia).
+8. **Transporte WebSocket; uma sessão do Agent SDK viva por chat** (contexto + MCP persistem entre
+   turnos — é por isso que a decisão 6 é necessária). Modelo = o default do CLI (Opus 4.8); pode
+   passar `model` no `query()` se quiser. SSE+POST seria a alternativa de transporte.
+
+**Ordem de build (amostra mínima primeiro — de-risca o desconhecido antes da UI):**
+1. **Smoke do backend (sem UI):** script Node com o Agent SDK `query()`, auth do CLI, `FLOW_FILE`
+   apontando p/ cópia descartável, prompt fixo ("crie um nó de mensagem"). Assert: chegam eventos
+   de stream **e** o arquivo mudou. Prova o elo mais arriscado — **o Agent SDK com auth de
+   assinatura dirige o MCP stdio e streama eventos de tool?** — antes de tocar em React.
+2. **`reloadFromFile()` no FlowStore + teste** (load → escrita externa → reload → assert vê o novo),
+   no padrão de [flowTools.test.ts](src/tools/flowTools.test.ts).
+3. **Ponte WS + página HTML mínima** (fora do React): manda 1 mensagem, renderiza texto streaming +
+   atividade de tools. Prova transporte + streaming ponta-a-ponta.
+4. **Integração no FlowViewer:** componente da caixinha; `flow-updated`→`parseFlow` com guard;
+   lock do canvas no turno; flush canvas→arquivo no ENVIAR (reusa export); snapshot por turno +
+   "desfazer último turno".
+
+**Riscos/pendências (e como cada um é testado):**
+- **[maior risco, não verificado] Agent SDK + auth de assinatura dirigindo MCP stdio.** ToS da
+  assinatura miram uso interativo; há limites de rate. Aceito p/ PoC interna; a Fase 5 troca por
+  key server-side. **Teste:** passo 1 do build (smoke) prova/derruba isso primeiro.
+- **Gotcha #2 (MCP roda código ANTIGO):** o `reloadFromFile()` novo só vale após **reiniciar o
+  Claude Code** (o MCP sobe no boot). Nota de dev-loop, não bloqueia. **Teste:** unit do passo 2
+  roda fora do MCP vivo (instancia o store direto).
+- **Caminho infeliz coberto por teste:** (a) CLI sem login → backend emite erro claro
+  ("rode `claude /login`"), não trava silencioso; (b) MCP não sobe → evento de erro, canvas não
+  branqueia; (c) turno erra no meio → caixinha mostra erro, canvas destrava, snapshot permite
+  desfazer (estados intermediários válidos são OK — FlowStore Q2); (d) `flow-updated` não parseia →
+  mantém canvas + toast; (e) edição manual + edição do agente na mesma sessão → assert sem clobber
+  (round-trip: manual flush → `reloadFromFile` → agente vê).
+- **Arquivo de trabalho é descartável e fora do versionado canônico** (nunca tocar
+  `public/masterFlow.json` — gotcha #2/#3); `serializeFlow` normaliza CRLF→LF, então versionar o
+  `work.flow.json` é opcional.
 
 ## Melhorias paralelas (independentes das fases)
 

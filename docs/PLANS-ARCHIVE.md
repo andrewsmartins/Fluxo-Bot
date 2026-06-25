@@ -7,8 +7,10 @@
 ## Spike — Agente de IA que constrói nós (MCP tools): Fases 1, 3, 4, 4b
 
 > Concluídas e **mergeadas na `main`** em 2026-06-24 (merge `15cbf54`, branch `feat/mcp-tools-spike`).
-> O contexto-âncora da feature (Objetivo / Decisões-âncora / Ordem revista) e as fases ainda
-> vivas (Fase 2 `NODE_CATALOG`, Fase 5 Produto) seguem no `PLANS.md` ativo.
+> O contexto-âncora da feature (Objetivo / Decisões-âncora / Ordem revista) segue no `PLANS.md`
+> ativo. A **Fase 2 `NODE_CATALOG`** foi concluída depois (merge `e701026`, 2026-06-24) e seu
+> registro de decisões permanece no `PLANS.md` (não migrado: ativo abaixo do limiar de arquivamento).
+> Segue viva no ativo apenas a **Fase 5 Produto** (direcional).
 
 ### Fase 1 — Spike: camada de tools sobre o arquivo de fluxo (sem IA) ✅ concluída
 
