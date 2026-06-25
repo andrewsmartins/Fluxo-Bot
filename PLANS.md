@@ -1,49 +1,56 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 <!-- HANDOFF:START -->
-## 🔄 Handoff — 2026-06-24 (Fase 2 concluída na branch, aguardando review/merge)
+## 🔄 Handoff — 2026-06-24 (Fase 2 + nó Pedido fechados; sem feature pendente — escolher próximo)
 
-**Foco da próxima sessão:** **revisar e mergear a Fase 2** (`NODE_CATALOG`), depois escolher o
-próximo trabalho. A Fase 2 está **completa na branch `feat/node-catalog`** (4 commits, NÃO
-mergeada, NÃO pushada). Candidato natural seguinte: (B) **editor do nó Pedido** (§"Nó Pedido",
-plano fechado, **não** implementado — mirror da `StoreActionSection`, unitário sem Playwright).
+**Foco da próxima sessão:** **escolher o próximo trabalho real** — não há feature pendente. Esta
+sessão descobriu que o **nó Pedido já estava implementado e lançado (v0.26.0, commit `5c43d69`,
+2026-06-23)**: o handoff anterior apontava-o como "não implementado" por engano. Os docs foram
+sincronizados (§"Nó Pedido" movida para o archive; índice e este handoff corrigidos). Candidatos
+abertos: (a) **limpeza de branches mergeadas** (decisão pendente, abaixo); (b) **Fase 5 — Produto**
+(direcional, **bloqueada** em decisões de produto, ver PLANS §"Fase 5"); (c) **melhorias paralelas**
+(`elkjs` no layout, ver §"Melhorias paralelas").
 
-**Onde paramos:** branch **`feat/node-catalog`** (criada a partir da `main`), **working tree
-LIMPO**, **4 commits à frente da `main`**, **sem push**. Refactor da Fase 2 **sem mudança de
-comportamento**, centralizando os fatos kind-level dos tipos de nó num único
-[src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts) (Node-pure); `nodeMeta`/`intentTemplates`/MCP
-passam a **derivar** dele. Gate final: app `tsc` ✅ · `mcp:typecheck` ✅ · **453 testes** (435 +
-18 golden) ✅ · manifesto MCP **byte-idêntico** ao anterior (smoke efêmero tsx).
+**Onde paramos:** branch **`main`**, em sincronia com `origin/main` (após o commit de sync de docs
+desta sessão). Fase 2 (`NODE_CATALOG`) e nó Pedido (v0.26.0) ambos **mergeados na `main`** e verdes.
+Refactor da Fase 2 sem mudança de comportamento: fatos kind-level centralizados em
+[src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts); `nodeMeta`/`intentTemplates`/MCP/DetailPanel/paleta
+**derivam** dele.
 
-**Fios soltos / meio-feito:** nada de código — Fase 2 fechada e verde. **Pendente:** `/code-review`
-do diff completo da branch, **merge na `main`** (`--no-ff`, espelhar o fluxo da spike) e push.
-**Limpeza opcional (de antes):** branches `feat/mcp-tools-spike` e `feat/order-node-editor` já na
-`main` podem ser deletadas (local+remota).
+**Fios soltos / meio-feito:** nada de código. **Pendente (decisão do Andy, não respondida):**
+**limpeza de branches mergeadas** — opções: (a) só as 3 do ciclo recente (`feat/node-catalog`,
+`feat/mcp-tools-spike`, `feat/order-node-editor`, local+remota), (b) varrer TODAS as mergeadas
+(**10 locais / 5 remotas** órfãs já em `main` — lista via `git branch --merged main`), ou (c) pular.
+**Dívida de doc (fora do escopo do sync):** o `CHANGELOG.md` só tem seções por versão até `[0.14.0]`;
+de 0.15→0.27 nada ganhou seção própria (padrão pré-existente, não só o nó Pedido).
 
 **Armadilhas (gotchas — não redescobrir):**
-1. **Dois sistemas de label** (decisão central da Fase 2): badge/canvas é CURTO ("Aguarda",
-   "Variável", "CSAT") e vive no `KIND_LABELS_LIGHT/DARK` do DetailPanel (Sistema B, +cor=tema,
-   consumidor único); paleta/MCP é DESCRITIVO ("Aguardar interação", …) e é o `label` do
-   `NODE_CATALOG` (Sistema P). **NÃO consolidar a badge no catálogo** — mudaria a UI.
-2. **`actionToNodeKind` é re-exportado de `nodeMeta`** (lar conceitual; import coeso com parseFlow),
-   mas DEFINIDO em `nodeCatalog`. Os demais fatos kind-level NÃO são mais re-exportados de
-   `intentTemplates` — importar direto de `nodeCatalog`.
-3. **MCP em execução roda o código ANTIGO** (sobe no boot via `.mcp.json`); mudanças nas tools só
-   após reiniciar o Claude Code. Smoke via `tsx` efêmero com caminho **absoluto** (`D:/Fluxo/...`),
-   não relativo ao scratchpad. Não deixar `_smoke-*.ts` no repo.
-4. **`save()` do MCP normaliza CRLF→LF no `FLOW_FILE`** — diff só de EOL restaura com
+1. **Dois sistemas de label** (decisão da Fase 2): badge/canvas CURTO ("Aguarda", "Variável") vive
+   no `KIND_LABELS_LIGHT/DARK` do DetailPanel (Sistema B, +cor=tema, consumidor único); paleta/MCP
+   DESCRITIVO ("Aguardar interação", …) é o `label` do `NODE_CATALOG` (Sistema P). NÃO consolidar.
+2. **MCP em execução roda o código ANTIGO** (sobe no boot via `.mcp.json`); mudanças nas tools só
+   após **reiniciar o Claude Code**. Para testar ao vivo, subir `tsx mcp/server.ts` em processo
+   novo via stdio JSON-RPC (caminho **absoluto** `D:/Fluxo/...`); apontar `FLOW_FILE` p/ **cópia
+   descartável** se for criar/editar (não tocar `public/masterFlow.json`). Não deixar smoke no repo.
+3. **`save()` do MCP normaliza CRLF→LF no `FLOW_FILE`** — diff só de EOL restaura com
    `git checkout -- public/masterFlow.json`.
-5. **`git merge` não aceita `-F -` (stdin)** — usar `-m` ou `-F arquivo`.
+4. **`git merge` não aceita `-F -` (stdin)** — usar `-m` ou `-F arquivo`.
+5. **GUI:** a paleta só aparece depois de carregar/criar fluxo ("Novo fluxo" → "Criar fluxo"); o nó
+   de início nasce **sob o painel da paleta** (top-left), que intercepta o clique — fricção de UX
+   pré-existente (anotada no `/verify`, candidata a ajuste futuro).
+6. **Confiar no git, não no rótulo do handoff** — esta sessão pegou um foco fantasma porque o
+   handoff dizia "não implementado" sem cruzar com `git log`. Ao retomar, validar o estado real.
 
-**Próximo passo imediato:** `/code-review` do diff `main..feat/node-catalog`; se limpo, mergear na
-`main` (`--no-ff`) e push. Só então escolher A/B do backlog (provável B: nó Pedido).
+**Próximo passo imediato:** decidir a limpeza de branches (a/b/c acima); depois escolher entre as
+frentes abertas (Fase 5 está bloqueada em produto, então provavelmente melhorias paralelas ou uma
+nova feature a definir).
 
-**Ponteiros:** branch `feat/node-catalog` commits `ab2b0e5`/`5788e28`/`b290d00`/`086dffb`; plano
-fechado em PLANS §"Fase 2" (decisões + migração + dívida dos sub-enums); §"Nó Pedido" (próximo
-candidato); CHANGELOG §"Alterado" tem a entrada da Fase 2.
+**Ponteiros:** Fase 2 no merge `e701026` (commits `ab2b0e5`/`5788e28`/`b290d00`/`086dffb`); nó Pedido
+em `5c43d69` (v0.26.0) — plano arquivado em [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md) §"Nó Pedido";
+Fase 5 (produto, direcional) em PLANS §"Fase 5"; melhorias em PLANS §"Melhorias paralelas".
 
-**Skills sugeridas ao retomar:** `/code-review` do diff antes do merge; `/verify` se for validar o
-MCP ao vivo (gotcha 3, reiniciar); `/interrogar` antes de iniciar o nó Pedido.
+**Skills sugeridas ao retomar:** `/interrogar` se for desenhar uma feature nova antes de codar;
+`/code-review` antes de commitar; `/verify` para validar UI ao vivo (gotcha 2, processo novo).
 
 <!-- HANDOFF:END -->
 
@@ -241,32 +248,6 @@ Fases 1–4 respeitarem isso, a Fase 5 segue viável.
 - O refactor do `NODE_CATALOG` (Fase 2) arrisca os 383 testes do DetailPanel — por isso
   adiado para pós-spike e feito com a suíte verde como gate.
 
-## Nó Pedido — dropdown "Tipo de ação" (planejado)
-
-> Interrogatório 2026-06-23. Hoje o `OrderNode` ([OrderNode.tsx](src/components/nodes/OrderNode.tsx)) é só visual (pill com o rótulo do `orderType`) e **não há editor** no DetailPanel. Esta feature adiciona o editor.
-
-**Objetivo (1 frase):** dar ao nó Pedido um editor com dropdown "Tipo de ação" — **Adicionar item** (`orderType: addToCart`, abre picker de variável → `action.variable`) e **Gerar pedido** (`orderType: generateOrder`, sem campos novos).
-
-**Decisões (com o porquê):**
-1. **Picker `@` livre** para a variável do "Adicionar item" — reusa `VariablePicker` ([DetailPanel.tsx:1805](src/components/DetailPanel.tsx#L1805)). Não existe endpoint que liste "variáveis de pedido" (são produzidas por nós anteriores, ex.: `@api.<uuid>.name`); dropdown fechado não tem fonte e quebraria o caso real. Consistente com captura/setData.
-2. **`action.variable` só é gravada no modo `addToCart`.** Em `generateOrder` o campo some da UI e o valor subjacente é **preservado verbatim** (preserve-and-patch) — é o que a própria plataforma faz (nos 2 JSONs de exemplo, `generateOrder` mantém `variable` preenchida e só ignora). Alternar o dropdown não destrói o valor digitado (vive no draft enquanto o painel está aberto).
-3. **Gate do "Aplicar"** quando `addToCart` + variável vazia (espelha a Loja física, aviso âmbar). Validação = não-vazio (picker é texto livre; não dá pra validar existência). `generateOrder` nunca trava.
-4. **Rótulo unificado em "Adicionar item"** no dropdown E no pill do canvas — `ORDER_ACTIONS` (`{value,label}`) vira fonte única; `ORDER_LABELS` do `OrderNode` deriva dela. Hoje o pill diz "Adicionar ao carrinho"; muda para "Adicionar item". (Reavaliar se a tela oficial da OmniChat usar outro termo.)
-5. **`orderType` desconhecido de import** (fora de `addToCart`/`generateOrder`) preservado como `<option>` extra — anti-corrupção, igual a `storeType`/`captureDataType`.
-
-**Plano de implementação (mirror da `StoreActionSection`):**
-- `editIntent.ts updateActionFields` ([:713](src/utils/editIntent.ts#L713)): adicionar `orderType?: string` aos `fields` → `if (fields.orderType !== undefined) cond.action.orderType = fields.orderType`. `variable` já é tratado (linha 738).
-- Draft: novos campos `orderType: string` e `orderVariable: string`.
-- Parse (buildDraft, ~[:462](src/components/DetailPanel.tsx#L462)): derivar `orderCond` (mirror `storeCond` ~[:413](src/components/DetailPanel.tsx#L413)); `orderType: orderCond?.action.orderType || 'generateOrder'`; `orderVariable: typeof orderCond?.action.variable === 'string' ? orderCond.action.variable : ''`.
-- Serialização (~[:3093](src/components/DetailPanel.tsx#L3093)): `if (kind === 'orderNode')` → `addToCart`: `updateActionFields(intent,'order',{orderType:'addToCart',variable:draft.orderVariable.trim()},ci)`; senão (`generateOrder`/legado): `{orderType:draft.orderType}` (NÃO passar `variable` → preserva). **Decisão menor:** `variable` é trimada na escrita (o exemplo tem espaço final, provável artefato; setData já trima).
-- Novo `OrderActionSection` (mirror `StoreActionSection`): dropdown `ORDER_ACTIONS` + `<option>` legado; `VariablePicker` condicional quando `addToCart`; aviso âmbar do gate.
-- Render do `OrderActionSection` quando `kind === 'orderNode'` (mirror ~[:3579](src/components/DetailPanel.tsx#L3579)) + somar à condição `invalid` do "Aplicar".
-- `OrderNode.tsx`: `ORDER_LABELS.addToCart` → "Adicionar item" (ou derivar de `ORDER_ACTIONS` exportado).
-
-**Como será testado (decisão: unitário, sem Playwright):** round-trip em `editIntent.test`/`intentTemplates.test` — (a) parse `addToCart` com `variable` → draft; (b) parse `generateOrder`; (c) serialização grava `variable` só em `addToCart`; (d) alternância de modo preserva o valor; (e) `orderType` gravado correto. O risco real é o JSON do `action`, 100% coberto por unitário. UI (dropdown mostra/esconde campo) é baixo risco → validação visual manual no viewer como passo final.
-
-**Riscos/pendências:** sem fonte para validar se a `variable` existe de fato (só não-vazio); termo "Adicionar item" vs. termo oficial da plataforma (confirmar na tela do construtor se possível).
-
 ## Melhorias paralelas (independentes das fases)
 
 - ~~Trocar `dagre@0.8.5` (sem manutenção) por `@dagrejs/dagre` (fork mantido,
@@ -305,6 +286,7 @@ Fases 1–4 respeitarem isso, a Fase 5 segue viável.
 
 - **(merge `15cbf54`)** — Spike MCP: Fases 1/3/4/4b (camada de tools, servidor MCP stdio, 8 resolvers nome→ID, set_menu + connect_to_bot)
 - **v0.27.0** — Nó Captura CSAT editável (dropdown "Tipo de captura CSAT")
+- **v0.26.0** — Nó Pedido editável (dropdown "Tipo de ação": Adicionar item / Gerar pedido)
 - **masterFlow.json** — fluxo de exemplo canônico, Partes 1–12 (42 intenções) — fixture viva em `public/masterFlow.json`
 - **v0.25.0** — Seção "Em caso de erro" (`action.error`) nos 7 nós de ação
 - **v0.24.0** — Nó "Chamada de API" editável (Tipo de Integração + picker de Endpoint)

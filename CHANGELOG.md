@@ -269,6 +269,134 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ### Alterado
 - **README atualizado para o estado atual (Fase 6 / Modelo B)** — `Funcionalidades` reorganizada por tema (Visualização, Edição, Entrada/saída, Sincronização) refletindo Modelo B, undo/redo, tags de aresta e os 11 tipos da paleta; `Stack` ganhou Vitest e Playwright; `Estrutura do projeto` reescrita conforme os arquivos reais (removidas refs a `JsonInput`/`ExportControls`, adicionados `nodeMeta`, `editFlow`, `pushFlow`, `restoreFlow`, diálogos e os 5 nós novos); `Tipos de nó` expandida para os 13 nós + container de grupo, com as cores corretas dos tipos da Fase 6 (Pedido laranja, CSAT rosa, Loja verde-limão); diagrama de fluxo de dados atualizado para `actionToNodeKind`/grupos/serialize/export/push
 
+## [0.27.0] - 2026-06-23
+
+### Adicionado
+- **Nó "Captura CSAT" editável** — dropdown "Tipo de captura CSAT" no DetailPanel: **Nota** (`captureDataType: supportRate`) ou **Comentário** (`supportRateComment`). Fonte única `CSAT_CAPTURE_TYPES` (`{value, labelDropdown, labelPill}`): o dropdown usa o label longo, o pill do canvas o curto; `CsatNode` deriva os rótulos do pill dessa fonte. Branch de serialização próprio (`csatNode`) que grava só `captureDataType` e preserva o bloco `error`. Sem gate (o valor nasce em `supportRate`, nunca fica vazio); `captureDataType` desconhecido de import vira `<option>` extra (anti-corrupção). Round-trip coberto por teste unitário.
+
+---
+
+## [0.26.0] - 2026-06-23
+
+### Adicionado
+- **Nó "Pedido" editável** — dropdown "Tipo de ação": **Adicionar item** (`orderType: addToCart`, revela um picker `@` de texto livre que grava `action.variable`) e **Gerar pedido** (`generateOrder`, sem campos). Preserve-and-patch: `variable` só é gravada em `addToCart`; em `generateOrder` o valor subjacente é preservado verbatim (espelha a plataforma). Gate âmbar no "Aplicar" quando `addToCart` + variável vazia; `generateOrder` nunca trava. `ORDER_ACTIONS` vira fonte única do rótulo (dropdown + pill do canvas; "Adicionar ao carrinho" → **"Adicionar item"**); `orderType` legado de import preservado como `<option>` extra. Round-trip coberto por 3 testes unitários.
+
+---
+
+## [0.25.0] - 2026-06-23
+
+### Adicionado
+- **Seção "Em caso de erro" (`action.error`) nos 7 nós de ação** — os nós que podem falhar (Captura, Transferência, Editar informação, Chamada de API, Pedido, Captura CSAT, Loja física) ganharam editor do bloco `action.error` (mensagem + destino do `next`), com o caminho de erro voltando ao start por padrão. Preserva o bloco `error` intacto no round-trip dos demais nós.
+
+---
+
+## [0.24.0] - 2026-06-22
+
+### Adicionado
+- **Nó "Transferência" rico** — seletor de 2 níveis (time/atendente) + picker dinâmico de vendedores (`users.ts`), alinhado ao construtor da plataforma.
+- **Nó "Chamada de API" editável** — "Tipo de Integração" + picker de Endpoint (referencia endpoints existentes do bot, nunca cria).
+- **Nó "Outro Bot" exibe nomes** — resolve e mostra o nome do bot e da intenção (via `TeamsContext`), com fallback para o ID cru sem token; limite de exibição 22 → 32 caracteres.
+- **"Carregar exemplo" no ImportDialog** — link que busca `public/masterFlow.json` (fluxo sintético canônico de teste, servido como asset estático do gh-pages).
+
+---
+
+## [0.23.0] - 2026-06-22
+
+### Adicionado
+- **Nó "Loja física" editável** (Loja física Fase 3) — "Tipo de ação" + picker de Lista.
+- **Picker `@entity` dinâmico** (Fase 2) — lista as Listas da loja, com a fiação no contexto.
+- **Camada de dados das Listas `@entity`** (Fase 1) — fetch e modelagem das entidades do bot.
+
+---
+
+## [0.22.0] - 2026-06-22
+
+### Adicionado
+- **Seção "Próximo Fluxo" no painel** — destino do `next.intent` editável ("Neste bot" / "Em outro bot").
+
+### Alterado
+- **Labels padronizados** — "Aguardar interação" (antes "Espera") e "Editar informação" (antes "Definir dados") na paleta e no seletor de tipo de condição; `kind`/`action` internos inalterados.
+
+---
+
+## [0.21.0] - 2026-06-22
+
+### Adicionado
+- **"Editar informação" (setData) com variável e valor obrigatórios** — gate no "Aplicar" quando faltam.
+
+### Alterado
+- **Cores de "Mensagem" e "Loja física" invertidas** — Mensagem passou para verde-limão e Loja física para fuchsia, em todas as superfícies que leem a fonte única de cor.
+
+---
+
+## [0.20.1] - 2026-06-22
+
+### Corrigido
+- **`remapRefs` preserva refs de contexto no push** — o reapontamento de IDs no envio passou a cobrir `intent.context` e `condition.intent`/`condition.context`, que antes ficavam apontando para IDs antigos após o POST gerar novos.
+
+---
+
+## [0.20.0] - 2026-06-22
+
+### Adicionado
+- **Tempo de envio da resposta (`executionDelay`) editável** (Fase 17) — controle do atraso de envio por condição no DetailPanel.
+
+---
+
+## [0.19.0] - 2026-06-22
+
+### Adicionado
+- **Aviso de opção de menu sem conexão no nó de Escolha** (Fase 16) — sinaliza itens de menu sem destino; limite de 10 itens por menu reforçado na UI.
+
+---
+
+## [0.18.1] - 2026-06-22
+
+### Adicionado
+- **Feedback ao "Aplicar alterações"** (Fase 15) — toast + micro-animação confirmando que o patch foi aplicado.
+
+---
+
+## [0.18.0] - 2026-06-22
+
+### Adicionado
+- **Nó de Captura com modos "Uma" e "Múltiplas informações"** (Fase 14) — editor de `captureData` com captura simples ou múltipla (`multipleFields`).
+
+### Corrigido
+- **Upload de mídia em dev** — corrigido 403 por `Content-Type` + CORS no S3 ao subir arquivos durante `npm run dev`.
+
+---
+
+## [0.17.0] - 2026-06-21
+
+### Alterado
+- **UX do picker de variáveis (`@`)** (Fase 13) — melhorias de navegação/posicionamento do dropdown de variáveis.
+
+---
+
+## [0.16.0] - 2026-06-21
+
+### Adicionado
+- **Resposta "Modelo de mensagem com Flow" (TEMPLATE)** (Fase 12) — suporte ao tipo de resposta de template do WhatsApp/Flow.
+
+---
+
+## [0.15.0] - 2026-06-19
+
+### Adicionado
+- **Painel de edição alinhado ao construtor + duplicação de nós** — o DetailPanel passou a espelhar os campos do construtor da plataforma; ação de duplicar nó.
+- **Variável `@team` dinâmica** — o picker lista os times da loja (endpoint de times).
+- **Campos de condição alinhados ao construtor** — variável com busca, "contém" com TAGs, total numérico.
+- **Respostas de mídia + menu Botão/Lista + nó de Escolha** (Fase 10) — mensagens de mídia e o nó de Escolha com menu (itens) e escolhas (destinos).
+- **Resposta Coleção** (Fase 11) — suporte ao tipo de resposta de coleção.
+- **Controles de zoom com % + espaçamento** — na barra de canvas.
+
+### Alterado
+- **Repaginação visual "cara de Omni" + identidade por cor** (Fase 11/11G) — cores próprias por tipo de nó e aresta; marca-d'água da logo Omni no fundo do canvas.
+- **Ferramenta renomeada de "Fluxo Bot" para "FlowViewer"**.
+
+---
+
 ## [0.14.0] - 2026-06-15
 
 ### Adicionado
