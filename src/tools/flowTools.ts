@@ -5,6 +5,7 @@ import { createIntentTemplate } from '../utils/intentTemplates'
 import { isCreatableKind, type CreatableKind } from '../utils/nodeCatalog'
 import {
   updateActionFields, setChoices, listMessages, addButtonListMessage, addChoice,
+  addTextMessage, updateMessageText,
 } from '../utils/editIntent'
 import { applyConnect, setNextRef } from '../utils/editFlow'
 import { validateFlow } from '../utils/validateFlow'
@@ -133,6 +134,49 @@ export function setActionField(
   store.save()
   const shown = Array.isArray(value) ? `[${value.join(', ')}]` : value
   return `set ${field}=${shown} em "${intent.name}"`
+}
+
+/**
+ * `set_message(node, text, condIdx?=0)` — grava o texto da mensagem TEXT de um nó
+ * (envolve `addTextMessage`/`updateMessageText`). Fecha o gap do `defaultNode`: criar
+ * o nó já não bastava — faltava o conteúdo, e a superfície de tools não expunha
+ * `assistant_says` (só `action.*`, via set_action_field). Idempotente na condição-alvo:
+ * **0 mensagens TEXT → cria**; **1 → sobrescreve** (pela ref); **N>1 → erro** (edição de
+ * múltiplos balões é território do DetailPanel). Escopo só TEXT — mídia/coleção/template
+ * exigem referência real que o agente não pode sintetizar, e BUTTON/LIST é do `set_menu`.
+ * `choiceNode` é recusado (→ aponta `set_menu`); texto vazio é recusado.
+ */
+export function setMessage(
+  store: FlowStore, ref: string, text: string, condIdx = 0,
+): string {
+  // "set" nunca grava balão vazio — limpar é remoção (outra operação). Espelha set_menu.
+  if (!text.trim()) {
+    return `⚠️ erro: o texto da mensagem não pode ficar vazio`
+  }
+  const intent = resolveIntent(store, ref)
+  if (isError(intent)) return `⚠️ erro: ${intent.error}`
+  const cond = intent.conditions[condIdx]
+  if (!cond) return `⚠️ erro: "${intent.name}" não tem a condição c${condIdx}`
+  // choiceNode: o `assistant_says` é ESTRUTURALMENTE a mensagem BUTTON/LIST cujos botões
+  // mapeiam para `action.choices` — um TEXT solto viraria balão órfão. Aponta o set_menu.
+  if (cond.action.type === 'choice') {
+    return `⚠️ erro: "${intent.name}" é um nó de escolha — use set_menu para o texto do menu`
+  }
+  // TEXT da condição-alvo (container 'condition' fixo — o caminho de erro fica fora):
+  // 0 → cria; 1 → sobrescreve (idempotente); N>1 → erro honesto (nunca edita o balão
+  // errado em silêncio). listMessages só varre `cond.assistant_says`, não o erro.
+  const texts = listMessages(intent).filter(m => m.ref.condIdx === condIdx && m.type === 'TEXT')
+  if (texts.length > 1) {
+    return `⚠️ erro: "${intent.name}" tem ${texts.length} balões de texto — edição de múltiplos balões não é suportada por aqui (use o painel)`
+  }
+  store.beginMutation()
+  const result = texts.length === 0
+    ? addTextMessage(intent, text, condIdx)
+    : updateMessageText(intent, texts[0].ref, text)
+  if (!result.ok) return `⚠️ erro: ${result.reason}`
+  store.save()
+  const preview = text.length > 40 ? `${text.slice(0, 40)}…` : text
+  return `mensagem ${texts.length === 0 ? 'criada' : 'atualizada'} em "${intent.name}": "${preview}"`
 }
 
 /**

@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { FlowStore } from '../src/tools/flowStore'
 import {
-  createNode, setActionField, setNodeChoices, setMenu, connectNodes, connectToBot,
+  createNode, setActionField, setMessage, setNodeChoices, setMenu, connectNodes, connectToBot,
   validate, revert, listNodes, describeNode,
   ACTION_FIELDS, type ActionFieldName,
 } from '../src/tools/flowTools'
@@ -86,8 +86,8 @@ const instructions = [
   'operando estas tools — NUNCA escreva JSON cru. A validade vive no código das tools.',
   '',
   'Trabalho típico: list_nodes (orientar) → describe_node (inspecionar) → create_node →',
-  'set_action_field / set_menu / set_choices → connect → validate. Use revert para desfazer',
-  'tudo desde o início da sessão.',
+  'set_message / set_action_field / set_menu / set_choices → connect → validate. Use revert',
+  'para desfazer tudo desde o início da sessão.',
   '',
   'Regras:',
   '- Referencie nós por id OU nome exato (nome ambíguo é erro — use o id).',
@@ -152,6 +152,16 @@ server.registerTool('set_action_field', {
   },
 }, async ({ node, field, value, condIdx }) =>
   reply(setActionField(store, node, field as ActionFieldName, value, condIdx ?? 0)))
+
+server.registerTool('set_message', {
+  title: 'Definir texto da mensagem',
+  description: 'Grava o texto (TEXT) da mensagem de um nó: 0 balões→cria, 1→sobrescreve, N>1→erro. Não serve para nó de escolha (use set_menu).',
+  inputSchema: {
+    node: z.string().describe('id ou nome do nó (não pode ser nó de escolha)'),
+    text: z.string().describe('texto da mensagem (não pode ficar vazio)'),
+    condIdx: z.number().int().nonnegative().optional().describe('índice da condição (default 0)'),
+  },
+}, async ({ node, text, condIdx }) => reply(setMessage(store, node, text, condIdx ?? 0)))
 
 server.registerTool('set_choices', {
   title: 'Definir escolhas',

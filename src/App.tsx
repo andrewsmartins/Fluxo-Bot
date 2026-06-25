@@ -6,6 +6,7 @@ import { ImportDialog }  from './components/ImportDialog'
 import { NewFlowDialog } from './components/NewFlowDialog'
 import { PushDialog }    from './components/PushDialog'
 import { RestoreDialog } from './components/RestoreDialog'
+import { ChatPanel }     from './components/ChatPanel'
 import { DetailPanel }   from './components/DetailPanel'
 import { Toast, type Notice } from './components/Toast'
 import { ThemeToggle }   from './components/ThemeToggle'
@@ -62,6 +63,9 @@ export default function App() {
   const [pushOpen, setPushOpen]         = useState(false)
   const [restoreOpen, setRestoreOpen]   = useState(false)
   const [exporting, setExporting]       = useState(false)
+  // Turno do agente em andamento (caixinha de chat, PoC). Trava o canvas
+  // (read-only) — um escritor por vez entre as fronteiras de turno (decisão 5).
+  const [agentRunning, setAgentRunning] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node<FlowNodeData> | null>(null)
   // Categorias conhecidas na sessão. Acumula toda categoria criada/editada para
   // ficar disponível em outras intenções antes do push (a plataforma faz isso
@@ -168,6 +172,7 @@ export default function App() {
     function onKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
+      if (agentRunning) return  // canvas travado durante o turno do agente — sem undo/redo
       const mod = e.ctrlKey || e.metaKey
       if (!mod || e.altKey) return
       if (e.key.toLowerCase() === 'z') {
@@ -181,7 +186,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleUndo, handleRedo])
+  }, [handleUndo, handleRedo, agentRunning])
 
   /** Relatório de validação vivo, recalculado a cada mutação do modelo. */
   const report = useMemo(
@@ -706,6 +711,53 @@ export default function App() {
 
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
+  // ── Caixinha de chat (PoC local do agente construtor) ──────────────────────
+
+  /** Serializa o canvas atual para o flush do ENVIAR (decisão 5). Null = sem fluxo. */
+  const getFlowForAgent = useCallback((): string | null => {
+    return parsedDataRef.current ? serializeFlow(parsedDataRef.current) : null
+  }, [])
+
+  /** Travа/destrava o canvas conforme o turno do agente; fecha o painel ao travar. */
+  const handleAgentRunningChange = useCallback((running: boolean) => {
+    setAgentRunning(running)
+    if (running) setSelectedNode(null)
+  }, [])
+
+  /**
+   * Aplica o fluxo devolvido pelo agente ao fim do turno (decisão 3) com guard de
+   * parse (decisão 7): valida a forma e roda o `parseFlow` num try/catch — se
+   * qualquer etapa falhar, MANTÉM o canvas atual e mostra erro (nunca branqueia).
+   * Em caso de sucesso, empilha um snapshot ANTES de trocar, então "desfazer
+   * último turno" é o Ctrl+Z que já existe.
+   */
+  const handleAgentFlow = useCallback((flow: BotFlowJson) => {
+    if (!flow?.list || !Array.isArray(flow.list) || flow.list.length === 0) {
+      fail('O agente devolveu um fluxo inválido — canvas mantido.')
+      return
+    }
+    let parsed
+    try {
+      parsed = parseFlow(flow, spacingRef.current)
+    } catch (e) {
+      console.error('Falha ao renderizar o fluxo do agente:', e)
+      fail('Não foi possível renderizar o fluxo do agente — canvas mantido.')
+      return
+    }
+    const snapshot = takeSnap()
+    if (snapshot) historyRef.current.push(snapshot)
+    parsedDataRef.current = flow
+    setKnownCategories(collectCategories(flow.list))
+    setNodes(parsed.nodes)
+    setEdges(parsed.edges)
+    setSelectedNode(null)
+    setHighlightIds(new Set())
+    setHasFlow(true)
+    setLayoutVersion(v => v + 1)
+    bumpModel()
+    setNotice({ level: 'success', text: 'Fluxo atualizado pelo agente.' })
+  }, [fail, takeSnap, bumpModel])
+
   // Trocar o token (outra conta) invalida os times, as coleções E os modelos já carregados.
   useEffect(() => {
     setTeams([])
@@ -1110,6 +1162,20 @@ export default function App() {
           </div>
         )}
 
+        {/* Lock durante o turno do agente (decisão 5, "um escritor por vez"): um
+            shield `fixed` cobre a tela INTEIRA (canvas + Sidebar) e captura todo o
+            ponteiro — bloqueia arrastar, soltar da paleta, clique nos nós E os botões
+            da barra (importar/undo/etc.) de uma vez. Fica sob a caixinha (z-30), que
+            segue clicável. Os atalhos Ctrl+Z/Y também são travados (effect acima). */}
+        {agentRunning && (
+          <div className="fixed inset-0 z-20 cursor-not-allowed" aria-hidden="true">
+            <div className={`absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
+              <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+              Agente trabalhando — canvas travado
+            </div>
+          </div>
+        )}
+
         {notice && <Toast notice={notice} onDismiss={() => setNotice(null)} />}
       </main>
 
@@ -1144,6 +1210,17 @@ export default function App() {
           token={sessionToken}
           onTokenChange={setSessionToken}
           onClose={() => setRestoreOpen(false)}
+        />
+      )}
+
+      {/* Caixinha de chat do agente construtor — PoC LOCAL, só no dev build
+          (decisão 1): depende do backend local (`npm run ws:dev`); o gh-pages
+          publicado não o alcança e segue read-only. */}
+      {import.meta.env.DEV && (
+        <ChatPanel
+          getFlow={getFlowForAgent}
+          onFlowUpdated={handleAgentFlow}
+          onRunningChange={handleAgentRunningChange}
         />
       )}
     </div>

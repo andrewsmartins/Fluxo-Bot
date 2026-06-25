@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { FlowStore } from './flowStore'
 import {
-  createNode, setActionField, setNodeChoices, setMenu, connectNodes, connectToBot,
+  createNode, setActionField, setMessage, setNodeChoices, setMenu, connectNodes, connectToBot,
   validate, revert, listNodes, describeNode,
 } from './flowTools'
-import type { BotFlowJson } from '../types'
+import type { BotFlowJson, BotMessage } from '../types'
 
 /**
  * Teste de orquestração da spike (Fase 1, PLANS.md): exercita a camada de
@@ -274,6 +274,80 @@ describe('Fase 4b — set_menu (cria os itens de um choiceNode)', () => {
   })
 })
 
+describe('set_message — texto (TEXT) da mensagem de um nó', () => {
+  /** Mensagens TEXT da 1ª condição de um nó, lidas do disco. */
+  function textMessages(id: string): BotMessage[] {
+    const node = reload().list.find(i => i.id === id)!
+    return node.conditions[0].assistant_says.flatMap(s => s.messages).filter(m => m.type === 'TEXT')
+  }
+
+  it('cria o balão de texto num defaultNode recém-criado (0 TEXT → cria)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_msg'))![1]
+
+    const msg = setMessage(store, id, 'Olá, tudo bem?')
+    expect(msg).toMatch(/mensagem criada em "spike_msg"/)
+
+    const texts = textMessages(id)
+    expect(texts).toHaveLength(1)
+    expect(texts[0].content).toBe('Olá, tudo bem?')
+  })
+
+  it('sobrescreve o texto existente sem duplicar (1 TEXT → idempotente)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_msg_idem'))![1]
+
+    setMessage(store, id, 'primeira versão')
+    const msg = setMessage(store, id, 'versão final')
+    expect(msg).toMatch(/mensagem atualizada em "spike_msg_idem"/)
+
+    const texts = textMessages(id)
+    expect(texts).toHaveLength(1) // não duplicou
+    expect(texts[0].content).toBe('versão final')
+  })
+
+  it('recusa quando há N>1 balões de texto (não edita o errado em silêncio)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_msg_multi'))![1]
+    setMessage(store, id, 'balão 1')
+    // injeta um 2º balão TEXT (estado que a UI pode produzir, fora do alcance da tool)
+    const intent = store.flow.list.find(i => i.id === id)!
+    intent.conditions[0].assistant_says[0].messages.push({ type: 'TEXT', content: 'balão 2', fileName: '' })
+
+    expect(setMessage(store, id, 'novo')).toMatch(/2 balões de texto.*não é suportada/)
+  })
+
+  it('recusa nó de escolha (aponta set_menu)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'spike_msg_choice'))![1]
+    expect(setMessage(store, id, 'x')).toMatch(/é um nó de escolha — use set_menu/)
+  })
+
+  it('recusa texto vazio ou só espaços sem mutar o arquivo', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_msg_vazio'))![1]
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setMessage(store, id, '')).toMatch(/não pode ficar vazio/)
+    expect(setMessage(store, id, '   ')).toMatch(/não pode ficar vazio/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+
+  it('aceita um balão de texto junto da ação num nó de ação (transfer)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'transferNode', 'spike_msg_transfer'))![1]
+    const msg = setMessage(store, id, 'Aguarde, vou te transferir.')
+    expect(msg).toMatch(/mensagem criada/)
+    expect(textMessages(id)[0].content).toBe('Aguarde, vou te transferir.')
+  })
+
+  it('recusa nó inexistente sem efeito colateral', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setMessage(store, 'nao-existe', 'oi')).toMatch(/^⚠️ erro: nó não encontrado/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+})
+
 describe('Fase 4b — connect_to_bot (redirect cross-bot)', () => {
   // bot diferente do principal do fixture (o alvo cross-bot real da Parte 10).
   const OTHER_BOT = '8df3c1e7-a8c9-4bad-ac5a-2855462da840'
@@ -337,6 +411,48 @@ describe('Fase 4b — connect_to_bot (redirect cross-bot)', () => {
     expect(connectToBot(store, id, '   ')).toMatch(/botId vazio/)
     // nenhum next foi gravado
     expect(reload().list.find(i => i.id === id)!.conditions[0].next?.intent).toBeUndefined()
+  })
+})
+
+describe('FlowStore.reloadFromFile — sincronia com edições externas', () => {
+  it('retorna true e atualiza o modelo quando o arquivo foi modificado externamente', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const before = store.flow.list.length
+
+    // Simula o front gravando o arquivo entre turnos: remove o último nó e escreve
+    const edited: BotFlowJson = { list: store.flow.list.slice(0, -1) }
+    writeFileSync(flowPath, JSON.stringify(edited, null, 2), 'utf8')
+
+    const reloaded = store.reloadFromFile()
+
+    expect(reloaded).toBe(true)
+    expect(store.flow.list).toHaveLength(before - 1)
+  })
+
+  it('retorna false e não toca o modelo se o arquivo não mudou', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const before = store.flow.list.length
+
+    const reloaded = store.reloadFromFile()
+
+    expect(reloaded).toBe(false)
+    expect(store.flow.list).toHaveLength(before)
+  })
+
+  it('retorna false após save() sem mudança externa (disco = o que salvamos)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    createNode(store, 'defaultNode', 'spike_reload_save')
+
+    // save() escreve no disco e atualiza lastSavedContent
+    // → reloadFromFile deve ver o mesmo conteúdo e retornar false
+    const reloaded = store.reloadFromFile()
+
+    expect(reloaded).toBe(false)
+  })
+
+  it('retorna false em store de memória (fromObject — sem arquivo)', () => {
+    const store = FlowStore.fromObject({ list: [] })
+    expect(store.reloadFromFile()).toBe(false)
   })
 })
 

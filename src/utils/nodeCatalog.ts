@@ -59,7 +59,7 @@ export const NODE_CATALOG: Record<CreatableKind, NodeTypeEntry> = {
     actionType: 'none',
     hasError: false,
     summary: 'Mensagem simples (texto/mídia). Encadeia para o próximo nó via connect.',
-    fields: [],
+    fields: ['texto → use set_message (grava/edita o balão de texto), não set_action_field'],
   },
   choiceNode: {
     label: 'Escolha',

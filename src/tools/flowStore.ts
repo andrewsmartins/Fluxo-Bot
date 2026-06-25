@@ -24,10 +24,17 @@ export class FlowStore {
   readonly filePath: string | null
   /** Cópia do estado na 1ª mutação da sessão (a base do `revert`). */
   private snapshot: BotFlowJson | null = null
+  /**
+   * Conteúdo bruto do último `fromFile` ou `save`. Usado por `reloadFromFile`
+   * para detectar se o arquivo foi modificado externamente (disco ≠ este valor
+   * → recarregar; disco = este valor → noop).
+   */
+  private lastSavedContent: string | null = null
 
-  private constructor(model: BotFlowJson, filePath: string | null) {
+  private constructor(model: BotFlowJson, filePath: string | null, lastSavedContent: string | null = null) {
     this.model = model
     this.filePath = filePath
+    this.lastSavedContent = lastSavedContent
   }
 
   /** Store sobre um modelo em memória — sem persistência (save/revert não tocam disco). */
@@ -38,7 +45,7 @@ export class FlowStore {
   /** Carrega o fluxo de um arquivo JSON no disco (caminho local da spike). */
   static fromFile(filePath: string): FlowStore {
     const raw = readFileSync(filePath, 'utf8')
-    return new FlowStore(JSON.parse(raw) as BotFlowJson, filePath)
+    return new FlowStore(JSON.parse(raw) as BotFlowJson, filePath, raw)
   }
 
   /** Caminho do backup de sessão, ao lado do arquivo (`<arquivo>.bak`). */
@@ -78,7 +85,32 @@ export class FlowStore {
   /** Persiste o modelo em disco (no-op em store de memória). Mutações salvam sem gate (Q2). */
   save(): void {
     if (!this.filePath) return
-    writeFileSync(this.filePath, serializeFlow(this.model), 'utf8')
+    const content = serializeFlow(this.model)
+    writeFileSync(this.filePath, content, 'utf8')
+    this.lastSavedContent = content
+  }
+
+  /**
+   * Relê o arquivo do disco e atualiza o modelo em memória se o conteúdo
+   * divergiu desde o último `fromFile`/`save`. Era o gatilho de sincronia
+   * pensado para um MCP persistente entre turnos.
+   *
+   * NOTA (verificado 2026-06-25): no PoC local da caixinha de chat o MCP **sobe
+   * novo a cada turno** (o Agent SDK re-spawna o subprocesso mesmo no `resume`),
+   * então o `fromFile` do boot já enxerga o flush do canvas — este método é
+   * **redundante** nesse caminho. Mantido como rede de segurança e para a Fase 5
+   * (caso o MCP passe a viver entre turnos, basta chamá-lo no início de cada tool).
+   *
+   * Retorna `true` se houve reload, `false` se o arquivo não mudou.
+   * No-op (retorna `false`) em store de memória (`filePath === null`).
+   */
+  reloadFromFile(): boolean {
+    if (!this.filePath) return false
+    const current = readFileSync(this.filePath, 'utf8')
+    if (current === this.lastSavedContent) return false
+    this.model = JSON.parse(current) as BotFlowJson
+    this.lastSavedContent = current
+    return true
   }
 
   /**
