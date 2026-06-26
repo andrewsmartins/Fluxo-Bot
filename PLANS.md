@@ -1,34 +1,34 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 <!-- HANDOFF:START -->
-## 🔄 Handoff — 2026-06-25
+## 🔄 Handoff — 2026-06-26
 
-**Foco da próxima sessão:** abrir PR de `feat/chat-ux` → main (ou merge direto) e iniciar a próxima feature do roadmap.
+**Foco da próxima sessão:** decidir entre (a) `/verify` e2e do `set_message` pela caixinha de chat ou (b) avançar para a próxima feature do roadmap.
 
-**Onde paramos:** branch **`feat/chat-ux`** com 7 commits à frente de `main` (ver `git log --oneline main..HEAD`).
-`/verify` rodou nesta sessão com Playwright headless — **PASS** em todas as três features do diff:
-- Pill zinc-800 + cadeado + popover de gate ✅
-- Widget draggable (pill e header do painel) — 200-300px de deslocamento confirmados ✅
-- Textarea auto-expand 38 px → 120 px, colapso ao limpar ✅
+**Onde paramos:** branch **`feat/set-message`** — criada nesta sessão, mas sem código novo ainda.
+O que foi feito nesta sessão:
+- PR #5 (`feat/chat-ux` → `main`) aberto e mergeado (merge `53b3b19`).
+- Branch `feat/set-message` criada a partir do `main` atualizado.
+- Descoberto que `set_message` **já está totalmente implementada** (entregue no spike, merge `15cbf54`): função em [flowTools.ts:149](src/tools/flowTools.ts#L149), registrada no MCP em [mcp/server.ts:156](mcp/server.ts#L156), 7 testes unitários verdes em [flowTools.test.ts:277](src/tools/flowTools.test.ts#L277).
+- PLANS.md atualizado: marcadas como `✅ CONCLUÍDA` as seções de `set_message`, Gate, Chat UX e Caixinha PoC (commit `d4b8537`).
 
-**Fios soltos / meio-feito:** nenhum — tudo commitado e verificado. Branch pronta para PR/merge.
+**Fios soltos / meio-feito:**
+- **`/verify` e2e do `set_message` pendente:** pedir ao agente pela caixinha "crie um nó de mensagem com texto X" e confirmar que o `content` no `work.flow.json` bate com X — esse é o critério de aceite final descrito no PLANS.md.
+- Branch `feat/set-message` existe mas está vazia (só o commit de docs do PLANS). Se o `/verify` passar sem código novo, mergear ou descartar a branch.
 
-**Armadilhas desta sessão:**
-- O `ImportDialog` exige um JSON com propriedade `list` (array de intents OmniChat) — JSON genérico com `nodes` falha com mensagem útil. Para testes futuros, usar `example.json` na raiz.
-- O popover do token fecha via clique no backdrop (`div.fixed.inset-0`), **não** com ESC — não há handler de `keydown`. Comportamento intencional (dev-only por enquanto); lembrar para a Fase 5.
-- Carregar `example.json` (fluxo grande) demora ~1.5 s para renderizar o canvas; timeouts abaixo disso falham nas automações.
+**Armadilhas desta sessão:** nenhuma nova — as da sessão anterior (ImportDialog exige `list`, popover fecha só por backdrop, timeout 1.5s) continuam válidas no PLANS.md §`set_message`.
 
 **Próximo passo imediato:**
-1. `gh pr create` (ou merge local) de `feat/chat-ux` → `main`.
-2. Verificar qual é a próxima fase no PLANS.md § roadmap e abrir branch correspondente.
+1. Rodar `/verify` pela caixinha para fechar o critério de aceite do `set_message` (se quiser formalizá-lo).
+2. OU definir a próxima feature e redirecionar a branch `feat/set-message` (ou criar uma nova).
 
 **Ponteiros:**
-- PLANS §"Chat UX — textarea auto-expand + botão estilo menu + widget draggable" — decisões já implementadas.
-- PLANS §"Gate de acesso à caixinha de chat" — gate implementado e verificado.
-- Commits desta branch: `d699e83` (Chat UX), `be5391d` (docs), `7c5ee05` (backend model bump), `2f2e769` (fix findTeam), `7a8ee9e` (NodePalette), `ded886f` (gate lock), `5e5648c` (token popover portal).
-- PLANS 576 linhas (< limiar 600 — sem arquivamento necessário).
+- PLANS §"Tool de texto da mensagem (`set_message`)" — decisões e critério de aceite.
+- PLANS §"Fase 5 — Produto (direcional)" — próximo horizonte de feature.
+- Commits desta sessão: `aa02f3e` (handoff docs), `53b3b19` (merge PR #5), `d4b8537` (PLANS status update).
+- PLANS 567 linhas (< limiar 600 — sem arquivamento).
 
-**Skills sugeridas ao retomar:** `/code-review` se houver diffs não revisados antes do merge; `/verify` depois de qualquer nova feature.
+**Skills sugeridas ao retomar:** `/verify` para o e2e do `set_message`; `/interrogar` antes de planejar a próxima feature.
 <!-- HANDOFF:END -->
 
 ## Contexto
