@@ -72,11 +72,16 @@ export const NODE_CATALOG: Record<CreatableKind, NodeTypeEntry> = {
     label: 'Captura',
     actionType: 'captureData',
     hasError: true,
-    summary: 'Captura dado(s) do contato (nome, e-mail, CPF, …).',
+    summary:
+      'Pergunta algo e AGUARDA a resposta do contato — use no lugar de "Mensagem + Aguardar interação". ' +
+      'O texto da pergunta entra via set_message; a resposta fica em captureDataType=free (texto livre, é o default) ' +
+      'ou num campo TIPADO quando a pergunta casa limpo com um campo conhecido (CNPJ→cnpj, e-mail→mail, telefone→fullPhoneNumber).',
     fields: [
-      'captureDataType: mail | name | fullName | fullPhoneNumber | cpf | cnpj | zipcode | … | free',
+      'captureDataType: free (texto livre, default) | mail | name | fullName | fullPhoneNumber | cpf | cnpj | zipcode | … — ' +
+        'só tipe quando a pergunta casar LIMPO com UM campo; composto/ambíguo (ex.: "CNPJ e nome da loja") → deixe free',
       'captureDataTypesCategory: singleField | multipleFields',
       'multipleFields: lista de campos (só no modo multipleFields)',
+      'variable: NÃO setar — é do tipo custom, fora do escopo (a plataforma grava o campo tipado sozinha)',
     ],
   },
   transferNode: {
@@ -93,7 +98,10 @@ export const NODE_CATALOG: Record<CreatableKind, NodeTypeEntry> = {
     label: 'Aguardar interação',
     actionType: 'waitForInteraction',
     hasError: false,
-    summary: 'Aguarda a próxima interação do contato. Sem campos.',
+    summary:
+      'Aguarda a próxima interação do contato SEM perguntar nada. ' +
+      'Se você precisa FAZER uma pergunta e esperar a resposta, use o nó de Captura (captureNode) — ' +
+      'NÃO Mensagem + Aguardar. Sem campos.',
     fields: [],
   },
   setDataNode: {

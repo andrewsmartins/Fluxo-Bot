@@ -11,6 +11,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [0.31.0] - 2026-06-26
+
+### Alterado
+- **Agente passa a usar nó de Captura no lugar de "Mensagem + Aguardar interação"** ([src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts), [mcp/server.ts](mcp/server.ts)) — ao construir um passo "pergunte algo e espere a resposta", o agente montava `defaultNode` + `waitNode`; agora a guidance o direciona a um único `captureNode`. As tools já bastavam (um `captureNode` nasce com `captureDataType='free'` = texto livre; `set_message` carrega a pergunta; `set_action_field` tipa quando há campo conhecido) — o gap era de **instrução**, não de ferramenta. Reescritos os `summary`/`fields` do `captureNode` (agora "Pergunta algo e AGUARDA a resposta — use no lugar de Mensagem + Aguardar") e do `waitNode` ("aguarda SEM perguntar nada; para perguntar+esperar use captureNode") + nova regra na linha de regras das `instructions` do MCP. **Política conservadora de tipo:** só tipa `captureDataType` quando a pergunta casa limpo com um dos 11 `CAPTURE_FIELDS` (CNPJ→`cnpj`, e-mail→`mail`…); composto/ambíguo → `free`; nunca grava `variable`.
+
+### Adicionado
+- **Nudge no `validate()` para o antipadrão "Mensagem + Aguardar"** ([src/tools/flowTools.ts](src/tools/flowTools.ts)) — a tool `validate` passa a emitir um **aviso não-bloqueante** quando um `defaultNode` **que carrega texto** (= fez uma pergunta) aponta para um `waitNode`, sugerindo trocá-los por um `captureNode`. Rede de segurança para recidiva, já que a guidance não garante 100%. Disparo preciso (só com mensagem TEXT, para evitar falso-positivo em "mensagem informativa + esperar"); vive **só no `validate()` do agente**, não no `validateFlow` compartilhado — assim não acusa Mensagem+Aguardar legítimos montados à mão na UI. Cobertura: **+3 testes** em [src/tools/flowTools.test.ts](src/tools/flowTools.test.ts) (dispara com texto; não acusa sem texto; não acusa `captureNode`). Suíte cheia verde (**472 testes**); `tsc` do app e `mcp:typecheck` limpos.
+
 ## [0.30.0] - 2026-06-26
 
 ### Adicionado

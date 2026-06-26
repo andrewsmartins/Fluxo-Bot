@@ -406,6 +406,83 @@ expostas em [flowTools.ts](src/tools/flowTools.ts) nem no [mcp/server.ts](mcp/se
 - Localizar a "única TEXT" para o caminho de edição: varrer `listMessages` filtrando `condIdx` +
   `type==='TEXT'` e montar a `MessageRef` — detalhe de implementação, sem decisão pendente.
 
+### Prompt de construção do fluxo "Grupo Uni.co (lojista)"
+
+> Prompt multi-turno fechado por interrogatório (skill `interrogar`) em 2026-06-26. Artefato
+> reutilizável: 6 turnos de chat + mapa Mermaid + critério em
+> [docs/PROMPT-fluxo-uni-co.md](docs/PROMPT-fluxo-uni-co.md). Origem: PDF "Reestruturação
+> Omnichat Lojista".
+
+**Objetivo:** construir pela caixinha o fluxo do PDF **o mais fiel possível**, dentro das tools.
+Topologia: tronco linear (saudação→marca→captura CNPJ→categoria→assunto de 7 opções) + os 7
+direcionamentos, com **bifurcação local (menu)** só nos ramos 2 (devolução, por marca×categoria)
+e 6 (partes/peças, por marca) — porque **não há condição por variável nas tools**. Dinâmicos →
+variáveis reais (`@customer.name`, `@chat.customerSupportRequestId`). Serve também de `/verify`
+do `set_message`. **Gap de tool descoberto:** intenção dentro/fora-de-horário com "Senão" exige
+tools de condição inexistentes (add_condition + critério `@bot.isOpenNow` + flag Senão) — fora-de-
+horário virou 2 nós soltos como aproximação; candidato a feature futura. Pendente: rodar pela
+caixinha e avaliar contra o critério do doc.
+
+### Nó de Captura no agente — trocar "Mensagem + Aguardar" por `captureNode` (guidance + nudge) ✅ IMPLEMENTADA (branch `feat/capture-node-guidance`, v0.31.0)
+
+> **Resultado (2026-06-26, branch `feat/capture-node-guidance`):** entregue como **guidance + nudge**
+> (sem tool nova). (1) `summary`/`fields` de `captureNode` e `waitNode` reescritos em
+> [nodeCatalog.ts](src/utils/nodeCatalog.ts); (2) nova regra "perguntar+esperar = captureNode" nas
+> `instructions` do [mcp/server.ts](mcp/server.ts); (3) `validate()` ([flowTools.ts](src/tools/flowTools.ts))
+> ganhou `findAskWaitNudges` — aviso não-bloqueante quando `defaultNode` COM texto → `waitNode`, exclusivo
+> do agente (não toca `validateFlow`/UI). **+3 testes**, suíte cheia verde (**472 testes**), `tsc`+`mcp:typecheck`
+> limpos. **Pendente:** `/verify` e2e pela caixinha (critério de aceite abaixo).
+>
+> Plano fechado por interrogatório (skill `interrogar`) em 2026-06-26. Decisões TRAVADAS abaixo —
+> registro do raciocínio; não reabrir sem novo interrogatório. Origem: ao construir o fluxo Uni.co
+> (turnos 2/3/4/7, "mensagem X → aguardar a resposta"), o agente monta `defaultNode` + `waitNode`
+> em vez de um `captureNode`.
+
+**Objetivo (1 frase):** fazer o agente usar **um `captureNode`** sempre que o passo for "perguntar
+algo e esperar a resposta", em vez do par `defaultNode` + `waitNode`.
+
+**Diagnóstico (achados do código — é guidance, NÃO falta tool):**
+- `captureNode` recém-criado já nasce com `captureDataType: 'free'` ([intentTemplates.ts:83](src/utils/intentTemplates.ts#L83))
+  ⇒ captura não configurada = "pergunte e espere qualquer resposta" = exatamente o que Mensagem+Aguardar faz.
+- `set_message` aceita `captureNode` (recusa só `choiceNode`) ⇒ o nó de Captura **carrega a própria pergunta**.
+- `set_action_field` já grava `captureDataType`/`captureDataTypesCategory`/`multipleFields` ([flowTools.ts:33](src/tools/flowTools.ts#L33)).
+- A UI ([DetailPanel.tsx:3215](src/components/DetailPanel.tsx#L3215)) grava **só** esses 3 campos ao salvar captura — **nunca** `variable`.
+  Captura tipada (CNPJ/CPF/…) **não precisa** de variável: a plataforma armazena no campo conhecido do contato pelo
+  próprio `captureDataType`. `variable` só serve ao tipo `custom` (= território do `setDataNode.bulkUpdate` não exposto, fora do escopo).
+- Logo: tudo construível com as tools de hoje. O agente caiu no workaround por **guidance** — o `summary` do
+  `captureNode` ("Captura dado(s) do contato…") enquadra como "dado estruturado" e não diz que é o jeito de "perguntar e esperar".
+
+**Decisões (com o porquê):**
+1. **Regra única: pergunta+espera → `captureNode` (Q1).** Qualquer "faça uma pergunta e espere a resposta" vira
+   um `captureNode` — inclusive texto livre, que fica em `captureDataType='free'` (default). O `waitNode` sobra só
+   para "esperar sem perguntar nada". Uma regra só, uniforme; sem o agente ter que adivinhar "é tipado?".
+2. **Materialização: guidance + nudge no `validate()` (Q2).** (a) Reescrever o `summary` do `captureNode` e do
+   `waitNode` em [nodeCatalog.ts](src/utils/nodeCatalog.ts) e a regra na linha "Trabalho típico" das `instructions`
+   do [mcp/server.ts](mcp/server.ts); (b) `validate()` emite **aviso não-bloqueante** ao detectar o antipadrão.
+   Texto guia a construção; validate pega recidiva. **Sem guardrail duro na tool** — `waitNode` tem usos legítimos
+   e bloquear misturaria política de design com validação estrutural.
+3. **Política de tipo: conservador (Q4).** O agente só seta `captureDataType` quando a pergunta casa **limpo** com
+   **um** dos 11 `CAPTURE_FIELDS` (CNPJ→`cnpj`, e-mail→`mail`, telefone→`fullPhoneNumber`). Composto/ambíguo/sem
+   mapeamento → deixa `free`. Nunca erra o tipo (pior caso = pergunta+espera); `set_action_field` **não valida** enum
+   hoje, então a disciplina vive na guidance. Vocabulário = os 11 `CAPTURE_FIELDS`, não os 22 do enum da plataforma.
+   *Consequência:* o "Qual seu CNPJ **e nome da loja**?" do Uni.co (composto) vira captura **free** — o humano lê a resposta.
+4. **Agente NUNCA grava `variable` (decorre do diagnóstico).** Espelha a UI. `variable` = tipo `custom`, fora do escopo.
+5. **Nudge preciso: só `defaultNode` COM mensagem TEXT → `waitNode` (Q5).** É a assinatura de "perguntou e esperou".
+   `defaultNode` sem texto → `waitNode` não acusa (raro e ambíguo). Menos falso-positivo.
+
+**Como será testado:**
+- **Unit do nudge** (padrão de [flowTools.test.ts](src/tools/flowTools.test.ts)): defaultNode-com-texto→wait **dispara**
+  aviso; defaultNode-sem-texto→wait **não** dispara; captureNode→(nada) limpo; aviso é não-bloqueante (validate não falha).
+- **`mcp:typecheck`** limpo (mudança de `summary`/instructions é texto; o validate ganha uma checagem).
+- **`/verify` e2e pela caixinha:** prompt "pergunte o CNPJ e depois pergunte o nº de atendimento" → assert no
+  `work.flow.json` que ambos são `captureNode` (CNPJ tipado=`cnpj`; nº atendimento=`free`), **zero** `waitNode`.
+
+**Riscos/pendências:**
+- Guidance não garante 100% (Q2 recusou guardrail duro) — o nudge do `validate()` é a rede para recidiva.
+- `set_action_field` ainda não valida `captureDataType` (dívida da Fase 2) — se o agente escrever tipo inválido,
+  passa silencioso. Aceito por ora; consolidar junto com os sub-enums quando a Fase 5 pedir validação de campo.
+- Enum reduzido (11 vs 22): captura que precisaria de `cpfOrCnpj`/`custom`/etc. cai em `free` — aceito; ampliar é aditivo.
+
 ### Gate de acesso à caixinha de chat (bot + token) ✅ CONCLUÍDA (PR #5, merge `53b3b19`)
 
 > Plano fechado por interrogatório (skill `interrogar`) em 2026-06-25. Decisões TRAVADAS abaixo —

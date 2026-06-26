@@ -188,6 +188,40 @@ describe('Amostra 3 — 3 nós conectados (create + connect + choices + validate
   })
 })
 
+describe('validate — nudge "Mensagem + Aguardar" → captureNode (interrogatório 2026-06-26)', () => {
+  it('dispara aviso (não-bloqueante) quando defaultNode COM texto aponta para waitNode', () => {
+    const store = FlowStore.fromFile(flowPath)
+    createNode(store, 'defaultNode', 'pergunta_cnpj')
+    createNode(store, 'waitNode', 'aguarda_cnpj')
+    setMessage(store, 'pergunta_cnpj', 'Qual é o seu CNPJ?')
+    connectNodes(store, 'pergunta_cnpj', 'aguarda_cnpj')
+
+    const report = validate(store)
+    expect(report).toMatch(/nó "pergunta_cnpj" faz uma pergunta e aponta para "aguarda_cnpj"/)
+    expect(report).toMatch(/captureNode/)
+    expect(report).not.toMatch(/❌/) // é aviso, nunca erro bloqueante
+  })
+
+  it('NÃO acusa quando o defaultNode não tem texto (Q5: só com mensagem TEXT)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    createNode(store, 'defaultNode', 'so_encadeia')
+    createNode(store, 'waitNode', 'aguarda_x')
+    connectNodes(store, 'so_encadeia', 'aguarda_x')
+
+    const report = validate(store)
+    expect(report).not.toMatch(/"so_encadeia" faz uma pergunta e aponta/)
+  })
+
+  it('NÃO acusa um captureNode com a pergunta (o caminho correto)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    createNode(store, 'captureNode', 'captura_cnpj')
+    setMessage(store, 'captura_cnpj', 'Qual é o seu CNPJ?')
+
+    const report = validate(store)
+    expect(report).not.toMatch(/"captura_cnpj" faz uma pergunta e aponta/)
+  })
+})
+
 describe('Fase 4b — set_menu (cria os itens de um choiceNode)', () => {
   it('cria menu BUTTON com 2 itens + 2 slots de choices vazios sincronizados (validate limpo)', () => {
     const store = FlowStore.fromFile(flowPath)

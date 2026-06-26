@@ -309,20 +309,62 @@ export function connectToBot(
   return `${intent.name}→outro bot (${targetId})${hadNext ? ' (destino anterior substituído)' : ''}`
 }
 
+/** Extrai o id da intenção-destino de um `next` (objeto `{botId,id}` ou string). */
+function nextIntentId(cond: BotIntent['conditions'][number]): string | null {
+  const next = cond.next?.intent
+  if (!next) return null
+  return typeof next === 'string' ? next : (next.id ?? null)
+}
+
+/** True se a condição tem ao menos um balão TEXT com conteúdo (= "fez uma pergunta"). */
+function hasTextMessage(cond: BotIntent['conditions'][number]): boolean {
+  return cond.assistant_says.some(say =>
+    say.messages.some(m => m.type === 'TEXT' && !!(m.content ?? '').trim()),
+  )
+}
+
+/**
+ * Nudge do antipadrão "Mensagem + Aguardar" (decisão 5 do interrogatório
+ * 2026-06-26): só dispara quando um `defaultNode` QUE CARREGA texto (= fez uma
+ * pergunta) aponta para um `waitNode`. É a assinatura de "perguntou e esperou" —
+ * que deveria ser UM `captureNode`. Avisos NÃO bloqueiam export; vivem só aqui no
+ * `validate()` do agente (não em `validateFlow`), para não acusar Mensagem+Aguardar
+ * legítimos montados à mão na UI.
+ */
+function findAskWaitNudges(store: FlowStore): string[] {
+  const byId = new Map(store.flow.list.map(i => [i.id, i]))
+  const nudges: string[] = []
+  for (const intent of store.flow.list) {
+    for (const cond of intent.conditions) {
+      if (actionToNodeKind(cond.action) !== 'defaultNode' || !hasTextMessage(cond)) continue
+      const target = byId.get(nextIntentId(cond) ?? '')
+      const pointsToWait = !!target && target.conditions.some(c => c.action?.type === 'waitForInteraction')
+      if (!pointsToWait) continue
+      nudges.push(
+        `nó "${intent.name}" faz uma pergunta e aponta para "${target.name}" (Aguardar interação) — ` +
+        `troque os dois por UM nó de Captura (captureNode): set_message com a pergunta + captureDataType=free (ou tipado).`,
+      )
+    }
+  }
+  return nudges
+}
+
 /**
  * `validate()` — relatório de validade do fluxo (envolve `validateFlow`).
  * Tool separada (Q2): nunca é gate de escrita; o agente chama quando quer
- * (tipicamente no fim). Erros bloqueiam export; avisos só informam.
+ * (tipicamente no fim). Erros bloqueiam export; avisos só informam — inclui o
+ * nudge de captura (`findAskWaitNudges`), exclusivo do agente.
  */
 export function validate(store: FlowStore): string {
   const { errors, warnings } = validateFlow(store.flow)
-  if (!errors.length && !warnings.length) return '✅ fluxo válido (0 erros, 0 avisos)'
+  const allWarnings = [...warnings, ...findAskWaitNudges(store)]
+  if (!errors.length && !allWarnings.length) return '✅ fluxo válido (0 erros, 0 avisos)'
   const lines: string[] = []
   lines.push(errors.length ? `❌ ${errors.length} erro(s):` : '✅ 0 erros')
   errors.forEach(e => lines.push(`  • ${e}`))
-  if (warnings.length) {
-    lines.push(`⚠️ ${warnings.length} aviso(s):`)
-    warnings.forEach(w => lines.push(`  • ${w}`))
+  if (allWarnings.length) {
+    lines.push(`⚠️ ${allWarnings.length} aviso(s):`)
+    allWarnings.forEach(w => lines.push(`  • ${w}`))
   }
   return lines.join('\n')
 }
