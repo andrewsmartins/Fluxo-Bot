@@ -8,9 +8,93 @@
 
 > Concluídas e **mergeadas na `main`** em 2026-06-24 (merge `15cbf54`, branch `feat/mcp-tools-spike`).
 > O contexto-âncora da feature (Objetivo / Decisões-âncora / Ordem revista) segue no `PLANS.md`
-> ativo. A **Fase 2 `NODE_CATALOG`** foi concluída depois (merge `e701026`, 2026-06-24) e seu
-> registro de decisões permanece no `PLANS.md` (não migrado: ativo abaixo do limiar de arquivamento).
+> ativo. A **Fase 2 `NODE_CATALOG`** (merge `e701026`, 2026-06-24) foi migrada para cá em 2026-06-26
+> (PLANS passou do limiar de ~600 linhas) — ver subseção logo abaixo.
 > Segue viva no ativo apenas a **Fase 5 Produto** (direcional).
+
+### Fase 2 — Centralizar `NODE_CATALOG` (refactor/limpeza) ✅ CONCLUÍDA (mergeada)
+
+> **Resultado (2026-06-24, merge `e701026`, branch `feat/node-catalog`):** entregue em
+> [src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts) — `NODE_CATALOG` (11 `CreatableKind`)
+> como fonte única kind-level (`label`/`actionType`/`creatable`/`hasError`/`summary`/`fields`).
+> `nodeMeta.ts` (`actionToNodeKind`), `intentTemplates.ts` (`CREATABLE_KINDS`/`*_LABELS`/
+> `ACTION_KINDS_WITH_ERROR`), [mcp/nodeManifest.ts](mcp/nodeManifest.ts) (rename de
+> `mcp/nodeCatalog.ts`, agora formatador fino) e [DetailPanel.tsx](src/components/DetailPanel.tsx)
+> **derivam** do catálogo. Os 4 commits do plano abaixo executados na ordem
+> (`ab2b0e5`→`5788e28`→`b290d00`→`086dffb`); teste golden em
+> [src/utils/nodeCatalog.test.ts](src/utils/nodeCatalog.test.ts) trava label/actionType/hasError.
+> **Suíte cheia verde (453 testes), `mcp:typecheck` limpo** (revalidado 2026-06-25). Sem mudança
+> de comportamento. As decisões abaixo ficam como registro do **porquê** do código atual.
+
+**Objetivo (entregue):** um único `src/utils/nodeCatalog.ts` (Node-pure) como fonte de
+verdade *por tipo de nó*, do qual derivam as constantes antes duplicadas em ≥4 arquivos, e do
+qual o manifesto MCP passou a **derivar** em vez de duplicar à mão.
+
+> Plano fechado por interrogatório (skill `interrogar`) em 2026-06-24. As decisões abaixo
+> estão TRAVADAS — registro do raciocínio; não reabrir sem novo interrogatório.
+
+**Verdade espalhada hoje (o alvo):** `NodeKind` [types.ts:130](src/types.ts#L130);
+`actionToNodeKind`/`CONDITION_TYPE_LABELS`/`PRIORITY_LABELS` [nodeMeta.ts](src/utils/nodeMeta.ts);
+`CREATABLE_KINDS`/`CREATABLE_KIND_LABELS`/`ACTION_TYPE_BY_KIND`(privado)/`ACTION_KINDS_WITH_ERROR`/`buildKindAction`
+[intentTemplates.ts](src/utils/intentTemplates.ts); consts inline por tipo no
+[DetailPanel.tsx](src/components/DetailPanel.tsx) (`KIND_LABELS_LIGHT/DARK`, `KIND_OPTIONS`,
+`STORE_ACTIONS`, `ORDER_ACTIONS`, `EXTERNAL_TYPES`, `TRANSFER_*`); manifesto hand-written
+[mcp/nodeCatalog.ts](mcp/nodeCatalog.ts).
+
+**Decisões (com o porquê):**
+1. **Catálogo MAGRO, kind-level (Opção A).** Absorve só fatos *por tipo de nó*: `label`,
+   `actionType`, `creatable`, `hasError`, `summary`, `fields`. Os sub-enums internos
+   (`TRANSFER_*`, `STORE_ACTIONS`, `CAPTURE_FIELDS`, …) **NÃO** entram — já são fontes únicas
+   locais bem-comportadas, com um só consumidor. O valor que paga tocar o arquivo de 383
+   testes é (a) o MCP **derivar** o manifesto (hoje hand-written → diverge silenciosamente) e
+   (b) matar a duplicação do enum-de-tipos+label (repetido em 3 lugares). Catálogo gordo seria
+   consolidar o que não está espalhado.
+2. **`src/utils/nodeCatalog.ts`, Node-pure; cor/ícones FORA.** O `mcp/` importa o catálogo e
+   roda em Node sem DOM ⇒ catálogo = só domínio. `color` (Tailwind, light/dark) é tema → fica
+   num mapa de tema à parte chaveado por `NodeKind` (regra de ouro do dark-mode: tema separado
+   da estrutura). `label` é domínio e compartilhável; `color` não.
+3. **Rename `mcp/nodeCatalog.ts` → `mcp/nodeManifest.ts`** para não colidir com o novo
+   `src/utils/nodeCatalog.ts`. O de mcp vira derivador fino + formatador (`manifest`/`describeNodeType`).
+4. **Catálogo chaveado pelos 11 `CreatableKind` (uniforme, sem union).** Descoberta no início
+   do commit 1: existem **dois sistemas de label distintos**, não uma duplicação —
+   **(P) paleta/descritivo** (`CREATABLE_KIND_LABELS`, 11 criáveis, ex.: "Aguardar interação",
+   "Editar informação", "Encerrar conversa", "Chamada de API", "Captura CSAT"), duplicado entre
+   intentTemplates → DetailPanel `KIND_OPTIONS` → MCP; e **(B) badge/canvas** (`KIND_LABELS_LIGHT/DARK`,
+   16 kinds, label CURTO + cor, ex.: "Aguarda", "Variável", "Terminar", "Chamada API", "CSAT"),
+   com **consumidor único** (a badge do DetailPanel). Unificar num só label mudaria a UI (viola o
+   gate). Logo: **o catálogo serve só o Sistema P** (label descritivo) + actionType/hasError/summary/fields,
+   chaveado pelos 11 `CreatableKind`. **O Sistema B (badge curto + cor) permanece no DetailPanel**
+   como mapa de tema por `NodeKind` (mesma lógica da decisão 2 + consumidor-único dos sub-enums).
+   `actionToNodeKind` nunca retorna start/externalBot/intentGroup (vêm de detecção estrutural),
+   então 11 kinds bastam. **Efeito:** o commit 3 (DetailPanel) encolhe — `KIND_OPTIONS` deriva de
+   graça via decisão 1; a badge nem muda.
+5. **`buildKindAction` PERMANECE em `intentTemplates.ts`.** O catálogo absorve só dados puros
+   (label, actionType); `actionToNodeKind`, `CREATABLE_KINDS`, `CREATABLE_KIND_LABELS`,
+   `ACTION_KINDS_WITH_ERROR` (→ campo `hasError`) passam a **derivar** do catálogo, com os
+   exports/assinaturas **preservados**. Os `if (kind===…)` do `buildKindAction` são lógica de
+   inicialização, não tabela — declarativizá-los arrisca os testes de template sem ganho.
+
+**Plano de migração executado (4 commits, `npm test` verde como gate entre cada um):**
+1. ✅ `ab2b0e5` — criou `nodeCatalog.ts` + re-derivou as constantes antigas *nos arquivos atuais*
+   (`nodeMeta`, `intentTemplates`), **sem mudar exports/assinaturas**. Suíte verde provou derivação fiel.
+2. ✅ `5788e28` — apontou `mcp/nodeManifest.ts` (rename de `mcp/nodeCatalog.ts`) para o catálogo;
+   `mcp:typecheck` + smoke efêmero.
+3. ✅ `b290d00` — **DetailPanel** (commit isolado, o arriscado): trocou `KIND_LABELS_*`/`KIND_OPTIONS`
+   pela leitura do catálogo (label do catálogo; cor do tema à parte).
+4. ✅ `086dffb` — limpeza: removeu consts mortas e o re-export-andaime; zero duplicação remanescente.
+
+**Como foi testado:** os testes do projeto foram o gate primário (consomem labels/options/defaults via
+exports preservados) — suíte cheia verde após cada commit, **453 testes hoje**. Fallback defensivo de
+label/cor (`catalog[kind]?.label ?? kind`) preservado igual a antes.
+
+**Riscos/dívida nomeada:**
+- **Sub-enums adiados (divergência descritiva MCP↔DetailPanel nos valores de campo).** Aceita
+  enquanto o MCP usa `fields` só como prosa-dica. **Gatilho para voltar:** quando o MCP for
+  **validar/enumerar valores de campo** (ex.: `set_action_field` rejeitar `transferType` inválido),
+  provável na Fase 5 — aí consolidar TODOS de uma vez (inclusive `TRANSFER_*`, que é máquina de
+  estado de UI de 2 níveis, mini-refactor à parte) com escopo e teste próprios.
+- Anti-corrupção de `<option>` legado (`storeType`/`orderType`/`condType` desconhecidos) vive
+  nos sub-enums ⇒ **fora do escopo, não tocar**.
 
 ### Fase 1 — Spike: camada de tools sobre o arquivo de fluxo (sem IA) ✅ concluída
 

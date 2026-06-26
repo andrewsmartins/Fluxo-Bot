@@ -3,30 +3,35 @@
 <!-- HANDOFF:START -->
 ## 🔄 Handoff — 2026-06-26
 
-**Foco da próxima sessão:** `/verify` e2e do `set_message` pela caixinha de chat — fechar o critério de aceite pendente — e decidir a próxima feature.
+**Foco da próxima sessão:** `/verify` e2e da feature "Nó de Captura" pela caixinha — fechar o critério de aceite — e decidir o destino das branches abertas (`feat/set-message` → `feat/capture-node-guidance`).
 
-**Onde paramos:** branch **`feat/set-message`** — sem código novo (a implementação já existe). Nesta sessão foi feito apenas housekeeping de documentação.
-O que foi feito:
-- Interrogatório sobre escopo da atualização documental (skill `/interrogar`).
-- **v0.30.0** lançado: `CHANGELOG.md` (bump "Não lançado" → `[0.30.0] - 2026-06-26`), `package.json` (0.29.0 → 0.30.0), `README.md` (seção "Agente de IA (dev)", Stack +3 libs, estrutura atualizada com `backend/`/`mcp/`/`src/hooks/`, paleta corrigida, contagem 251→469), `docs/GUIA-DE-USO.md` (v0.14.0→v0.30.0, paleta, nova seção 8 do agente), `docs/TESTES-AUTOMATIZADOS.md` (251→469, 22 arquivos, tabela completa com contagens exatas).
-- Commit: `e0cb88e` (docs: bump v0.30.0).
+**Onde paramos:** branch **`feat/capture-node-guidance`** (baseada na `feat/set-message`, NÃO na `main` — a `set-message` tem 4 commits docs-only não-mergeados, incl. bump v0.30.0; branchear da main daria conflito/versão inconsistente). Feature **implementada e commitada**:
+- Interrogatório (skill `/interrogar`) fechou o design: a melhoria é **guidance, não tool nova** — as tools p/ construir um `captureNode` completo já existiam (nasce com `captureDataType='free'`; `set_message` carrega a pergunta; `set_action_field` tipa).
+- 3 mudanças: (1) `summary`/`fields` de `captureNode`+`waitNode` reescritos em [nodeCatalog.ts](src/utils/nodeCatalog.ts); (2) regra nova nas `instructions` do [mcp/server.ts](mcp/server.ts); (3) `findAskWaitNudges` no `validate()` ([flowTools.ts](src/tools/flowTools.ts)) — aviso não-bloqueante p/ `defaultNode`-com-texto→`waitNode`, exclusivo do agente.
+- **+3 testes** (472 verdes); `tsc`+`mcp:typecheck` limpos; bump **v0.31.0**.
+- Commits: `5ae070a` (doc Uni.co, antes solto) + `59b6307` (feature v0.31.0).
+- Arquivado nesta sessão: Fase 2 (NODE_CATALOG) migrada p/ `docs/PLANS-ARCHIVE.md` (PLANS passou de 642 linhas).
 
 **Fios soltos / meio-feito:**
-- **`/verify` e2e do `set_message` pendente:** pela caixinha, pedir "crie um nó de mensagem com texto X" e confirmar que o `content` no `work.flow.json` = X. É o critério de aceite da PLANS.md §`set_message`. Se passar sem código novo, a branch `feat/set-message` pode ser mergeada ou descartada.
+- **`/verify` e2e da Captura pendente** (critério de aceite): prompt "pergunte o CNPJ e depois o nº de atendimento" → assert no `work.flow.json` que ambos são `captureNode` (CNPJ=`cnpj`; nº atendimento=`free`), **zero** `waitNode`.
+- **`/verify` e2e do `set_message` ainda pendente** (herdado): "crie um nó de mensagem com texto X" → `content`=X.
+- **Decidir destino das branches:** `feat/set-message` (só docs+v0.30.0) e `feat/capture-node-guidance` (feature+v0.31.0) podem virar 1 ou 2 PRs para a `main`.
 
-**Armadilhas desta sessão:** nenhuma nova. As da sessão anterior continuam: ImportDialog exige `list`, popover fecha só por backdrop, timeout 1.5s.
+**Armadilhas desta sessão:**
+- `git commit -m @'...'@` é here-string do **PowerShell**, NÃO do Bash tool — no Bash o `@` vira literal e polui a mensagem. Usar heredoc `<<'EOF'` ou `-F arquivo` no Bash tool.
+- Stash entre branches com base divergente conflita no `PLANS.md` — rebasear a branch nova sobre a base certa (`feat/set-message`) resolve.
 
 **Próximo passo imediato:**
-1. `/verify` pela caixinha para fechar o critério de aceite do `set_message`.
-2. Depois: `/interrogar` para definir a próxima feature (ou decidir o destino da branch `feat/set-message`).
+1. `/verify` pela caixinha p/ a feature Captura (e, de quebra, o `set_message`).
+2. Abrir PR(s) → `main` e decidir merge conjunto vs separado das duas branches.
 
 **Ponteiros:**
-- PLANS §"Tool de texto da mensagem (`set_message`)" — critério de aceite do `/verify`.
-- PLANS §"Fase 5 — Produto (direcional)" — próximo horizonte.
-- Commit desta sessão: `e0cb88e` (docs v0.30.0).
-- PLANS ~569 linhas (< limiar 600 — sem arquivamento).
+- PLANS §"Nó de Captura no agente" — decisões + critério de aceite do `/verify`.
+- PLANS §"Tool de texto da mensagem (`set_message`)" — critério herdado.
+- Commits: `59b6307` (feature), `5ae070a` (doc Uni.co).
+- PLANS ~559 linhas após arquivar Fase 2 (< limiar 600).
 
-**Skills sugeridas ao retomar:** `/verify` para o e2e do `set_message`; `/interrogar` antes de planejar a próxima feature.
+**Skills sugeridas ao retomar:** `/verify` para os dois e2e pendentes; `/code-review` antes de abrir PR; `/interrogar` antes da próxima feature.
 <!-- HANDOFF:END -->
 
 ## Contexto
@@ -126,94 +131,10 @@ linhas, 383 testes — o arquivo mais arriscado). De-risca e respeita "amostra m
 escalar". Nova ordem: **1 spike → 2 catálogo → 3 MCP → 4 resolvers → 5 produto.**
 
 > **Fases 1, 2, 3, 4 e 4b ✅ concluídas e mergeadas na `main`** (spike: merge `15cbf54`;
-> Fase 2: merge `e701026`; ambos 2026-06-24). Detalhes do spike (Fases 1/3/4/4b) em
-> [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md). Segue viva abaixo apenas a **Fase 5**
-> (produto, direcional); a **Fase 2** permanece logo abaixo como **registro de decisões
-> concluídas** (não migrada ao archive: PLANS abaixo do limiar de ~600 linhas).
-
-### Fase 2 — Centralizar `NODE_CATALOG` (refactor/limpeza) ✅ CONCLUÍDA (mergeada)
-
-> **Resultado (2026-06-24, merge `e701026`, branch `feat/node-catalog`):** entregue em
-> [src/utils/nodeCatalog.ts](src/utils/nodeCatalog.ts) — `NODE_CATALOG` (11 `CreatableKind`)
-> como fonte única kind-level (`label`/`actionType`/`creatable`/`hasError`/`summary`/`fields`).
-> `nodeMeta.ts` (`actionToNodeKind`), `intentTemplates.ts` (`CREATABLE_KINDS`/`*_LABELS`/
-> `ACTION_KINDS_WITH_ERROR`), [mcp/nodeManifest.ts](mcp/nodeManifest.ts) (rename de
-> `mcp/nodeCatalog.ts`, agora formatador fino) e [DetailPanel.tsx](src/components/DetailPanel.tsx)
-> **derivam** do catálogo. Os 4 commits do plano abaixo executados na ordem
-> (`ab2b0e5`→`5788e28`→`b290d00`→`086dffb`); teste golden em
-> [src/utils/nodeCatalog.test.ts](src/utils/nodeCatalog.test.ts) trava label/actionType/hasError.
-> **Suíte cheia verde (453 testes), `mcp:typecheck` limpo** (revalidado 2026-06-25). Sem mudança
-> de comportamento. As decisões abaixo ficam como registro do **porquê** do código atual.
-
-**Objetivo (entregue):** um único `src/utils/nodeCatalog.ts` (Node-pure) como fonte de
-verdade *por tipo de nó*, do qual derivam as constantes antes duplicadas em ≥4 arquivos, e do
-qual o manifesto MCP passou a **derivar** em vez de duplicar à mão.
-
-> Plano fechado por interrogatório (skill `interrogar`) em 2026-06-24. As decisões abaixo
-> estão TRAVADAS — registro do raciocínio; não reabrir sem novo interrogatório.
-
-**Verdade espalhada hoje (o alvo):** `NodeKind` [types.ts:130](src/types.ts#L130);
-`actionToNodeKind`/`CONDITION_TYPE_LABELS`/`PRIORITY_LABELS` [nodeMeta.ts](src/utils/nodeMeta.ts);
-`CREATABLE_KINDS`/`CREATABLE_KIND_LABELS`/`ACTION_TYPE_BY_KIND`(privado)/`ACTION_KINDS_WITH_ERROR`/`buildKindAction`
-[intentTemplates.ts](src/utils/intentTemplates.ts); consts inline por tipo no
-[DetailPanel.tsx](src/components/DetailPanel.tsx) (`KIND_LABELS_LIGHT/DARK`, `KIND_OPTIONS`,
-`STORE_ACTIONS`, `ORDER_ACTIONS`, `EXTERNAL_TYPES`, `TRANSFER_*`); manifesto hand-written
-[mcp/nodeCatalog.ts](mcp/nodeCatalog.ts).
-
-**Decisões (com o porquê):**
-1. **Catálogo MAGRO, kind-level (Opção A).** Absorve só fatos *por tipo de nó*: `label`,
-   `actionType`, `creatable`, `hasError`, `summary`, `fields`. Os sub-enums internos
-   (`TRANSFER_*`, `STORE_ACTIONS`, `CAPTURE_FIELDS`, …) **NÃO** entram — já são fontes únicas
-   locais bem-comportadas, com um só consumidor. O valor que paga tocar o arquivo de 383
-   testes é (a) o MCP **derivar** o manifesto (hoje hand-written → diverge silenciosamente) e
-   (b) matar a duplicação do enum-de-tipos+label (repetido em 3 lugares). Catálogo gordo seria
-   consolidar o que não está espalhado.
-2. **`src/utils/nodeCatalog.ts`, Node-pure; cor/ícones FORA.** O `mcp/` importa o catálogo e
-   roda em Node sem DOM ⇒ catálogo = só domínio. `color` (Tailwind, light/dark) é tema → fica
-   num mapa de tema à parte chaveado por `NodeKind` (regra de ouro do dark-mode: tema separado
-   da estrutura). `label` é domínio e compartilhável; `color` não.
-3. **Rename `mcp/nodeCatalog.ts` → `mcp/nodeManifest.ts`** para não colidir com o novo
-   `src/utils/nodeCatalog.ts`. O de mcp vira derivador fino + formatador (`manifest`/`describeNodeType`).
-4. **Catálogo chaveado pelos 11 `CreatableKind` (uniforme, sem union).** Descoberta no início
-   do commit 1: existem **dois sistemas de label distintos**, não uma duplicação —
-   **(P) paleta/descritivo** (`CREATABLE_KIND_LABELS`, 11 criáveis, ex.: "Aguardar interação",
-   "Editar informação", "Encerrar conversa", "Chamada de API", "Captura CSAT"), duplicado entre
-   intentTemplates → DetailPanel `KIND_OPTIONS` → MCP; e **(B) badge/canvas** (`KIND_LABELS_LIGHT/DARK`,
-   16 kinds, label CURTO + cor, ex.: "Aguarda", "Variável", "Terminar", "Chamada API", "CSAT"),
-   com **consumidor único** (a badge do DetailPanel). Unificar num só label mudaria a UI (viola o
-   gate). Logo: **o catálogo serve só o Sistema P** (label descritivo) + actionType/hasError/summary/fields,
-   chaveado pelos 11 `CreatableKind`. **O Sistema B (badge curto + cor) permanece no DetailPanel**
-   como mapa de tema por `NodeKind` (mesma lógica da decisão 2 + consumidor-único dos sub-enums).
-   `actionToNodeKind` nunca retorna start/externalBot/intentGroup (vêm de detecção estrutural),
-   então 11 kinds bastam. **Efeito:** o commit 3 (DetailPanel) encolhe — `KIND_OPTIONS` deriva de
-   graça via decisão 1; a badge nem muda.
-5. **`buildKindAction` PERMANECE em `intentTemplates.ts`.** O catálogo absorve só dados puros
-   (label, actionType); `actionToNodeKind`, `CREATABLE_KINDS`, `CREATABLE_KIND_LABELS`,
-   `ACTION_KINDS_WITH_ERROR` (→ campo `hasError`) passam a **derivar** do catálogo, com os
-   exports/assinaturas **preservados**. Os `if (kind===…)` do `buildKindAction` são lógica de
-   inicialização, não tabela — declarativizá-los arrisca os testes de template sem ganho.
-
-**Plano de migração executado (4 commits, `npm test` verde como gate entre cada um):**
-1. ✅ `ab2b0e5` — criou `nodeCatalog.ts` + re-derivou as constantes antigas *nos arquivos atuais*
-   (`nodeMeta`, `intentTemplates`), **sem mudar exports/assinaturas**. Suíte verde provou derivação fiel.
-2. ✅ `5788e28` — apontou `mcp/nodeManifest.ts` (rename de `mcp/nodeCatalog.ts`) para o catálogo;
-   `mcp:typecheck` + smoke efêmero.
-3. ✅ `b290d00` — **DetailPanel** (commit isolado, o arriscado): trocou `KIND_LABELS_*`/`KIND_OPTIONS`
-   pela leitura do catálogo (label do catálogo; cor do tema à parte).
-4. ✅ `086dffb` — limpeza: removeu consts mortas e o re-export-andaime; zero duplicação remanescente.
-
-**Como foi testado:** os testes do projeto foram o gate primário (consomem labels/options/defaults via
-exports preservados) — suíte cheia verde após cada commit, **453 testes hoje**. Fallback defensivo de
-label/cor (`catalog[kind]?.label ?? kind`) preservado igual a antes.
-
-**Riscos/dívida nomeada:**
-- **Sub-enums adiados (divergência descritiva MCP↔DetailPanel nos valores de campo).** Aceita
-  enquanto o MCP usa `fields` só como prosa-dica. **Gatilho para voltar:** quando o MCP for
-  **validar/enumerar valores de campo** (ex.: `set_action_field` rejeitar `transferType` inválido),
-  provável na Fase 5 — aí consolidar TODOS de uma vez (inclusive `TRANSFER_*`, que é máquina de
-  estado de UI de 2 níveis, mini-refactor à parte) com escopo e teste próprios.
-- Anti-corrupção de `<option>` legado (`storeType`/`orderType`/`condType` desconhecidos) vive
-  nos sub-enums ⇒ **fora do escopo, não tocar**.
+> Fase 2: merge `e701026`; ambos 2026-06-24). Detalhes do spike (Fases 1/3/4/4b) **e da Fase 2
+> (`NODE_CATALOG`)** em [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md) — a Fase 2 foi migrada ao
+> archive em 2026-06-26 (PLANS passou de ~600 linhas). Segue viva abaixo apenas a **Fase 5**
+> (produto, direcional).
 
 ### Fase 5 — Produto (direcional, NÃO detalhar agora)
 
@@ -617,6 +538,7 @@ movido livremente pela tela.
 > Detalhes completos em [docs/PLANS-ARCHIVE.md](docs/PLANS-ARCHIVE.md). Uma linha por fase/feature concluída e mergeada.
 
 - **(merge `15cbf54`)** — Spike MCP: Fases 1/3/4/4b (camada de tools, servidor MCP stdio, 8 resolvers nome→ID, set_menu + connect_to_bot)
+- **(merge `e701026`)** — Fase 2: centralizar `NODE_CATALOG` (fonte única kind-level; MCP deriva o manifesto)
 - **v0.27.0** — Nó Captura CSAT editável (dropdown "Tipo de captura CSAT")
 - **v0.26.0** — Nó Pedido editável (dropdown "Tipo de ação": Adicionar item / Gerar pedido)
 - **masterFlow.json** — fluxo de exemplo canônico, Partes 1–12 (42 intenções) — fixture viva em `public/masterFlow.json`
