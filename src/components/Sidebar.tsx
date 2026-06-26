@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { ThemeToggle } from './ThemeToggle'
+import { useClickOutside } from '../hooks/useClickOutside'
 import type { ValidationReport } from '../utils/validateFlow'
 
 export type ExportFormat = 'json' | 'png' | 'svg'
@@ -33,19 +35,6 @@ interface SidebarProps {
   onRestore: () => void
 }
 
-/** Fecha o dropdown ao clicar fora dele. */
-function useClickOutside(onOutside: () => void) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onOutside()
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [onOutside])
-  return ref
-}
-
 /**
  * Rail de ações vertical (Fase 11D/11E — "cara de Omni"): barra escura estreita à
  * esquerda com TODAS as ações do app como ícones (tooltip + aria-label), o status
@@ -62,8 +51,20 @@ export function Sidebar(props: SidebarProps) {
   const [reportOpen, setReportOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const exportRef = useClickOutside(() => setExportOpen(false))
-  const tokenRef = useClickOutside(() => onTokenOpenChange(false))
   const reportRef = useClickOutside(() => setReportOpen(false))
+  const tokenBtnRef = useRef<HTMLButtonElement>(null)
+  const [tokenVisible, setTokenVisible] = useState(false)
+  const [tokenAnchor, setTokenAnchor] = useState<{ top: number; left: number } | null>(null)
+  useEffect(() => {
+    if (tokenOpen && tokenBtnRef.current) {
+      const rect = tokenBtnRef.current.getBoundingClientRect()
+      setTokenAnchor({ top: rect.top, left: rect.right + 8 })
+      requestAnimationFrame(() => setTokenVisible(true))
+    } else {
+      setTokenAnchor(null)
+      setTokenVisible(false)
+    }
+  }, [tokenOpen])
 
   const issueCount = (report?.errors.length ?? 0) + (report?.warnings.length ?? 0)
 
@@ -178,8 +179,9 @@ export function Sidebar(props: SidebarProps) {
           </div>
         )}
 
-        <div className={`relative ${expanded ? 'w-full' : ''}`} ref={tokenRef}>
+        <div className={`relative ${expanded ? 'w-full' : ''}`}>
           <button
+            ref={tokenBtnRef}
             onClick={() => onTokenOpenChange(!tokenOpen)}
             title={expanded ? undefined : (sessionToken ? 'Token de sessão definido (clique para editar)' : 'Definir token de sessão (push, restore e times)')}
             aria-label="Token"
@@ -197,32 +199,39 @@ export function Sidebar(props: SidebarProps) {
               </span>
             )}
           </button>
-          {tokenOpen && (
-            <div className={`${popoverCls} w-[280px] bottom-0 p-3 flex flex-col gap-2`}>
-              <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Token de sessão</span>
-              <input
-                type="password"
-                value={sessionToken}
-                onChange={e => onSessionTokenChange(e.target.value)}
-                onPaste={() => { window.setTimeout(() => onTokenOpenChange(false), 0) }}
-                placeholder="r:•••••• (só em memória)"
-                spellCheck={false}
-                autoComplete="off"
-                autoFocus
-                className={`w-full font-mono text-xs rounded-lg p-2 border focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700 placeholder:text-slate-600' : 'bg-slate-50 text-slate-900 border-slate-200 placeholder:text-slate-400'}`}
-              />
-              <span className={`text-[11px] leading-snug ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                Usado por <strong>Enviar</strong>, <strong>Restaurar</strong> e pelo carregamento dos <strong>times</strong> (variável @team). Nunca é salvo, logado nem incluído em relatórios.
-              </span>
-              {sessionToken && (
-                <button
-                  onClick={() => onSessionTokenChange('')}
-                  className={`self-start text-[11px] font-medium rounded px-2 py-1 border transition-colors ${isDark ? 'text-rose-300 border-rose-800 hover:bg-rose-950' : 'text-rose-600 border-rose-200 hover:bg-rose-50'}`}
-                >
-                  Limpar token
-                </button>
-              )}
-            </div>
+          {tokenOpen && tokenAnchor && createPortal(
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => onTokenOpenChange(false)} />
+              <div
+                className={`fixed z-50 w-[280px] p-3 flex flex-col gap-2 rounded-lg border shadow-lg transition-all duration-[180ms] ease-out ${tokenVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'} ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}
+                style={{ top: tokenAnchor.top, left: tokenAnchor.left }}
+              >
+                <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Token de sessão</span>
+                <input
+                  type="password"
+                  value={sessionToken}
+                  onChange={e => onSessionTokenChange(e.target.value)}
+                  onPaste={() => { window.setTimeout(() => onTokenOpenChange(false), 0) }}
+                  placeholder="r:•••••• (só em memória)"
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoFocus
+                  className={`w-full font-mono text-xs rounded-lg p-2 border focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700 placeholder:text-slate-600' : 'bg-slate-50 text-slate-900 border-slate-200 placeholder:text-slate-400'}`}
+                />
+                <span className={`text-[11px] leading-snug ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Usado por <strong>Enviar</strong>, <strong>Restaurar</strong> e pelo carregamento dos <strong>times</strong> (variável @team). Nunca é salvo, logado nem incluído em relatórios.
+                </span>
+                {sessionToken && (
+                  <button
+                    onClick={() => onSessionTokenChange('')}
+                    className={`self-start text-[11px] font-medium rounded px-2 py-1 border transition-colors ${isDark ? 'text-rose-300 border-rose-800 hover:bg-rose-950' : 'text-rose-600 border-rose-200 hover:bg-rose-50'}`}
+                  >
+                    Limpar token
+                  </button>
+                )}
+              </div>
+            </>,
+            document.body
           )}
         </div>
 
