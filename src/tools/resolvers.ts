@@ -16,7 +16,7 @@ import { fetchServerIntents } from '../utils/pushFlow'
  *
  * Decisões travadas (interrogatório 2026-06-24):
  *  - 1: `botId` vem do flow file (`store.mainBotId`) — fonte única, nunca diverge.
- *  - 3: erros = mensagem clara; **401/403 → renove o OMNI_TOKEN, sem retry**;
+ *  - 3: erros = mensagem clara; **401/403 ou 400+token → renove o OMNI_TOKEN, sem retry**;
  *       token ausente → "configure OMNI_TOKEN"; NOT_FOUND/ambíguo → candidatos.
  *  - 4: cache sob demanda, por sessão, sem TTL (read-only ⇒ sem invalidação).
  *  - 5: matching normalizado exato (→ ID) + `contains` para candidatos; ambíguo
@@ -39,13 +39,16 @@ const AUTH_MSG =
 
 /**
  * Classifica um erro lançado pelas funções de fetch. 401/403 → mensagem AUTH
- * especial (sem retry — o token de sessão Parse é a falha real #1). As funções
- * subjacentes embutem `status NNN` na mensagem; detectamos por aí em vez de
- * reescrevê-las (decisão: reusar fetch, não reescrever).
+ * especial (sem retry — o token de sessão Parse é a falha real #1). O endpoint
+ * de times retorna 400 (não 401) com body "token inválido" quando o token
+ * expirou — detectamos por status 400 + "token" na mensagem para cobrir esse
+ * caso com o mesmo AUTH_MSG orientativo. As funções subjacentes embutem
+ * `status NNN` na mensagem; detectamos por aí em vez de reescrevê-las.
  */
 function errorToMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
   if (/status 40[13]\b/.test(msg)) return AUTH_MSG
+  if (/status 400\b/.test(msg) && /token/i.test(msg)) return AUTH_MSG
   return `⚠️ erro ao consultar a API: ${msg}`
 }
 

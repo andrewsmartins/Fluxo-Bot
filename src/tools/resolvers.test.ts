@@ -152,6 +152,21 @@ describe('find_team — resolve nome de time → objectId', () => {
     expect(calls.length).toBe(1) // falhou no GET /v2/bots; nenhuma tentativa extra
   })
 
+  it('400 com "token" no body (endpoint Parse de times) → mensagem AUTH, não mensagem crua', async () => {
+    // O endpoint /classes/Team retorna 400 (não 401) quando o token expirou.
+    const { fetch } = recordingFetch(call => {
+      if (call.url.includes('/v2/bots')) return { status: 200, body: botsBody }
+      // Parse retorna 400 com body de erro em texto plano
+      return { status: 400, body: 'A sessão de times está com token inválido (o token inserido é válido, verifique se está sendo usado corretamente)' }
+    })
+    const r = new Resolvers(storeWithStart(), { fetch, token: TOKEN })
+    const out = await r.findTeam('x')
+    expect(out).toMatch(/autenticação falhou/)
+    expect(out).toMatch(/renove o OMNI_TOKEN/)
+    // NÃO deve vazar o body cru do servidor
+    expect(out).not.toContain('sessão de times')
+  })
+
   it('cacheia por sessão: 2 chamadas = 1 ida à API (2 fetches só na 1ª)', async () => {
     const { fetch, calls } = recordingFetch(teamsResponder([{ objectId: 'A1', name: 'Financeiro' }]))
     const r = new Resolvers(storeWithStart(), { fetch, token: TOKEN })
