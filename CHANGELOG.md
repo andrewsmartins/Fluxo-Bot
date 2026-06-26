@@ -11,6 +11,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [0.32.0] - 2026-06-26
+
+### Adicionado
+- **Tool `set_category` — o agente categoriza os nós** ([src/tools/flowTools.ts](src/tools/flowTools.ts), [mcp/server.ts](mcp/server.ts)) — fecha o gap em que todo nó nascia em `'Sem Categoria'` e não havia como gravar o cabeçalho `category` (campo de texto livre que agrupa as intenções na plataforma — não estava em `ACTION_FIELDS`). Nova tool `set_category(node, category)`, idempotente, espelhando `set_message`: faz **trim** + colapsa espaços internos (para `" Vendas "` e `"Vendas"` não virarem categorias distintas), recusa categoria vazia e recusa recategorizar o **nó de início** (categoria especial `'start'`).
+- **Guidance de categorias coerentes e reutilizáveis** ([mcp/server.ts](mcp/server.ts)) — nova regra nas `instructions` do MCP com **estratégia híbrida reuse-first**: o agente roda `list_nodes` e **reutiliza** uma categoria já usada no fluxo; senão escolhe da **semente por fase da jornada** (Saudação e triagem · Identificação · Atendimento · Vendas · Transferência · Encerramento); só inventa nova, no mesmo eixo "fase", se nenhuma servir. O assunto específico vai no **nome** do nó, não na categoria. `set_category` entra na linha "Trabalho típico".
+- **Nudge no `validate()` para categorias incoerentes** ([src/tools/flowTools.ts](src/tools/flowTools.ts)) — a tool `validate` passa a emitir **avisos não-bloqueantes** quando (a) duas categorias diferem só por caixa/acento/espaço (quase-duplicatas que furam o reuso — ex.: `"Atendimento"` vs `"atendimento"`), ou (b) um nó foi deixado em `'Sem Categoria'` (lista os nomes; o nó de início é excluído). Rede para recidiva, no mesmo padrão do nudge de Captura; vive **só no `validate()` do agente**, não no `validateFlow` compartilhado da UI. Cobertura: **+10 testes** em [src/tools/flowTools.test.ts](src/tools/flowTools.test.ts) (set_category: grava/trim/idempotente/vazia/start/inexistente; nudge: quase-dup dispara, reuso consistente não dispara, "Sem Categoria" dispara nomeando o nó, fixture limpo passa). Suíte cheia verde (**482 testes**); `tsc` do app e `mcp:typecheck` limpos.
+
 ## [0.31.0] - 2026-06-26
 
 ### Alterado

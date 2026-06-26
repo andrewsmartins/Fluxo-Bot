@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { FlowStore } from '../src/tools/flowStore'
 import {
-  createNode, setActionField, setMessage, setNodeChoices, setMenu, connectNodes, connectToBot,
+  createNode, setActionField, setMessage, setCategory, setNodeChoices, setMenu, connectNodes, connectToBot,
   validate, revert, listNodes, describeNode,
   ACTION_FIELDS, type ActionFieldName,
 } from '../src/tools/flowTools'
@@ -86,8 +86,8 @@ const instructions = [
   'operando estas tools — NUNCA escreva JSON cru. A validade vive no código das tools.',
   '',
   'Trabalho típico: list_nodes (orientar) → describe_node (inspecionar) → create_node →',
-  'set_message / set_action_field / set_menu / set_choices → connect → validate. Use revert',
-  'para desfazer tudo desde o início da sessão.',
+  'set_message / set_category / set_action_field / set_menu / set_choices → connect → validate.',
+  'Use revert para desfazer tudo desde o início da sessão.',
   '',
   'Regras:',
   '- Referencie nós por id OU nome exato (nome ambíguo é erro — use o id).',
@@ -96,6 +96,11 @@ const instructions = [
   '  livre, default) ou tipe via set_action_field só quando a pergunta casar LIMPO com um campo',
   '  conhecido (CNPJ→cnpj, e-mail→mail, telefone→fullPhoneNumber); composto/ambíguo → free. Nunca',
   '  setar variable. Use waitNode só para esperar SEM perguntar nada.',
+  '- Categorize TODO nó com set_category(node, categoria) — agrupa o fluxo na plataforma. É texto',
+  '  livre, mas REUTILIZE: rode list_nodes e prefira uma categoria JÁ usada no fluxo; senão escolha da',
+  '  semente por FASE da jornada (Saudação e triagem · Identificação · Atendimento · Vendas · Transferência',
+  '  · Encerramento); só invente nova, no mesmo eixo "fase", se nenhuma servir. O assunto específico vai no',
+  '  NOME do nó, não na categoria. Não recategorize o nó de início.',
   '- Nó de Escolha (choiceNode): crie os itens com set_menu (body + itens), depois ligue os',
   '  destinos com set_choices ou connect. Sem set_menu o menu nasce vazio (sem botões).',
   '- Redirect cross-bot: connect_to_bot(node, botId, intentId?) grava o next para outro bot.',
@@ -167,6 +172,15 @@ server.registerTool('set_message', {
     condIdx: z.number().int().nonnegative().optional().describe('índice da condição (default 0)'),
   },
 }, async ({ node, text, condIdx }) => reply(setMessage(store, node, text, condIdx ?? 0)))
+
+server.registerTool('set_category', {
+  title: 'Definir categoria',
+  description: 'Grava a categoria da intenção (agrupa o fluxo). Texto livre — REUTILIZE uma categoria já usada no fluxo (veja list_nodes) ou a semente por fase (Saudação e triagem/Identificação/Atendimento/Vendas/Transferência/Encerramento) antes de criar nova. Não recategorize o nó de início.',
+  inputSchema: {
+    node: z.string().describe('id ou nome do nó'),
+    category: z.string().describe('categoria (texto livre; reutilize uma existente sempre que servir)'),
+  },
+}, async ({ node, category }) => reply(setCategory(store, node, category)))
 
 server.registerTool('set_choices', {
   title: 'Definir escolhas',

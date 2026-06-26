@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { FlowStore } from './flowStore'
 import {
-  createNode, setActionField, setMessage, setNodeChoices, setMenu, connectNodes, connectToBot,
+  createNode, setActionField, setMessage, setCategory, setNodeChoices, setMenu, connectNodes, connectToBot,
   validate, revert, listNodes, describeNode,
 } from './flowTools'
 import type { BotFlowJson, BotMessage } from '../types'
@@ -184,6 +184,10 @@ describe('Amostra 3 — 3 nós conectados (create + connect + choices + validate
     // menu nasce com choices=[] e sem itens de menu → sem vaga livre
     const conn = connectNodes(store, menuId, 'spike_fim')
     expect(conn).toMatch(/^⚠️ erro:/)
+    // Categoriza os nós criados para o fluxo ficar 100% válido — sem isso o nudge de
+    // categoria (Q5) acusaria os nós em "Sem Categoria" e não seria "✅ fluxo válido".
+    setCategory(store, menuId, 'Atendimento')
+    setCategory(store, 'spike_fim', 'Encerramento')
     expect(validate(store)).toMatch(/✅ fluxo válido/)
   })
 })
@@ -241,6 +245,9 @@ describe('Fase 4b — set_menu (cria os itens de um choiceNode)', () => {
     expect(buttons.map(b => b.text)).toEqual(['Falar com Financeiro', 'Quero me cadastrar'])
     // slots sincronizados (buttons[i] ↔ choices[i]), ainda vazios (destino a definir)
     expect(cond.action.choices).toEqual(['', ''])
+    // categoriza para o nó não aparecer no nudge de "Sem Categoria" (Q5) — assim o
+    // not.toMatch(spike_menu_b) testa só o aviso de dessincronização, não o de categoria
+    setCategory(store, menuId, 'Atendimento')
     // sem ERROS e — por estar sincronizado — sem o aviso de dessincronização deste nó
     const report = validate(store)
     expect(report).not.toMatch(/❌/)
@@ -268,6 +275,10 @@ describe('Fase 4b — set_menu (cria os itens de um choiceNode)', () => {
     createNode(store, 'endNode', 'spike_dest_b')
     setMenu(store, menuId, 'Menu', [{ text: 'A' }, { text: 'B' }])
     setNodeChoices(store, menuId, [aId, 'spike_dest_b'])
+    // categoriza os 3 nós criados — sem isso o nudge de categoria (Q5) listaria spike_menu_dest
+    setCategory(store, menuId, 'Atendimento')
+    setCategory(store, aId, 'Atendimento')
+    setCategory(store, 'spike_dest_b', 'Encerramento')
     const report = validate(store)
     expect(report).not.toMatch(/❌/)
     expect(report).not.toMatch(/spike_menu_dest/)
@@ -379,6 +390,117 @@ describe('set_message — texto (TEXT) da mensagem de um nó', () => {
     const before = readFileSync(flowPath, 'utf8')
     expect(setMessage(store, 'nao-existe', 'oi')).toMatch(/^⚠️ erro: nó não encontrado/)
     expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+})
+
+describe('set_category — categoria (cabeçalho que agrupa) do nó', () => {
+  /** Categoria de um nó, lida do disco (round-trip). */
+  function categoryOf(id: string): string {
+    return reload().list.find(i => i.id === id)!.category
+  }
+
+  it('grava a categoria num nó recém-criado (default "Sem Categoria" → a categoria)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_cat'))![1]
+    const msg = setCategory(store, id, 'Saudação e triagem')
+    expect(msg).toMatch(/categoria de "spike_cat" = "Saudação e triagem"/)
+    expect(categoryOf(id)).toBe('Saudação e triagem')
+  })
+
+  it('faz trim e colapsa espaços internos (Q3 — mata quase-duplicata boba)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_cat_trim'))![1]
+    setCategory(store, id, '  Vendas   e    pós   ')
+    expect(categoryOf(id)).toBe('Vendas e pós')
+  })
+
+  it('é idempotente — re-setar sobrescreve sem efeito estranho', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_cat_idem'))![1]
+    setCategory(store, id, 'Atendimento')
+    setCategory(store, id, 'Vendas')
+    expect(categoryOf(id)).toBe('Vendas')
+  })
+
+  it('recusa categoria vazia ou só espaços sem mutar o arquivo', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_cat_vazio'))![1]
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setCategory(store, id, '')).toMatch(/não pode ficar vazia/)
+    expect(setCategory(store, id, '   ')).toMatch(/não pode ficar vazia/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+
+  it('recusa recategorizar o nó de início (categoria especial "start", Q5)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const startId = `${store.mainBotId}-start`
+    expect(setCategory(store, startId, 'Saudação e triagem')).toMatch(/é o nó de início.*não recategorize/)
+    expect(categoryOf(startId)).toBe('start') // intacto
+  })
+
+  it('recusa nó inexistente sem efeito colateral', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setCategory(store, 'nao-existe', 'Vendas')).toMatch(/^⚠️ erro: nó não encontrado/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+})
+
+describe('validate — nudge de categoria (interrogatório 2026-06-26, Q3/Q5)', () => {
+  it('acusa categorias quase-iguais (só diferem por caixa/acento/espaço)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const a = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'cat_a'))![1]
+    const b = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'cat_b'))![1]
+    setCategory(store, a, 'Atendimento')
+    setCategory(store, b, 'atendimento') // mesma chave normalizada → quase-dup
+
+    const report = validate(store)
+    expect(report).toMatch(/categorias quase-iguais/)
+    expect(report).toMatch(/"Atendimento"/)
+    expect(report).toMatch(/"atendimento"/)
+    expect(report).not.toMatch(/❌/) // aviso, nunca bloqueia
+  })
+
+  it('NÃO acusa quase-dup quando a categoria é usada de forma consistente', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const a = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'cat_c'))![1]
+    const b = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'cat_d'))![1]
+    setCategory(store, a, 'Atendimento')
+    setCategory(store, b, 'Atendimento') // idêntica → reuso correto
+
+    expect(validate(store)).not.toMatch(/categorias quase-iguais/)
+  })
+
+  it('acusa nó deixado em "Sem Categoria" (nomeando o nó), não-bloqueante', () => {
+    const store = FlowStore.fromFile(flowPath)
+    createNode(store, 'defaultNode', 'cat_orfao') // criado, nunca categorizado
+
+    const report = validate(store)
+    expect(report).toMatch(/Sem Categoria/)
+    expect(report).toMatch(/cat_orfao/)
+    expect(report).not.toMatch(/❌/)
+  })
+
+  it('NÃO acusa o fixture limpo: início ("start") e nós já categorizados passam', () => {
+    const store = FlowStore.fromFile(flowPath)
+    // o masterFlow tem todos os nós categorizados e o start em "start" (excluído do nudge)
+    const report = validate(store)
+    expect(report).not.toMatch(/Sem Categoria/)
+    expect(report).not.toMatch(/categorias quase-iguais/)
+  })
+
+  it('não quebra com intent sem `category` (export real omite o campo) — trata como Sem Categoria', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'cat_sem_campo'))![1]
+    // simula o JSON real onde o cabeçalho `category` está ausente (flowStore faz `as BotFlowJson` cego)
+    const intent = store.flow.list.find(i => i.id === id)!
+    delete (intent as { category?: string }).category
+
+    expect(() => validate(store)).not.toThrow()
+    const report = validate(store)
+    expect(report).toMatch(/Sem Categoria/)
+    expect(report).toMatch(/cat_sem_campo/)
+    expect(report).not.toMatch(/❌/)
   })
 })
 

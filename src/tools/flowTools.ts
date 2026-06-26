@@ -180,6 +180,34 @@ export function setMessage(
 }
 
 /**
+ * `set_category(node, category)` — grava a CATEGORIA da intenção (campo de cabeçalho
+ * que AGRUPA o fluxo na plataforma; texto livre — MODELO-INTENCAO §). Fecha o gap: todo
+ * nó nasce em 'Sem Categoria' e a superfície de tools não expunha o cabeçalho. Idempotente.
+ * Faz **trim** e colapsa espaços internos (mata a quase-duplicata boba "Vendas " vs "Vendas",
+ * decisão Q3). Recusa categoria vazia (espelha set_message) e o nó de início (categoria
+ * especial 'start' — nunca recategorizar, Q5). Vocabulário é texto livre (estratégia híbrida,
+ * Q1): a coerência/reuso vivem na guidance (instructions) + no nudge do validate, não num enum.
+ */
+export function setCategory(store: FlowStore, ref: string, category: string): string {
+  // Espelha set_menu/set_message: "set" nunca grava cabeçalho vazio. Trim + colapsa
+  // espaços internos para que " Vendas " e "Vendas" não virem categorias distintas.
+  const clean = category.trim().replace(/\s+/g, ' ')
+  if (!clean) return `⚠️ erro: a categoria não pode ficar vazia`
+  const intent = resolveIntent(store, ref)
+  if (isError(intent)) return `⚠️ erro: ${intent.error}`
+  // O nó de início usa a categoria especial 'start' (createIntentTemplate); recategorizá-lo
+  // não quebra a topologia (a entrada é identificada pelo id `${botId}-start`), mas confunde
+  // — recusamos para manter o cabeçalho do start canônico.
+  if (intent.id === `${store.mainBotId}-start`) {
+    return `⚠️ erro: "${intent.name}" é o nó de início (categoria especial "start") — não recategorize`
+  }
+  store.beginMutation()
+  intent.category = clean
+  store.save()
+  return `categoria de "${intent.name}" = "${clean}"`
+}
+
+/**
  * `set_choices(node, destinos)` — define a lista de destinos de um nó de Escolha
  * (envolve `setChoices`). Os destinos são ids de intenção, posicionais com os itens.
  */
@@ -350,14 +378,71 @@ function findAskWaitNudges(store: FlowStore): string[] {
 }
 
 /**
+ * Chave de comparação de categorias para detectar quase-duplicatas (Q3): ignora
+ * caixa, acentos e espaços. Por quê: na plataforma, "Atendimento", "atendimento" e
+ * "Atendimento " são categorias DISTINTAS — quem agrupa visualmente é a string crua.
+ * Duas categorias que colapsam na mesma chave furam o reuso sem ninguém ver.
+ */
+function normalizeCategory(category: string): string {
+  return category.trim().toLowerCase()
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+}
+
+/**
+ * Nudges de categoria (decisões Q3/Q5 do interrogatório 2026-06-26), não-bloqueantes:
+ * (a) categorias QUASE-IGUAIS (diferem só por caixa/acento/espaço) → unifique numa só,
+ *     senão viram grupos distintos na plataforma e o reuso fura;
+ * (b) nós deixados no default 'Sem Categoria' (exceto o início) → a recidiva que a
+ *     feature combate; lista os nomes para o agente saber onde aplicar set_category.
+ * Vivem só aqui no `validate()` do agente (não em `validateFlow`/UI): é política de
+ * design (toda intenção categorizada), não validação estrutural do fluxo.
+ */
+function findCategoryNudges(store: FlowStore): string[] {
+  const nudges: string[] = []
+  const startId = `${store.mainBotId}-start`
+  // (a) agrupa as categorias REAIS por chave normalizada; >1 variante na mesma chave = quase-dup.
+  const variantsByKey = new Map<string, Set<string>>()
+  const uncategorized: string[] = []
+  for (const intent of store.flow.list) {
+    if (intent.id === startId) continue // o início tem categoria especial 'start'
+    // `category` é `string` no type, mas o flow vem de `JSON.parse ... as BotFlowJson`
+    // (flowStore.fromFile) e exports reais podem OMITIR o campo (ver PLANS §schema). Tratar
+    // ausente/vazia como "Sem Categoria" — sem isso `normalizeCategory(undefined).trim()` quebra o validate().
+    if (!intent.category || intent.category === 'Sem Categoria') { uncategorized.push(intent.name); continue }
+    const key = normalizeCategory(intent.category)
+    if (!variantsByKey.has(key)) variantsByKey.set(key, new Set())
+    variantsByKey.get(key)!.add(intent.category)
+  }
+  for (const variants of variantsByKey.values()) {
+    if (variants.size > 1) {
+      const shown = [...variants].map(v => `"${v}"`).join(' / ')
+      nudges.push(
+        `categorias quase-iguais: ${shown} — unifique numa só (diferenças de caixa/acento/espaço ` +
+        `contam como categorias distintas na plataforma).`,
+      )
+    }
+  }
+  // (b) nós sem categoria — a feature quer todo nó (menos o início) categorizado.
+  if (uncategorized.length) {
+    nudges.push(
+      `${uncategorized.length} nó(s) em "Sem Categoria" (${uncategorized.join(', ')}) — ` +
+      `defina a categoria com set_category (reutilize uma já usada no fluxo antes de criar nova).`,
+    )
+  }
+  return nudges
+}
+
+/**
  * `validate()` — relatório de validade do fluxo (envolve `validateFlow`).
  * Tool separada (Q2): nunca é gate de escrita; o agente chama quando quer
- * (tipicamente no fim). Erros bloqueiam export; avisos só informam — inclui o
- * nudge de captura (`findAskWaitNudges`), exclusivo do agente.
+ * (tipicamente no fim). Erros bloqueiam export; avisos só informam — inclui os
+ * nudges de captura (`findAskWaitNudges`) e de categoria (`findCategoryNudges`),
+ * exclusivos do agente.
  */
 export function validate(store: FlowStore): string {
   const { errors, warnings } = validateFlow(store.flow)
-  const allWarnings = [...warnings, ...findAskWaitNudges(store)]
+  const allWarnings = [...warnings, ...findAskWaitNudges(store), ...findCategoryNudges(store)]
   if (!errors.length && !allWarnings.length) return '✅ fluxo válido (0 erros, 0 avisos)'
   const lines: string[] = []
   lines.push(errors.length ? `❌ ${errors.length} erro(s):` : '✅ 0 erros')
