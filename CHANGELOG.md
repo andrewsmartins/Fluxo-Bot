@@ -11,6 +11,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [0.33.0] - 2026-06-26
+
+### Adicionado
+- **Tools `set_keywords` e `set_context` — menus de botão/lista que roteiam de verdade** ([src/tools/flowTools.ts](src/tools/flowTools.ts), [mcp/server.ts](mcp/server.ts)) — fecha o gap em que o agente montava o menu (itens + `choices[]`) mas ele **não roteava** na plataforma. Mecânica confirmada (território N2): ao clicar num botão/lista o cliente envia o **TEXTO do botão**, não um número — então o `choices[]` posicional fica morto; o roteamento real é a **`keyword` da intenção-ALVO** casando o texto por **"contém"**. Como `keywords`/`context` são campos de **cabeçalho** da intenção (sem setter, como `category` era antes da v0.32.0), entram duas tools header-field: `set_keywords(node, keywords[])` **substitui** o array (verbo "set" honesto; higieniza com trim/colapsa-espaços/dedup; array vazio limpa) e `set_context(node, contextNode?)` escopa a keyword a um menu (grava `context` = id resolvido por id/nome intra-fluxo; sem argumento limpa → keyword **global**). O agente nunca grava `variable`.
+- **Guidance de roteamento por keyword** ([mcp/server.ts](mcp/server.ts)) — nova regra nas `instructions` do MCP: menu de botão/lista roteia pela keyword do alvo (não pelo `choices[]`); para cada destino, `set_keywords(alvo, [palavra saliente])` (ex.: "Falar com Financeiro" → `["financeiro"]`); deixar **sem context por padrão** (atalho global) e escopar só keyword genérica/reusada ("Voltar", "Sim") que colidiria. `set_keywords` entra na linha "Trabalho típico".
+- **3 nudges no `validate()` para roteamento por keyword** ([src/tools/flowTools.ts](src/tools/flowTools.ts)) — avisos **não-bloqueantes** quando: (1) um alvo de menu de **botão/lista** não tem keyword (não roteia ao clicar — nomeia o alvo, onde o `set_keywords` deve ir; menu numérico não acusa, pois roteia por `choices[]`); (2) a **mesma keyword** (caixa/acento/espaço dobrados) aparece em intenções diferentes (colisão global); (3) uma intenção **com context** é alvo de 2+ menus (context comporta só um). Vivem só no `validate()` do agente, não no `validateFlow` da UI. Cobertura: **+13 testes** em [src/tools/flowTools.test.ts](src/tools/flowTools.test.ts) (set_keywords: grava/substitui/higieniza/limpa/inexistente; set_context: grava-por-nome/limpa/auto-ref/inexistente; nudges: alvo-sem-kw dispara e nomeia, com-kw não dispara, kw duplicada dispara, context-conflitante dispara). Suíte cheia verde (**496 testes**); `tsc` do app e `mcp:typecheck` limpos.
+
+> **Fase 1 de 2** (camada de tools, MCP-first — shippável sozinha). A **Fase 2** (campos por opção na UI do `DetailPanel`, com escrita cross-intent) reusa estes setters e sai em sessão própria.
+
 ## [0.32.0] - 2026-06-26
 
 ### Adicionado

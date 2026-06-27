@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { FlowStore } from './flowStore'
 import {
-  createNode, setActionField, setMessage, setCategory, setNodeChoices, setMenu, connectNodes, connectToBot,
+  createNode, setActionField, setMessage, setCategory, setKeywords, setContext,
+  setNodeChoices, setMenu, connectNodes, connectToBot,
   validate, revert, listNodes, describeNode,
 } from './flowTools'
 import type { BotFlowJson, BotMessage } from '../types'
@@ -184,11 +185,14 @@ describe('Amostra 3 — 3 nós conectados (create + connect + choices + validate
     // menu nasce com choices=[] e sem itens de menu → sem vaga livre
     const conn = connectNodes(store, menuId, 'spike_fim')
     expect(conn).toMatch(/^⚠️ erro:/)
-    // Categoriza os nós criados para o fluxo ficar 100% válido — sem isso o nudge de
-    // categoria (Q5) acusaria os nós em "Sem Categoria" e não seria "✅ fluxo válido".
+    // Categoriza os nós criados — sem isso o nudge de categoria (Q5) os acusaria.
     setCategory(store, menuId, 'Atendimento')
     setCategory(store, 'spike_fim', 'Encerramento')
-    expect(validate(store)).toMatch(/✅ fluxo válido/)
+    // Sem ERROS bloqueantes. NÃO assertamos "✅ fluxo válido" porque o masterFlow tem
+    // menus de botão/lista cujos alvos não têm keyword (v0.33.0) — avisos legítimos de
+    // roteamento, não-bloqueantes. O que este teste garante é que o connect com erro de
+    // domínio não introduziu ERRO estrutural.
+    expect(validate(store)).not.toMatch(/❌/)
   })
 })
 
@@ -500,6 +504,155 @@ describe('validate — nudge de categoria (interrogatório 2026-06-26, Q3/Q5)', 
     const report = validate(store)
     expect(report).toMatch(/Sem Categoria/)
     expect(report).toMatch(/cat_sem_campo/)
+    expect(report).not.toMatch(/❌/)
+  })
+})
+
+describe('set_keywords — palavras-chave que roteiam o menu (v0.33.0)', () => {
+  /** Keywords de um nó, lidas do disco (round-trip). */
+  function keywordsOf(id: string): string[] {
+    return reload().list.find(i => i.id === id)!.keywords
+  }
+
+  it('grava as keywords num nó (substitui o array)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kw_alvo'))![1]
+    const msg = setKeywords(store, id, ['financeiro'])
+    expect(msg).toMatch(/keywords de "kw_alvo" = \[financeiro\]/)
+    expect(keywordsOf(id)).toEqual(['financeiro'])
+  })
+
+  it('substitui o array anterior (set honesto, Q6)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kw_sub'))![1]
+    setKeywords(store, id, ['velha'])
+    setKeywords(store, id, ['nova', 'outra'])
+    expect(keywordsOf(id)).toEqual(['nova', 'outra'])
+  })
+
+  it('higieniza: trim, colapsa espaços, descarta vazias e duplicatas exatas', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kw_higiene'))![1]
+    setKeywords(store, id, ['  vendas  ', '', 'vendas', 'pós   venda', '   '])
+    expect(keywordsOf(id)).toEqual(['vendas', 'pós venda'])
+  })
+
+  it('array vazio limpa as keywords (estado legítimo)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kw_limpa'))![1]
+    setKeywords(store, id, ['x'])
+    const msg = setKeywords(store, id, [])
+    expect(msg).toMatch(/limpadas/)
+    expect(keywordsOf(id)).toEqual([])
+  })
+
+  it('recusa nó inexistente sem efeito colateral', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setKeywords(store, 'nao-existe', ['x'])).toMatch(/^⚠️ erro: nó não encontrado/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+})
+
+describe('set_context — escopo da keyword (v0.33.0)', () => {
+  /** Context de um nó, lido do disco. */
+  function contextOf(id: string): string | null {
+    return reload().list.find(i => i.id === id)!.context
+  }
+
+  it('grava context = id da intenção que escopa (resolve por nome intra-fluxo)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const alvoId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'ctx_alvo'))![1]
+    const menuId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'ctx_menu'))![1]
+    const msg = setContext(store, alvoId, 'ctx_menu')
+    expect(msg).toMatch(/context de "ctx_alvo" = "ctx_menu"/)
+    expect(contextOf(alvoId)).toBe(menuId)
+  })
+
+  it('sem argumento (ou vazio) limpa o context → keyword global', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const alvoId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'ctx_clear'))![1]
+    const menuId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'ctx_menu2'))![1]
+    setContext(store, alvoId, menuId)
+    const msg = setContext(store, alvoId)
+    expect(msg).toMatch(/limpo \(keyword global\)/)
+    expect(contextOf(alvoId)).toBeNull()
+  })
+
+  it('recusa apontar para si mesmo', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'ctx_self'))![1]
+    expect(setContext(store, id, id)).toMatch(/não pode ter a si mesmo como context/)
+  })
+
+  it('recusa context inexistente sem mutar o arquivo', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'ctx_bad'))![1]
+    const before = readFileSync(flowPath, 'utf8')
+    expect(setContext(store, id, 'nao-existe')).toMatch(/context "nao-existe": nó não encontrado/)
+    expect(readFileSync(flowPath, 'utf8')).toBe(before)
+  })
+})
+
+describe('validate — nudges de roteamento por keyword (v0.33.0)', () => {
+  /** Monta um menu de BOTÃO com 2 itens apontando para 2 alvos, retornando os ids. */
+  function buildMenu(store: ReturnType<typeof FlowStore.fromFile>) {
+    const menuId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'kwm_menu'))![1]
+    const aId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kwm_a'))![1]
+    const bId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'kwm_b'))![1]
+    setMenu(store, menuId, 'Escolha:', [{ text: 'Falar com Financeiro' }, { text: 'Suporte' }])
+    setNodeChoices(store, menuId, [aId, bId])
+    // categoriza p/ o nudge de categoria não poluir as asserções
+    ;[menuId, aId, bId].forEach(n => setCategory(store, n, 'Atendimento'))
+    return { menuId, aId, bId }
+  }
+
+  it('(1) acusa alvo de menu de botão/lista sem keyword (nomeando o alvo)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    buildMenu(store)
+    const report = validate(store)
+    expect(report).toMatch(/sem keyword/)
+    expect(report).toMatch(/kwm_a/)
+    expect(report).toMatch(/kwm_b/)
+    expect(report).not.toMatch(/❌/)
+  })
+
+  it('(1) NÃO acusa quando os alvos têm keyword', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const { aId, bId } = buildMenu(store)
+    setKeywords(store, aId, ['financeiro'])
+    setKeywords(store, bId, ['suporte'])
+    const report = validate(store)
+    expect(report).not.toMatch(/kwm_a/)
+    expect(report).not.toMatch(/kwm_b/)
+  })
+
+  it('(2) acusa a MESMA keyword em intenções diferentes (colisão global)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const { aId, bId } = buildMenu(store)
+    setKeywords(store, aId, ['Voltar'])
+    setKeywords(store, bId, ['voltar']) // mesma chave dobrada → colisão
+    const report = validate(store)
+    expect(report).toMatch(/keyword repetida/)
+    expect(report).toMatch(/kwm_a/)
+    expect(report).toMatch(/kwm_b/)
+    expect(report).not.toMatch(/❌/)
+  })
+
+  it('(3) acusa intenção com context que é alvo de 2 menus de botão/lista', () => {
+    const store = FlowStore.fromFile(flowPath)
+    // alvo único compartilhado por 2 menus
+    const alvoId = /id ([0-9a-f-]{36})/.exec(createNode(store, 'endNode', 'kw3_alvo'))![1]
+    const m1 = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'kw3_m1'))![1]
+    const m2 = /id ([0-9a-f-]{36})/.exec(createNode(store, 'choiceNode', 'kw3_m2'))![1]
+    setMenu(store, m1, 'M1', [{ text: 'ir' }])
+    setMenu(store, m2, 'M2', [{ text: 'ir' }])
+    setNodeChoices(store, m1, [alvoId])
+    setNodeChoices(store, m2, [alvoId])
+    setContext(store, alvoId, m1) // escopa a um → conflito com o outro menu
+    const report = validate(store)
+    expect(report).toMatch(/tem context.*mas é alvo de 2 menus/)
+    expect(report).toMatch(/kw3_alvo/)
     expect(report).not.toMatch(/❌/)
   })
 })

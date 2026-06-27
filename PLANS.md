@@ -296,8 +296,21 @@ intenções que cria, para agrupar o fluxo na plataforma OmniChat sem explodir e
   ("Atendimento" vs "Suporte") — aceito; o eixo "fase" + semente reduzem isso na origem, não no validate.
 - `set_category` aceita texto livre (Q1) — categoria fora da semente passa; é a válvula de escape, por design.
 
-### Menus que roteiam de verdade (`set_keywords` + `set_context` + UI por opção) 📋 PLANEJADA (v0.33.0)
+### Menus que roteiam de verdade (`set_keywords` + `set_context` + UI por opção) 🚧 FASE 1 IMPLEMENTADA (v0.33.0) · FASE 2 PENDENTE
 
+> **Resultado Fase 1 (2026-06-26, branch `feat/menu-keywords-routing`):** entregue a camada de tools.
+> (1) `setKeywords` (substitui o array; trim/colapsa/dedup; vazio limpa) e `setContext` (resolve id/nome
+> intra-fluxo; vazio limpa → global; recusa auto-ref) em [flowTools.ts](src/tools/flowTools.ts); (2) ambas
+> registradas em [mcp/server.ts](mcp/server.ts) + guidance "menu de botão/lista roteia pela keyword do alvo"
+> + linha "Trabalho típico"; (3) `findKeywordNudges` no `validate()` com os **3 nudges** (alvo de botão/lista
+> sem keyword · keyword duplicada entre intenções · context p/ alvo de 2+ menus) — só em BUTTON/LIST (menu
+> numérico roteia por `choices[]`, não acusa). Helper `normalizeCategory` generalizado p/ `foldText` (reuso
+> categoria+keyword). **+13 testes** (suíte cheia **496 verde**), `tsc`+`mcp:typecheck` limpos. **Decisão de
+> fixture:** os 5 menus do masterFlow são BUTTON/LIST sem keyword nos alvos (demos de tipo de nó) → o nudge (1)
+> acusa corretamente; o teste que assertava `✅ fluxo válido` (linha ~192) foi relaxado p/ `not.toMatch(/❌/)`
+> em vez de poluir o fixture canônico com 25 keywords inventadas. **Pendente:** `/verify` e2e (critério abaixo)
+> + **Fase 2 (UI, sessão própria)**.
+>
 > Plano fechado por interrogatório (skill `interrogar`) em 2026-06-26. Decisões TRAVADAS abaixo —
 > registro do raciocínio; não reabrir sem novo interrogatório. Origem: *"nossos nós de menu não
 > funcionam na plataforma"* — o agente monta `choices[]` + botões, mas o menu não roteia.
