@@ -10,6 +10,7 @@ import {
   replaceButtonListMessage, addCollectionMessage, updateCollectionMessage,
   addTemplateMessage, updateTemplateMessage, type TemplateMessagePayload,
   listErrorMessages, setActionErrorNext,
+  setIntentKeywords, setIntentContext,
 } from './editIntent'
 import { validateFlow } from './validateFlow'
 import { createIntentTemplate } from './intentTemplates'
@@ -1053,5 +1054,84 @@ describe('setActionErrorNext — destino do caminho de erro (acoplamento intentB
     const intent = createIntentTemplate('transferNode', BOT_ID, 'x')
     setActionErrorNext(intent, 0, { redirect: 'continueFlow', intent: '' })
     expect(intent.conditions[0].action.error!.next.intent).toBe(`${BOT_ID}-start`)
+  })
+})
+
+describe('setIntentKeywords (setter puro — v0.33.0 Fase 2)', () => {
+  it('grava/substitui o array de keywords e retorna o valor limpo', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    const result = setIntentKeywords(intent, ['financeiro', 'cobranca'])
+    expect(intent.keywords).toEqual(['financeiro', 'cobranca'])
+    expect(result).toEqual(['financeiro', 'cobranca'])
+  })
+
+  it('substitui (não acumula) — set honesto', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    setIntentKeywords(intent, ['antiga'])
+    setIntentKeywords(intent, ['nova'])
+    expect(intent.keywords).toEqual(['nova'])
+  })
+
+  it('higiene: trim, colapsa espaços internos e descarta vazias', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    const result = setIntentKeywords(intent, ['  falar   com  vendas  ', '', '   ', 'suporte'])
+    expect(result).toEqual(['falar com vendas', 'suporte'])
+  })
+
+  it('dedup exato preservando a ordem (não normaliza caixa/acento)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    const result = setIntentKeywords(intent, ['Vendas', 'vendas', 'Vendas', 'Suporte'])
+    // 'Vendas' e 'vendas' diferem só por caixa → ambos preservados (dedup é EXATO).
+    expect(result).toEqual(['Vendas', 'vendas', 'Suporte'])
+  })
+
+  it('array vazio (ou só lixo) LIMPA as keywords', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    setIntentKeywords(intent, ['x'])
+    expect(setIntentKeywords(intent, [])).toEqual([])
+    expect(intent.keywords).toEqual([])
+    setIntentKeywords(intent, ['y'])
+    expect(setIntentKeywords(intent, ['', '   '])).toEqual([])
+    expect(intent.keywords).toEqual([])
+  })
+
+  it('atualiza updatedAt (touch)', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    intent.updatedAt = ''
+    setIntentKeywords(intent, ['x'])
+    expect(intent.updatedAt).not.toBe('')
+  })
+})
+
+describe('setIntentContext (setter puro — v0.33.0 Fase 2)', () => {
+  it('grava o id do context recebido', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    const result = setIntentContext(intent, 'menu-id-123')
+    expect(result.ok).toBe(true)
+    expect(intent.context).toBe('menu-id-123')
+  })
+
+  it('null (ou string vazia) LIMPA o context → keyword global', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    setIntentContext(intent, 'menu-id-123')
+    expect(setIntentContext(intent, null).ok).toBe(true)
+    expect(intent.context).toBeNull()
+    setIntentContext(intent, 'menu-id-123')
+    expect(setIntentContext(intent, '   ').ok).toBe(true)
+    expect(intent.context).toBeNull()
+  })
+
+  it('recusa auto-referência (context de si mesmo) e não muta', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    const result = setIntentContext(intent, intent.id)
+    expect(result.ok).toBe(false)
+    expect(intent.context).not.toBe(intent.id)
+  })
+
+  it('atualiza updatedAt (touch) ao gravar e ao limpar', () => {
+    const intent = createIntentTemplate('defaultNode', BOT_ID, 'x')
+    intent.updatedAt = ''
+    setIntentContext(intent, 'menu-id-123')
+    expect(intent.updatedAt).not.toBe('')
   })
 })

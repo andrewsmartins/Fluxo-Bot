@@ -448,6 +448,15 @@ describe('set_category — categoria (cabeçalho que agrupa) do nó', () => {
     expect(setCategory(store, 'nao-existe', 'Vendas')).toMatch(/^⚠️ erro: nó não encontrado/)
     expect(readFileSync(flowPath, 'utf8')).toBe(before)
   })
+
+  it('toca updatedAt ao gravar (#7 — uniformiza setters de campo de cabeçalho)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const id = /id ([0-9a-f-]{36})/.exec(createNode(store, 'defaultNode', 'spike_cat_touch'))![1]
+    // zera o updatedAt em memória para provar que o setCategory o reescreve no save
+    store.flow.list.find(i => i.id === id)!.updatedAt = ''
+    setCategory(store, id, 'Vendas')
+    expect(reload().list.find(i => i.id === id)!.updatedAt).toMatch(/GMT/)
+  })
 })
 
 describe('validate — nudge de categoria (interrogatório 2026-06-26, Q3/Q5)', () => {
@@ -654,6 +663,26 @@ describe('validate — nudges de roteamento por keyword (v0.33.0)', () => {
     expect(report).toMatch(/tem context.*mas é alvo de 2 menus/)
     expect(report).toMatch(/kw3_alvo/)
     expect(report).not.toMatch(/❌/)
+  })
+
+  it('(4) acusa keyword com espaço (multi-palavra; entrou pelo agente — set_keywords não splita)', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const { aId, bId } = buildMenu(store)
+    setKeywords(store, aId, ['plano premium']) // colapsa mas NÃO splita → keyword com espaço (inválida)
+    setKeywords(store, bId, ['suporte'])
+    const report = validate(store)
+    expect(report).toMatch(/keyword com espaço/)
+    expect(report).toMatch(/"plano premium"/)
+    expect(report).toMatch(/kwm_a/)
+    expect(report).not.toMatch(/❌/)
+  })
+
+  it('(4) NÃO acusa keyword de uma palavra', () => {
+    const store = FlowStore.fromFile(flowPath)
+    const { aId, bId } = buildMenu(store)
+    setKeywords(store, aId, ['financeiro'])
+    setKeywords(store, bId, ['suporte'])
+    expect(validate(store)).not.toMatch(/keyword com espaço/)
   })
 })
 

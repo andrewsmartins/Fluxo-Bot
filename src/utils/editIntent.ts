@@ -53,7 +53,12 @@ export interface TemplateMessagePayload {
   flowButtonText: string
 }
 
-function touch(intent: BotIntent): void {
+/**
+ * Marca a intenção como modificada (`updatedAt`). Exportada para que os setters de campo de
+ * cabeçalho fora deste módulo (ex.: `flowTools.setCategory`) reflitam a mesma regra de timestamp
+ * sem duplicá-la — toda escrita honesta toca `updatedAt` num só lugar.
+ */
+export function touch(intent: BotIntent): void {
   intent.updatedAt = new Date().toUTCString()
 }
 
@@ -701,6 +706,52 @@ export function updateIntentMeta(
       delete intent.executionDelay
     }
   }
+  touch(intent)
+  return { ok: true }
+}
+
+/**
+ * Setter PURO de palavras-chave da intenção (v0.33.0, Fase 2). SUBSTITUI o array
+ * (verbo "set" honesto) aplicando só a higiene mínima: trim + colapsa espaços por
+ * palavra, descarta vazias e duplicatas EXATAS (pós-limpeza) preservando a ordem.
+ * Não normaliza caixa/acento — a keyword grava como o humano quer ver (a detecção
+ * de colisão "frouxa" vive no nudge do `validate()`). Array vazio LIMPA (estado
+ * default e legítimo). Retorna o array já limpo (o valor realmente gravado), para
+ * quem chama montar mensagem/pré-preencher sem reler. NUNCA toca `variable`/`context`.
+ *
+ * Por que puro sobre `BotIntent` (e não em `flowTools`): a Fase 2 (UI) precisa escrever
+ * keyword na intenção-ALVO sem passar por `updateIntentMeta` — este revalida o NOME do
+ * alvo (`INTENT_NAME_VALID`), o que faria a escrita falhar num alvo de nome legado.
+ * `flowTools.setKeywords` passa a envolver este setter (resolve ref + `store.save`).
+ */
+export function setIntentKeywords(intent: BotIntent, keywords: string[]): string[] {
+  const seen = new Set<string>()
+  const clean: string[] = []
+  for (const k of keywords) {
+    const word = (k ?? '').trim().replace(/\s+/g, ' ')
+    if (!word || seen.has(word)) continue
+    seen.add(word)
+    clean.push(word)
+  }
+  intent.keywords = clean
+  touch(intent)
+  return clean
+}
+
+/**
+ * Setter PURO do `context` da intenção (v0.33.0, Fase 2): grava o id da intenção que
+ * a ESCOPA (tipicamente o nó de Escolha do menu) ou `null` para LIMPAR (a keyword vira
+ * atalho GLOBAL). `contextId` já deve vir RESOLVIDO a um id (ou null) — a resolução por
+ * id/nome intra-fluxo vive em quem chama (`flowTools.setContext` resolve a ref; a UI passa
+ * o `intent.id` do próprio `choiceNode`). Recusa auto-referência: context de si mesmo seria
+ * circular e não escopa nada. Espelha o `setIntentKeywords` (puro, desacoplado do nome do alvo).
+ */
+export function setIntentContext(intent: BotIntent, contextId: string | null): EditResult {
+  const id = contextId?.trim() || null
+  if (id && id === intent.id) {
+    return { ok: false, reason: `"${intent.name}" não pode ter a si mesmo como context` }
+  }
+  intent.context = id
   touch(intent)
   return { ok: true }
 }

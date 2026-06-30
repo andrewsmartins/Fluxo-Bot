@@ -5,7 +5,7 @@ import { createIntentTemplate } from '../utils/intentTemplates'
 import { isCreatableKind, type CreatableKind } from '../utils/nodeCatalog'
 import {
   updateActionFields, setChoices, listMessages, addButtonListMessage, addChoice,
-  addTextMessage, updateMessageText,
+  addTextMessage, updateMessageText, setIntentKeywords, setIntentContext, touch,
 } from '../utils/editIntent'
 import { applyConnect, setNextRef } from '../utils/editFlow'
 import { validateFlow } from '../utils/validateFlow'
@@ -203,6 +203,9 @@ export function setCategory(store: FlowStore, ref: string, category: string): st
   }
   store.beginMutation()
   intent.category = clean
+  // Uniformiza com os demais setters de campo de cabeçalho (set_keywords/set_context tocam via
+  // os setters puros): toda escrita honesta reflete em `updatedAt` (#7 do code-review da Fase 2).
+  touch(intent)
   store.save()
   return `categoria de "${intent.name}" = "${clean}"`
 }
@@ -219,19 +222,11 @@ export function setCategory(store: FlowStore, ref: string, category: string): st
 export function setKeywords(store: FlowStore, ref: string, keywords: string[]): string {
   const intent = resolveIntent(store, ref)
   if (isError(intent)) return `⚠️ erro: ${intent.error}`
-  // Higiene mínima espelhando setCategory: trim + colapsa espaços por palavra, descarta
-  // vazias e duplicatas EXATAS (pós-limpeza) preservando a ordem. Não normaliza caixa/acento
-  // — a keyword grava como o humano quer ver; a detecção de colisão "frouxa" vive no nudge.
-  const seen = new Set<string>()
-  const clean: string[] = []
-  for (const k of keywords) {
-    const word = (k ?? '').trim().replace(/\s+/g, ' ')
-    if (!word || seen.has(word)) continue
-    seen.add(word)
-    clean.push(word)
-  }
+  // A higiene (trim/colapsa/dedup exato/vazio-limpa) vive no setter puro `setIntentKeywords`
+  // (compartilhado com a UI do DetailPanel, Fase 2). Aqui só resolvemos a ref, persistimos e
+  // montamos a mensagem a partir do array que o setter realmente gravou.
   store.beginMutation()
-  intent.keywords = clean
+  const clean = setIntentKeywords(intent, keywords)
   store.save()
   return clean.length
     ? `keywords de "${intent.name}" = [${clean.join(', ')}]`
@@ -252,18 +247,21 @@ export function setContext(store: FlowStore, ref: string, contextRef?: string): 
   // Vazio/ausente = limpa (desmarca o escopo → keyword global). Espelha o checkbox da UI OFF.
   if (!contextRef || !contextRef.trim()) {
     store.beginMutation()
-    intent.context = null
+    setIntentContext(intent, null)
     store.save()
     return `context de "${intent.name}" limpo (keyword global)`
   }
+  // Resolve a ref do context (id/nome intra-fluxo) ANTES de chamar o setter puro, que só
+  // aceita id já resolvido (e cuida da recusa de auto-referência + persiste o `context`).
   const ctx = resolveIntent(store, contextRef)
   if (isError(ctx)) return `⚠️ erro: context "${contextRef}": ${ctx.error}`
-  // Auto-referência não escopa nada — seria um context circular sem efeito de roteamento.
-  if (ctx.id === intent.id) {
-    return `⚠️ erro: "${intent.name}" não pode ter a si mesmo como context`
-  }
+  // `beginMutation` aqui (antes da guarda de self-ref dentro de `setIntentContext`) é inofensivo:
+  // é idempotente (snapshot só na 1ª mutação da sessão = base correta — flowStore.ts:77-79). Um
+  // self-ref recusado captura o estado INALTERADO, então `revert` segue íntegro. NÃO pré-checar
+  // antes daqui — reintroduziria a duplicação da guarda que centralizamos no setter puro (#8).
   store.beginMutation()
-  intent.context = ctx.id
+  const result = setIntentContext(intent, ctx.id)
+  if (!result.ok) return `⚠️ erro: ${result.reason}`
   store.save()
   return `context de "${intent.name}" = "${ctx.name}" (${ctx.id})`
 }
@@ -575,6 +573,20 @@ function findKeywordNudges(store: FlowStore): string[] {
       nudges.push(
         `nó "${intent.name}" tem context (escopo de um menu) mas é alvo de ${count} menus — ` +
         `context comporta só um; os demais menus não roteiam até ele.`,
+      )
+    }
+  }
+  // (4) keyword multi-palavra: a plataforma só casa palavra individual (território N2), então
+  // uma keyword com espaço NUNCA roteia. A UI já previne (split por espaço no commit do
+  // KeywordTags); este nudge pega o residual que entrou por IMPORT de JSON ou pelo AGENTE
+  // (set_keywords não splita — split silencioso no setter seria surpresa). Chaveado por id.
+  for (const intent of store.flow.list) {
+    const withSpace = (intent.keywords ?? []).filter(k => k.includes(' '))
+    if (withSpace.length) {
+      const shown = withSpace.map(k => `"${k}"`).join(', ')
+      nudges.push(
+        `nó "${intent.name}" tem keyword com espaço (${shown}) — a plataforma só casa palavra ` +
+        `individual; separe em palavras-chave distintas (uma por palavra).`,
       )
     }
   }

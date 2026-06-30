@@ -9,6 +9,7 @@ import {
   addTemplateMessage, updateTemplateMessage, addButtonListMessage, replaceButtonListMessage, setChoices,
   updateCondition, addCondition, removeCondition,
   updateIntentMeta, updateActionFields, updateSetDataItems, setActionErrorNext, sanitizeIntentName,
+  setIntentKeywords, setIntentContext,
   type EditableMessage, type MessageRef, type TemplateMessagePayload,
 } from '../utils/editIntent'
 import { acceptFor, type UploadMediaType } from '../utils/uploadMedia'
@@ -252,6 +253,26 @@ interface MenuDraft {
   items: { text: string; description: string }[]
 }
 
+/**
+ * Roteamento de uma opção de menu, gravado no cabeçalho da intenção-ALVO (v0.33.0
+ * Fase 2). Mantido em array paralelo a `Draft.choices` para a escrita cross-intent.
+ */
+export interface ChoiceMeta {
+  /** Palavras-chave do ALVO como string separada por vírgula (formato de `KeywordTags`). */
+  keyword: string
+  /** O `context` do alvo aponta para ESTE nó de Escolha? (checkbox "restringir a este menu"). */
+  contextOn: boolean
+  /**
+   * Snapshot do `keyword`/`contextOn` no momento da ABERTURA do painel (ou na troca de
+   * destino, que re-baseia o ponto-zero). O gatilho de escrita cross-intent compara o estado
+   * ATUAL com este INICIAL — grava só o que o humano editou nesta sessão de edição, em vez de
+   * "o que difere do estado vivo do alvo". Mora DENTRO do objeto (sem 3º array paralelo): é
+   * congelado em `choiceMetaOf` e nunca tocado por `setChoiceKeyword`/`toggleChoiceContext`.
+   */
+  initialKeyword: string
+  initialContextOn: boolean
+}
+
 interface Draft {
   // Meta da intenção (modos group/solo)
   name: string
@@ -294,6 +315,13 @@ interface Draft {
   menu: MenuDraft | null
   /** Destinos (`action.choices`), posicionais aos itens do menu. */
   choices: string[]
+  /**
+   * Meta de ROTEAMENTO por opção (v0.33.0 Fase 2), index-alinhada a `choices`.
+   * Patcheia o cabeçalho da intenção-ALVO (cross-intent), não o nó de Escolha:
+   * `keyword` é o que faz o clique no botão rotear ("contém" o texto); `contextOn`
+   * escopa a keyword a ESTE menu. Pré-preenchida do alvo ao abrir/trocar destino.
+   */
+  choiceMeta: ChoiceMeta[]
   transferType: string
   transferValue: string
   /** Modo de captura: 'singleField' (um dado) ou 'multipleFields' (vários). */
@@ -414,7 +442,101 @@ function errorNextDraft(cond: Condition | undefined, botId: string): Pick<Draft,
   }
 }
 
-function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft {
+/**
+ * Pré-preenche a meta de roteamento de uma opção a partir do seu ALVO (cross-intent):
+ * as keywords atuais do alvo (mostra o estado real, sem adivinhar) e se o `context`
+ * dele já escopa a ESTE nó de Escolha (`choiceNodeId`). Sem destino → meta vazia.
+ */
+function choiceMetaOf(destId: string, intents: BotIntent[], choiceNodeId: string): ChoiceMeta {
+  const target = destId ? intents.find(it => it.id === destId) : undefined
+  const keyword = (target?.keywords ?? []).join(', ')
+  const contextOn = !!target && target.context === choiceNodeId
+  // `initial*` congela o estado de abertura/troca-de-destino como ponto-zero do gatilho de edição.
+  return { keyword, contextOn, initialKeyword: keyword, initialContextOn: contextOn }
+}
+
+/**
+ * Escreve o roteamento por opção no cabeçalho das intenções-ALVO (cross-intent, v0.33.0
+ * Fase 2/2.1). Gatilho = "editou-desde-a-abertura" (não "difere do estado vivo do alvo"):
+ * para cada opção COM destino, grava SÓ o campo cujo valor ATUAL difere do `initial*`
+ * congelado em `choiceMetaOf` (a intenção real do humano nesta sessão de edição). Por quê:
+ * comparar com o estado vivo gera escrita-fantasma contra um alvo cujo estado divergiu do
+ * que o painel mostrou (alvo compartilhado por 2 menus, prop atualizada sem rebuild). O
+ * snapshot estável é mais fiel à intenção do usuário — e mata os bumps de `updatedAt`/
+ * histórico em irmãos NÃO editados (#2/#3).
+ *  - keyword: grava quando `keyword !== initialKeyword` (inclui esvaziar de propósito →
+ *    `setIntentKeywords([''])` higieniza para `[]`); a higiene mora no setter puro (#9).
+ *  - context ON: escopa a keyword a ESTE nó de Escolha (`intent.id`);
+ *  - context OFF: só DESescopa se o alvo aponta a ESTE menu — se aponta a OUTRO menu,
+ *    NÃO toca (evita apagar o escopo alheio silenciosamente).
+ * Opção sem destino não tem cabeçalho onde gravar → ignorada. A resolução/escrita usa as
+ * refs vivas de `intents` (= `model.list`); o snapshot de undo foi tirado em `onBeforeApply`.
+ */
+export function applyChoiceRouting(
+  choiceNode: BotIntent,
+  choices: string[],
+  choiceMeta: ChoiceMeta[],
+  intents: BotIntent[],
+): EditResult[] {
+  const results: EditResult[] = []
+  choices.forEach((destId, i) => {
+    if (!destId) return
+    const target = intents.find(it => it.id === destId)
+    const meta = choiceMeta[i]
+    if (!target) {
+      // Ref órfã: o destino não existe mais em `intents` (alvo removido) → não há cabeçalho
+      // onde rotear. Loga (CLAUDE.md: logs sempre que couber); o sinal de UI já vem do
+      // "opção sem conexão" (v0.19.0). NÃO lança — as demais opções seguem.
+      console.warn(`applyChoiceRouting: destino "${destId}" não encontrado nas intenções — roteamento da opção ${i + 1} ignorado`)
+      return
+    }
+    // `!meta` = array de meta desalinhado do de `choices` (não deveria ocorrer: andam juntos
+    // nos handlers). Pular é o caminho SEGURO — meta ausente = "não editado" → nada a gravar,
+    // o que torna o caso de desync inofensivo (#3). Silencioso de propósito (guard, não erro).
+    if (!meta) return
+    // Keyword: só na edição real desta sessão (string-crua ATUAL × INICIAL). `split(',')` cru —
+    // o setter puro faz trim/colapsa/dedup/descarta-vazias; esvaziar (`''`) limpa o alvo.
+    if (meta.keyword !== meta.initialKeyword) {
+      setIntentKeywords(target, meta.keyword.split(','))
+    }
+    // Context: idem — só quando o checkbox foi de fato tocado desde a abertura. Checkbox
+    // intocado NÃO grava (mata o bump de `updatedAt` do irmão não editado — #2).
+    if (meta.contextOn !== meta.initialContextOn) {
+      if (meta.contextOn) {
+        results.push(setIntentContext(target, choiceNode.id))
+      } else if (target.context === choiceNode.id) {
+        // Desescopa só o PRÓPRIO menu; se o alvo aponta a outro, o ramo acima não entra.
+        results.push(setIntentContext(target, null))
+      }
+    }
+  })
+  return results
+}
+
+/**
+ * Para cada opção, devolve o número (1-based) da PRIMEIRA opção que aponta ao MESMO destino,
+ * ou `null` quando o destino é único (ou vazio). Alimenta o hint não-bloqueante "mesmo destino
+ * da Opção N" (#1 do code-review da Fase 2): dois botões → uma intenção é topologia LEGÍTIMA
+ * (a keyword roteia o clique e mora no ALVO; match "contém"), então não bloqueamos no seletor —
+ * mataria o caso válido. Mas a keyword é COMPARTILHADA: se o humano editar AMBAS as opções do
+ * mesmo alvo a valores divergentes, o último Aplicar vence (last-write-wins). O hint tira o
+ * "silencioso" disso. Opções no MESMO menu dividem o `choiceNode.id` → sem conflito de `context`
+ * entre elas (o conflito real é cross-menu, coberto pela guarda de `applyChoiceRouting`).
+ */
+export function duplicateDestHints(choices: string[]): (number | null)[] {
+  const firstByDest = new Map<string, number>()
+  return choices.map((dest, i) => {
+    if (!dest) return null
+    const first = firstByDest.get(dest)
+    if (first === undefined) {
+      firstByDest.set(dest, i)
+      return null
+    }
+    return first + 1 // 1-based: rótulo "Opção N" exibido ao usuário
+  })
+}
+
+function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number, intents: BotIntent[]): Draft {
   const scopedCond = intent.conditions[condIdx]
   const allMessages = listMessages(intent)
   const scoped = mode === 'condition' ? allMessages.filter(m => m.ref.condIdx === condIdx) : allMessages
@@ -429,6 +551,7 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
   const choiceCondIdx = choiceCondIdxOf(intent, mode, condIdx)
   const menu = choiceCondIdx >= 0 ? menuOfCondition(intent, choiceCondIdx) : null
   const choices = choiceCondIdx >= 0 ? choicesOfCondition(intent, choiceCondIdx) : []
+  const choiceMeta = choices.map(destId => choiceMetaOf(destId, intents, intent.id))
   const menuRef = menu?.editRef
   const messages = menuRef
     ? scoped.filter(m => !(m.ref.condIdx === menuRef.condIdx && m.ref.sayIdx === menuRef.sayIdx && m.ref.msgIdx === menuRef.msgIdx))
@@ -484,6 +607,7 @@ function buildDraft(intent: BotIntent, mode: PanelMode, condIdx: number): Draft 
     choiceCondIdx,
     menu,
     choices,
+    choiceMeta,
     transferType: transferCond?.action.transferType ?? '',
     transferValue: transferCond?.action.value ?? '',
     // Modo derivado de `captureDataTypesCategory`; legado sem o campo cai em single.
@@ -553,16 +677,34 @@ interface KeywordTagsProps {
 /**
  * Editor de palavras-chave como tags/chips. Mantém o valor como string separada
  * por vírgula (compatível com o submit em updateIntentMeta), mas exibe cada termo
- * como um chip removível. Enter ou vírgula confirma o termo digitado; Backspace
- * no campo vazio remove o último; blur confirma o pendente (evita perder texto
- * que o usuário digitou mas não deu Enter). Ignora duplicatas.
+ * como um chip removível. Enter, vírgula OU espaço confirma o termo digitado;
+ * Backspace no campo vazio remove o último; blur confirma o pendente (evita perder
+ * texto que o usuário digitou mas não deu Enter). Ignora duplicatas.
+ *
+ * O `commit` splita por ESPAÇO além de vírgula (`/[\s,]+/`): keyword multi-palavra é
+ * INVÁLIDA na plataforma (só casa palavra individual — território N2), então digitar
+ * "plano premium" vira dois chips na hora (feedback visível, não surpresa silenciosa) —
+ * torna o estado inválido impossível de CRIAR pela UI. O `tags` (DISPLAY), porém, splita
+ * só por vírgula: exibe fielmente um valor legado "plano premium" como UM chip, sem
+ * esconder o estado ruim (o hint da Escolha + o nudge do validate sinalizam o residual).
  */
+/**
+ * Quebra a entrada digitada num campo de keyword em termos individuais, splitando por
+ * ESPAÇO e vírgula (`/[\s,]+/`) e descartando vazios. Pura e exportada para teste: é a
+ * regra que torna keyword multi-palavra impossível de CRIAR pela UI (#4/#5) — "plano premium"
+ * vira `['plano', 'premium']`. NÃO confundir com o split de DISPLAY (`value.split(',')`), que
+ * é só por vírgula para exibir fielmente um valor legado com espaço como um único chip.
+ */
+export function splitKeywordInput(raw: string): string[] {
+  return raw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean)
+}
+
 function KeywordTags({ value, onChange, isDark, placeholder = 'ex: oi, olá, menu' }: KeywordTagsProps) {
   const [text, setText] = useState('')
   const tags = value.split(',').map(k => k.trim()).filter(Boolean)
 
   const commit = (raw: string) => {
-    const parts = raw.split(',').map(s => s.trim()).filter(Boolean)
+    const parts = splitKeywordInput(raw)
     setText('')
     if (!parts.length) return
     const next = [...tags]
@@ -572,7 +714,7 @@ function KeywordTags({ value, onChange, isDark, placeholder = 'ex: oi, olá, men
   const removeAt = (idx: number) => onChange(tags.filter((_, i) => i !== idx).join(', '))
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
       e.preventDefault()
       commit(text)
     } else if (e.key === 'Backspace' && !text && tags.length) {
@@ -3003,7 +3145,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   const kind = (node.type ?? 'defaultNode') as NodeKind
   const badge = (isDark ? KIND_LABELS_DARK : KIND_LABELS_LIGHT)[kind]
   const { mode, condIdx } = resolveMode(node, intent)
-  const [draft, setDraft] = useState<Draft | null>(intent ? buildDraft(intent, mode, condIdx) : null)
+  const [draft, setDraft] = useState<Draft | null>(intent ? buildDraft(intent, mode, condIdx, intents) : null)
   const [panelError, setPanelError] = useState<string | null>(null)
   // Feedback ao aplicar (Fase 15): `applied` morfa o botão para "✓ Aplicado" por
   // ~1,2s no sucesso; `shake` treme o botão por ~0,4s na falha. Timers em ref para
@@ -3033,7 +3175,10 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   const { templatesById } = useTeams()
 
   useEffect(() => {
-    setDraft(intent ? buildDraft(intent, mode, condIdx) : null)
+    // Pré-preenche a meta de roteamento com o `intents` do momento em que o painel abre
+    // (snapshot intencional). `intents` fora das deps de propósito: re-rodar a cada
+    // mudança de refs do modelo descartaria edições não aplicadas.
+    setDraft(intent ? buildDraft(intent, mode, condIdx, intents) : null)
     setPanelError(null)
     setEditingColl(new Set())
     setEditingTpl(new Set())
@@ -3047,6 +3192,50 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
   const patchCond = useCallback((i: number, patch: Partial<DraftCondition>) => {
     setDraft(d => d ? { ...d, conditions: d.conditions.map((c, j) => j === i ? { ...c, ...patch } : c) } : d)
   }, [])
+
+  // — Handlers das opções do nó de Escolha (v0.33.0 Fase 2). `choices` e `choiceMeta`
+  //   andam juntos: qualquer add/remove/troca-de-destino atualiza OS DOIS na mesma
+  //   transição de estado, evitando desalinhamento de índice.
+
+  /** Troca o destino da opção `i` e re-pré-preenche a meta a partir do novo alvo. */
+  const setChoiceDest = useCallback((i: number, destId: string) => {
+    setDraft(d => d && ({
+      ...d,
+      choices: d.choices.map((c, j) => j === i ? destId : c),
+      choiceMeta: d.choiceMeta.map((m, j) => j === i ? choiceMetaOf(destId, intents, intent!.id) : m),
+    }))
+  }, [intents, intent])
+
+  /** Remove a opção `i` (destino + meta). */
+  const removeChoiceAt = useCallback((i: number) => {
+    setDraft(d => d && ({
+      ...d,
+      choices: d.choices.filter((_, j) => j !== i),
+      choiceMeta: d.choiceMeta.filter((_, j) => j !== i),
+    }))
+  }, [])
+
+  /** Acrescenta uma opção vazia (sem destino, meta em branco — inicial = vazio). */
+  const addChoiceOption = useCallback(() => {
+    setDraft(d => d && ({
+      ...d,
+      choices: [...d.choices, ''],
+      choiceMeta: [...d.choiceMeta, { keyword: '', contextOn: false, initialKeyword: '', initialContextOn: false }],
+    }))
+  }, [])
+
+  /** Edita a keyword (do ALVO) da opção `i`. */
+  const setChoiceKeyword = useCallback((i: number, keyword: string) => {
+    setDraft(d => d && ({ ...d, choiceMeta: d.choiceMeta.map((m, j) => j === i ? { ...m, keyword } : m) }))
+  }, [])
+
+  /** Alterna o escopo de context (restringir a keyword do alvo a este menu) da opção `i`. */
+  const toggleChoiceContext = useCallback((i: number) => {
+    setDraft(d => d && ({ ...d, choiceMeta: d.choiceMeta.map((m, j) => j === i ? { ...m, contextOn: !m.contextOn } : m) }))
+  }, [])
+
+  // Hint não-bloqueante (#1): opção que repete o destino de uma anterior (keyword compartilhada).
+  const choiceDupHints = useMemo(() => duplicateDestHints(draft?.choices ?? []), [draft?.choices])
 
   // Opções do dropdown de Categoria, a partir das categorias conhecidas na sessão.
   // "Sem Categoria" sempre vem primeiro (valor padrão); o resto, ordenado.
@@ -3202,6 +3391,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
           }
         }
         results.push(setChoices(intent, draft.choiceCondIdx, draft.choices))
+        results.push(...applyChoiceRouting(intent, draft.choices, draft.choiceMeta, intents))
       }
       results.push(...messageDiff('condition', draft.messages, draft.newMessages, draft.removedRefs))
       if (kind === 'transferNode') {
@@ -3282,7 +3472,7 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
     setPanelError(null)
     onApply(intent.id)
     flashApplied()
-    setDraft(buildDraft(intent, mode, condIdx))
+    setDraft(buildDraft(intent, mode, condIdx, intents))
   }
 
   /** Exclui a condição atual (modo filho) — só permitida se houver mais de uma. */
@@ -3566,27 +3756,72 @@ export function DetailPanel({ node, intent, intents, categories, onBeforeApply, 
                   <p className={`text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     Cada escolha liga, pela ordem, ao item de mesma posição do menu. Item sem destino pode transitar por palavra-chave.
                   </p>
-                  {draft.choices.map((dest, i) => (
+                  {draft.choices.map((dest, i) => {
+                    const meta = draft.choiceMeta[i] ?? { keyword: '', contextOn: false, initialKeyword: '', initialContextOn: false }
+                    // Classe compartilhada dos avisos amber (sem keyword / keyword com espaço / destino repetido).
+                    const hintCls = `text-[10px] ${isDark ? 'text-amber-400/80' : 'text-amber-600'}`
+                    return (
                     <div key={i} className={`flex flex-col gap-1 border rounded-lg p-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                       <div className="flex items-center justify-between">
                         <span className={labelCls}>
                           Opção {i + 1}{draft.menu?.items[i]?.text.trim() ? `: ${draft.menu.items[i].text}` : ''}
                         </span>
-                        <button className={ghostBtnCls} title="Remover escolha" onClick={() => set('choices', draft.choices.filter((_, j) => j !== i))}>×</button>
+                        <button className={ghostBtnCls} title="Remover escolha" onClick={() => removeChoiceAt(i)}>×</button>
                       </div>
                       <IntentSelect
                         value={dest}
-                        onChange={v => set('choices', draft.choices.map((c, j) => j === i ? v : c))}
+                        onChange={v => setChoiceDest(i, v)}
                         intents={intents.filter(it => it.id !== intent!.id)}
                         inputCls={inputCls}
                         emptyLabel="Sem destino (palavra-chave)"
                       />
+                      {/* Roteamento real (v0.33.0): clicar no botão envia o TEXTO; quem roteia é a
+                          KEYWORD no cabeçalho do ALVO. Os 2 campos abaixo patcheiam o ALVO (cross-intent). */}
+                      {dest ? (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <span className={labelCls}>Palavra-chave do destino (roteia o clique)</span>
+                          <KeywordTags
+                            value={meta.keyword}
+                            onChange={v => setChoiceKeyword(i, v)}
+                            isDark={isDark}
+                            placeholder="ex: financeiro"
+                          />
+                          {!meta.keyword.trim() && (
+                            <span className={hintCls}>
+                              Sem palavra-chave o menu não roteia este item.
+                            </span>
+                          )}
+                          {/* Residual (#4/#5): keyword multi-palavra é INVÁLIDA (a plataforma só casa
+                              palavra individual). A UI já previne ao digitar (split por espaço no commit);
+                              isto pega valor legado vindo de import/agente, sem esconder o estado ruim. */}
+                          {meta.keyword.split(',').some(k => k.trim().includes(' ')) && (
+                            <span className={hintCls}>
+                              Palavra-chave com espaço não roteia — use uma palavra por chip.
+                            </span>
+                          )}
+                          {/* Destino repetido (#1): a keyword é compartilhada com a opção anterior. */}
+                          {choiceDupHints[i] != null && (
+                            <span className={hintCls}>
+                              Mesmo destino da Opção {choiceDupHints[i]} — a palavra-chave é compartilhada.
+                            </span>
+                          )}
+                          <label className={`flex items-center gap-1.5 text-[11px] cursor-pointer ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <input type="checkbox" checked={meta.contextOn} onChange={() => toggleChoiceContext(i)} />
+                            Restringir a este menu (context)
+                          </label>
+                        </div>
+                      ) : (
+                        <div className={`text-[10px] rounded-md px-2 py-1.5 ${isDark ? 'bg-slate-800/60 text-slate-500' : 'bg-slate-50 text-slate-400'}`}>
+                          Defina um destino para configurar a palavra-chave de roteamento.
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                   <button
                     className={`${dashedBtnCls} ${draft.menu && draft.choices.length >= draft.menu.items.length ? 'opacity-40 cursor-not-allowed' : ''}`}
                     disabled={!!draft.menu && draft.choices.length >= draft.menu.items.length}
-                    onClick={() => set('choices', [...draft.choices, ''])}
+                    onClick={addChoiceOption}
                   >+ Adicionar Escolha</button>
                 </div>
               </Section>

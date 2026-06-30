@@ -1,36 +1,33 @@
 # PLANS.md — FlowViewer: de visualizador a editor de fluxos OmniChat
 
 <!-- HANDOFF:START -->
-## 🔄 Handoff — 2026-06-26
+## 🔄 Handoff — 2026-06-30
 
-**Foco da próxima sessão:** implementar a **Fase 1** (camada de tools) da feature **"Menus que roteiam de verdade" (v0.33.0)** — plano fechado por `/interrogar` (6 Qs), gravado no corpo do PLANS (§"Menus que roteiam de verdade"). **Débito da v0.32.0 já fechado nesta sessão** (commit abaixo).
+**Foco da próxima sessão:** **implementar a Fase 2.1** (correções pós-code-review da Fase 2) conforme as decisões já travadas no PLANS §"Correções pós-code-review da Fase 2 (Fase 2.1)"; depois `/code-review` rápido + **commitar tudo** (Fase 2 + 2.1) como `feat: roteamento por opção na UI (v0.33.0)`; então os `/verify` e2e represados.
 
-**Onde paramos:** branch `feat/capture-node-guidance`. Rodei `/code-review` (high effort) no diff da v0.32.0 e **achei 1 bug real, corrigido antes do commit**: `findCategoryNudges` quebrava o `validate()` (`normalizeCategory(undefined).trim()`) quando um export real omite o cabeçalho `category` — o type diz `string` mas `FlowStore.fromFile` faz `JSON.parse … as BotFlowJson` cego. Fix: tratar `category` ausente como `'Sem Categoria'` ([flowTools.ts:409](src/tools/flowTools.ts#L409)) + teste de regressão. Suíte **483 verde**, `tsc`+`mcp:typecheck` limpos. **Commitado em `255de1f`** (`feat: set_category + guidance + nudge (v0.32.0)`). Working tree limpo.
+**Onde paramos:** branch `feat/menu-keywords-routing`, HEAD ainda `d028098` (Fase 1). A **Fase 2 inteira segue no working tree, NÃO commitada** (sessão anterior). **Esta sessão NÃO escreveu código** — rodou `/code-review` (high) na Fase 2 (10 achados) e `/interrogar` em TODOS os 10; as decisões de correção viraram o bloco **"Correções pós-code-review da Fase 2 (Fase 2.1)"** no PLANS.md. WIP atual = mesmos arquivos de antes + edições no PLANS.md desta sessão.
 
 **Fios soltos / pendentes:**
-- **`/verify` e2e pendentes (3, numa sessão NOVA — o MCP só recarrega ao reiniciar o Claude Code):** Categorias (saudação + 2 capturas reusam MESMA "Identificação", zero "Sem Categoria") · Captura (CNPJ+nº atendimento → 2 `captureNode`, zero `waitNode`) · `set_message`.
-- **v0.33.0 NÃO iniciada** (só planejada). Plano: menus de Escolha não roteiam porque o roteamento real é por **`keyword` na intenção-alvo** (match "contém"), não pelo `choices[]` (dispara só por número posicional — morto p/ botões, pois clicar envia o TEXTO). Faltam setters de `keywords`/`context` (campos de cabeçalho sem tool — como `category` era). **2 fases:**
-  - **Fase 1 (MCP-first, a fazer agora):** funções puras `setKeywords(node, keywords[])` + `setContext(node, ctx|vazio)` em [flowTools.ts](src/tools/flowTools.ts); registrar as 2 tools em [mcp/server.ts](mcp/server.ts) (12→14) + guidance; **3 nudges** no `validate()` (alvo sem keyword · keyword duplicada entre alvos · context p/ alvo de 2 menus); unit tests + `mcp:typecheck`. Shippável sozinha. Sair em **branch própria**.
-  - **Fase 2 (sessão própria):** 2 campos por opção no [DetailPanel.tsx:3569-3582](src/components/DetailPanel.tsx#L3569-L3582) + escrita **cross-intent**. Reusa os setters da Fase 1.
-- **Destino das branches:** `feat/set-message` (v0.30.0) e `feat/capture-node-guidance` (Captura v0.31.0 + Categorias v0.32.0) → PR(s) p/ `main`.
+- **Fase 2.1 decidida mas NÃO implementada** — é o trabalho da próxima sessão. Os 7 itens de escopo estão listados no fim do bloco da Fase 2.1 no PLANS.
+- **Nada commitado** — Fase 2 + Fase 2.1 vão num commit só (`feat:`), após implementar e revisar.
+- **`/verify` e2e represados (4, cada um em sessão NOVA — MCP só recarrega ao reiniciar):** v0.33.0 keyword/roteamento · v0.32.0 categorias · v0.31.0 captura · v0.30.0 `set_message`. Critérios nos respectivos blocos do PLANS.
+- **Destino das branches:** `feat/set-message` (v0.30.0), `feat/capture-node-guidance` (v0.31.0+v0.32.0), `feat/menu-keywords-routing` (v0.33.0) → PR(s) encadeados p/ `main`.
 
-**Armadilhas (herdadas, ainda valem):**
-- **PowerShell `Get-Content -Raw` SEM `-Encoding utf8` (PS 5.1) lê UTF-8 como ANSI** e o round-trip dupla-encoda (mojibake). Nunca round-trip de fonte sem `-Encoding utf8`; **preferir o Edit tool**.
-- Edit tool converte escapes `\u` em trânsito — p/ acentos usar `/\p{Diacritic}/gu` (flag `u`).
-- Nudges no `validate()` colidem com testes que criam nós "incompletos" — ao adicionar os 3 nudges da v0.33.0, ajustar fixtures p/ o estado completo (foi o que quebrou na v0.32.0). **E:** todo campo de cabeçalho que o nudge lê pode vir `undefined` de export real (mesmo bug do `category`) — guardar `?? default` antes de `.trim()`/normalizar.
+**Armadilhas desta sessão (preservar ao implementar a Fase 2.1):**
+- **Gatilho de escrita muda de fundamento:** trocar "grava se difere do alvo VIVO" por "grava só o que o humano editou desde a abertura" — comparar `keyword`/`contextOn` vs `initialKeyword`/`initialContextOn` (string-CRUA), que passam a morar DENTRO do `ChoiceMeta` (sem 3º array). Isso é o que mata #2/#3/#5 e dissolve o `norm` local (#9).
+- **Keyword multi-palavra é INVÁLIDA na plataforma** (só casa palavra individual — território N2 do Andy). Por isso `KeywordTags.commit` splita por espaço E vírgula; `validate()` ganha nudge p/ keyword com espaço; mas `setIntentKeywords` NÃO splita (split silencioso no setter = surpresa, igual à decisão 3 do set_category).
+- **`#8 aceito de propósito:** `beginMutation` antes da guarda de self-ref é inofensivo (snapshot idempotente = base correta da sessão, [flowStore.ts:77-79](src/tools/flowStore.ts#L77-L79)). NÃO "consertar" pré-checando — reintroduziria duplicação da guarda.
+- **`#7:** dar `touch()` no `setCategory` (hoje não toca) ao uniformizar — mexe em código já mergeado da v0.32.0, é proposital.
+- Sem RTL/jsdom: testes de UI são **lógica pura** (`applyChoiceRouting`/`ChoiceMeta` exportados). Sem linter (`npm run lint` não existe).
 
-**Próximo passo imediato:**
-1. Branch nova a partir de `main` (ou da `feat/capture-node-guidance`) p/ a v0.33.0.
-2. Começar pelos setters puros `setKeywords`/`setContext` + unit tests (amostra mínima antes da UI), espelhando `setCategory`/`findCategoryNudges`.
-3. `/verify` e2e numa sessão nova quando der (independente da v0.33.0).
+**Próximo passo imediato:** implementar os 7 itens da Fase 2.1 (ver fim do bloco no PLANS), começando pelo gatilho `initial*` no `ChoiceMeta` + `applyChoiceRouting`, rodar a suíte, depois `KeywordTags`/nudge/hints/`setCategory`.
 
 **Ponteiros:**
-- PLANS §"Menus que roteiam de verdade" — mecânica confirmada, decisões Q1–Q6, faseamento, critério de aceite.
-- Leitura já pronta de `keywords`/`context`: [flowTools.ts:488-489](src/tools/flowTools.ts#L488-L489). Padrão a espelhar: `setCategory`/`findCategoryNudges` (commit `255de1f`).
-- UI da Escolha: `draft.choices.map` em [DetailPanel.tsx:3569](src/components/DetailPanel.tsx#L3569); patch dos destinos em [DetailPanel.tsx:3204](src/components/DetailPanel.tsx#L3204).
-- Commits: `255de1f` (Categorias v0.32.0), `59b6307` (Captura v0.31.0), `5ae070a` (doc Uni.co).
+- PLANS §"Correções pós-code-review da Fase 2 (Fase 2.1)" — **decisões TRAVADAS dos 10 achados** + "Como será testado" + escopo (7 itens). Não reabrir sem novo `/interrogar`.
+- PLANS §"Menus que roteiam de verdade" → "Decisões da Fase 2" (Fases 1+2, já implementadas).
+- Código a tocar: [DetailPanel.tsx](src/components/DetailPanel.tsx) (`ChoiceMeta`, `applyChoiceRouting`, `choiceMetaOf`, `buildDraft`, handlers de opção, `KeywordTags`), [flowTools.ts](src/tools/flowTools.ts) (`findKeywordNudges`, `setCategory`, `setContext`), testes em `DetailPanel.routing.test.ts` + `flowTools.test.ts`.
 
-**Skills sugeridas ao retomar:** `/verify` para os 3 e2e pendentes (sessão nova); `/code-review` antes de commitar a Fase 1; `/interrogar` já cumprido para a v0.33.0.
+**Skills sugeridas ao retomar:** implementar direto (decisões já interrogadas); `/code-review` rápido antes de commitar; `/verify` para os e2e represados (sessão nova com MCP reiniciado).
 <!-- HANDOFF:END -->
 
 ## Contexto
@@ -296,7 +293,7 @@ intenções que cria, para agrupar o fluxo na plataforma OmniChat sem explodir e
   ("Atendimento" vs "Suporte") — aceito; o eixo "fase" + semente reduzem isso na origem, não no validate.
 - `set_category` aceita texto livre (Q1) — categoria fora da semente passa; é a válvula de escape, por design.
 
-### Menus que roteiam de verdade (`set_keywords` + `set_context` + UI por opção) 🚧 FASE 1 IMPLEMENTADA (v0.33.0) · FASE 2 PENDENTE
+### Menus que roteiam de verdade (`set_keywords` + `set_context` + UI por opção) ✅ FASES 1+2 IMPLEMENTADAS (v0.33.0, branch `feat/menu-keywords-routing`) · PENDENTE COMMIT + `/verify` e2e
 
 > **Resultado Fase 1 (2026-06-26, branch `feat/menu-keywords-routing`):** entregue a camada de tools.
 > (1) `setKeywords` (substitui o array; trim/colapsa/dedup; vazio limpa) e `setContext` (resolve id/nome
@@ -389,11 +386,126 @@ mas é onde mora o risco no `DetailPanel` (~3500 linhas, arquivo mais arriscado)
   alvo recebe **keyword saliente** (`financeiro`/`suporte`/`vendas`), `choices[]` ainda gravado (não regride), e o
   menu **roteia** ao empurrar p/ a plataforma.
 
+**Decisões da Fase 2 — UI do `DetailPanel` (interrogatório 2026-06-27, skill `interrogar`; TRAVADAS — não reabrir sem novo interrogatório):**
+
+> Achados do código que de-riscaram a fase: (a) `handleApplyEdit` ([App.tsx:638](src/App.tsx#L638)) **ignora** o `intentId` e re-parseia o **modelo inteiro** → mudança em irmão aparece no canvas sem sinalização; (b) o prop `intents` do painel **são as mesmas refs** de `model.list` → mutar o alvo por id muta o modelo; (c) `takeSnapshot` ([history.ts:14](src/utils/history.ts#L14)) faz `structuredClone` do modelo inteiro e `onBeforeApply` o captura ANTES de mutar → undo/rollback cross-intent de graça; (d) já existe o componente `KeywordTags` ([DetailPanel.tsx:560](src/components/DetailPanel.tsx#L560)) (chips, vírgula por trás) e `updateIntentMeta` já grava keywords/context (mas é writer de meta COMPLETA — revalida o nome → impróprio p/ patch cross-intent).
+
+1. **Camada da escrita = setters puros novos em [editIntent.ts](src/utils/editIntent.ts) (Q1).** `setIntentKeywords(intent, kw[])` (trim/colapsa/dedup/vazio-limpa) e `setIntentContext(intent, ctxId|null)` (grava id / limpa / recusa self-ref), puros sobre `BotIntent`. `flowTools.setKeywords/setContext` passam a **envolvê-los** (resolve ref + `store.save`); a UI os chama no alvo. Mata a duplicação de higiene e **desacopla a escrita de keyword da validação de nome** (o `updateIntentMeta` revalida o nome do alvo → falharia em nome legado).
+2. **Alvo compartilhado: aceitar, sem guarda na UI (Q2).** Pré-preenche mostrando o estado real do alvo; keyword é last-write-wins; os nudges do `validate()` (Fase 1) já acusam keyword duplicada / context conflitante. Não detectar/mesclar na UI — desproporcional à raridade (cada opção costuma ir a uma intenção distinta).
+3. **Escrita CONDICIONAL no Aplicar (Q3) — evita clobber de estado alheio.** context **ON** → `setIntentContext(T, id-deste-choiceNode)`; **OFF** → só limpa **se** `T.context === id-deste-menu` (desescopa só o próprio menu; se aponta a outro, NÃO toca). Keyword só grava quando **difere** do pré-preenchido (não bumpa `updatedAt` nem empilha histórico de irmão não editado).
+4. **Opção sem destino: campo desabilitado + dica (Q4).** Sem `choices[i]` não há alvo onde gravar → `<KeywordTags>` cede lugar a um box desabilitado ("defina um destino"). Com destino mas alvo sem keyword → sinal leve de campo vazio (padrão "opção sem conexão" da v0.19.0).
+5. **Campo = reuso de `<KeywordTags>` (Q6).** Chips removíveis, vírgula só por trás; pré-preenche com TODAS as keywords do alvo (multi-keyword, sem clobber de extras); espelha o campo de keyword da meta do próprio painel.
+6. **Draft + apply (implementação):** `draft.choices` segue `string[]` + array-meta paralelo `{ keyword, contextOn }[]` index-alinhado (sincroniza no add/remove de opção; re-pré-preenche ao trocar destino). As escritas cross-intent entram no array `results` do `handleApply` → rollback de falha parcial + undo já cobertos. Valor de context = `intent.id` do próprio `choiceNode`.
+
+**Como será testado (Fase 2, fecha o aceite Q5):**
+- **Unit dos setters puros** em [editIntent.test.ts](src/utils/editIntent.test.ts): `setIntentKeywords` (grava/substitui · trim/colapsa/dedup · vazio limpa) · `setIntentContext` (grava id · limpa com null · recusa self-ref).
+- **Re-rodar as 496 do [flowTools.test.ts](src/tools/flowTools.test.ts)** como gate de não-regressão do religamento (flowTools agora envolve os setters puros).
+- **Teste de componente do `DetailPanel`** (padrão dos 383): edita keyword de uma opção + Aplicar → assere que a intenção-**ALVO** (irmã) mutou; + os 3 casos do Q3 (context ON grava id deste menu · context OFF NÃO toca context que aponta a outro menu · keyword inalterada não regrava).
+- **`/verify` e2e** em sessão nova (já represado) — critério acima.
+
 **Riscos/pendências:**
 - Escrita cross-intent no `DetailPanel` (item acima) — fatiar a parte UI com cuidado; é o maior risco.
 - `set_keywords` substitui → clobber, mitigado por array-vazio (agente) + pré-preenche (UI).
 - Casamento "contém" → keyword genérica colide globalmente; mitigado por guidance (distintiva→global,
   genérica→context) + nudge de duplicata.
+
+### Correções pós-code-review da Fase 2 (Fase 2.1) ✅ IMPLEMENTADA (v0.33.0, branch `feat/menu-keywords-routing`)
+
+> **Resultado (2026-06-30):** entregue. Gatilho de escrita de `applyChoiceRouting` trocado para
+> "editou-desde-a-abertura" (snapshot `initialKeyword`/`initialContextOn` DENTRO do `ChoiceMeta`,
+> congelado em `choiceMetaOf`) — dissolve #2/#3/#5/#9. `KeywordTags.commit` splita por espaço
+> (`splitKeywordInput`, exportado p/ teste); nudge "keyword com espaço" no `findKeywordNudges`;
+> hint inline de destino duplicado (`duplicateDestHints`); `console.warn` em ref órfã (#6);
+> `touch()` no `setCategory` (#7); comentário no `beginMutation`/self-ref do `setContext` (#8).
+> **+14 testes** ([DetailPanel.routing.test.ts](src/components/DetailPanel.routing.test.ts) reescrito p/ a nova forma +
+> `duplicateDestHints`/`splitKeywordInput`; [flowTools.test.ts](src/tools/flowTools.test.ts): nudge multi-palavra +
+> `set_category`→`updatedAt`). Suíte cheia **528 verde**, `tsc`+`mcp:typecheck` limpos. **Pendente:** `/verify` e2e.
+>
+> `/code-review` (high) da Fase 2 + interrogatório (skill `interrogar`) em 2026-06-30. O review achou
+> 10 itens; estes são os 3 de correctness de maior risco em `applyChoiceRouting` (escrita cross-intent),
+> nenhum coberto pelos testes atuais (que só conferem valor final, nunca `updatedAt` nem colisão/wipe).
+> Decisões TRAVADAS abaixo. A correção de raiz dissolve #2/#3/#4/#5 e o cleanup #9 de uma vez.
+
+**Bugs (no `applyChoiceRouting`, [DetailPanel.tsx:460](src/components/DetailPanel.tsx#L460)):**
+- **#1** — dois itens de menu ao MESMO alvo → clobber silencioso de keyword (last-write-wins); `IntentSelect`
+  não impede destino repetido (só filtra o próprio nó).
+- **#2** — `context ON` regrava incondicional ([:480](src/components/DetailPanel.tsx#L480)), bumpando
+  `updatedAt`/histórico de irmão NÃO editado — assimetria com o ramo de keyword (que tem guarda).
+- **#3** — meta vazia pode APAGAR keyword viva do alvo (`desired=[]` vs `current=[kw]` → `setIntentKeywords(target, [])`).
+  Caminho de **desync** é seguro (meta `undefined` → `if (!meta) return`, pula); o real é **stale-prop**
+  (painel abre com snapshot de `intents`, prop muda sem rebuild do draft, alvo já tem keyword no apply) — estreito.
+
+**Decisão-raiz: gatilho de escrita = "editou-desde-a-abertura" (não "difere do alvo vivo").** Guardar a
+`choiceMeta` pré-preenchida na abertura (`choiceMetaInitial`, congelada no `buildDraft` e re-congelada no rebuild
+pós-apply) e gravar SÓ os campos cuja meta ATUAL difere da INICIAL — comparando string-crua × string-crua, fora
+da normalização. **Por quê:** o gatilho atual confunde "o humano editou?" com "está diferente do estado vivo?";
+contra um alvo cujo estado vivo divergiu do que o painel mostrou, isso gera escrita fantasma. O snapshot estável
+é a intenção real do usuário. **Consequências:** (a) **#2** some — checkbox não tocado não grava; (b) **#3** some
+— meta defasada = não-editada → nunca dispara wipe; (c) **#5** vira não-problema — o `commit` do `KeywordTags`
+([:638](src/components/DetailPanel.tsx#L638)) já deduplica, então `'vendas, vendas'` é inalcançável pela UI; (d)
+**#9** (higiene duplicada) dissolve — `norm` sai do `applyChoiceRouting`, só `setIntentKeywords` higieniza no write;
+(e) "Aplicar" sem tocar nas Escolhas vira no-op real sobre irmãos (alinha com a decisão 3); (f) limpar keyword de
+propósito (initial=`['x']`, agora=`''`) continua gravando `[]`. O snapshot `initial` mora DENTRO do `choiceMeta`
+(ver decisão #10) + 1 param em `applyChoiceRouting`.
+
+**Decisão #1: hint inline não-bloqueante quando 2+ opções vão ao mesmo destino.** Aviso leve no campo
+("mesmo destino da Opção N — a palavra-chave é compartilhada"). **Por quê:** dois botões → uma intenção é
+topologia legítima (keyword mora no alvo, match "contém"); bloquear no seletor mata o caso válido. Pós-gatilho-novo
+o clobber só sobra se o humano editar AMBAS as opções do mesmo alvo a valores divergentes (raro) — o hint tira o
+"silencioso". `validate()` NÃO pega (pós-apply existe só um conjunto de keywords no alvo) → tem que ser hint de UI.
+Opções dentro do MESMO menu compartilham o `choiceNode.id` → sem conflito de `context` entre elas; o conflito de
+context real é só cross-menu, já coberto pela guarda `else if (target.context === choiceNode.id)`.
+
+**Decisão #4/#5 — keyword multi-palavra é INVÁLIDA na plataforma (só casa palavra individual; território N2 do Andy):**
+o #4 não era sobre espaçamento — `"plano premium"` está errado com 1 ou 2 espaços; o certo é `"plano"` + `"premium"`
+separados. Por isso (a) a comparação do gatilho é **string-crua × inicial** (a mais simples; o caso "consertar espaço
+duplo" é irrelevante, pois multi-palavra é sempre inválido); (b) **#5 é não-problema** (dedup no `commit` do `KeywordTags`).
+**Tratamento = prevenir na UI + sinalizar residual:**
+- **Prevenir (type-time):** `KeywordTags.commit` ([:638](src/components/DetailPanel.tsx#L638)) passa a tratar ESPAÇO
+  como delimitador (split por `/[\s,]+/`, + espaço nas teclas de commit) → digitar `"plano premium"` vira dois chips
+  na hora (feedback visível, não é surpresa silenciosa). Torna o estado inválido impossível de CRIAR pela UI. Afeta
+  também o campo de keyword da meta — correto, multi-palavra é inválido em qualquer keyword. O **display** (`tags`)
+  segue split só por vírgula, exibindo fielmente um keyword legado `"plano premium"` como UM chip (não esconde o estado ruim).
+- **Sinalizar (residual import/agente):** `findKeywordNudges` no `validate()` ([flowTools.ts](src/tools/flowTools.ts))
+  ganha aviso não-bloqueante quando uma keyword contém espaço (`kw.includes(' ')`) — pega o que entrou por import de JSON
+  ou pelo agente (que não passa pela UI). + hint inline amber na opção da Escolha quando o chip exibido tem espaço
+  (espelha o hint "sem palavra-chave" já existente).
+- **`setIntentKeywords` NÃO splita** (mantém só trim/colapsa): split silencioso no setter puro seria surpresa na camada
+  de dados (a decisão 3 do `set_category` rejeitou auto-canonicalizar). A prevenção é da UI; o nudge é a rede cross-path.
+
+**Decisões dos achados menores (#6/#7/#8/#10):**
+- **#10 — estrutura do `choiceMeta` (não colapsar agora).** `ChoiceMeta` vira `{ keyword, contextOn, initialKeyword,
+  initialContextOn }` — o snapshot `initial` mora DENTRO do objeto, sem criar um 3º array paralelo. `initial*` são
+  congelados no `buildDraft` (abertura/rebuild) e re-baseados no `setChoiceDest` (trocar destino = novo ponto-zero);
+  `setChoiceKeyword`/`toggleChoiceContext` NUNCA os tocam. Mantém as 2 estruturas de hoje (`choices` + `choiceMeta`),
+  mesmo alinhamento manual já estável — **não conserta o #10, mas não o piora** (evita o 3º array). O **colapso total**
+  (array único de `{ destId, keyword, contextOn, initial* }`, derivando `choices` no apply) fica como **cleanup futuro
+  opcional** — desproporcional ao risco no DetailPanel (~3500 linhas) agora.
+- **#6 — `return` silencioso (`if (!target || !meta)`).** `console.warn` no caso `!target` com `destId` (ref órfã: alvo
+  inexistente em `intents` → "roteamento ignorado") — atende o CLAUDE.md ("logs sempre que couber") sem ruído de UI; o
+  sinal ao usuário já vem do "opção sem conexão" (v0.19.0). `!meta` segue silencioso COM comentário: é o guard de
+  alinhamento (#10), pular é o caminho seguro (= o que torna o #3 inofensivo), não é erro.
+- **#7 — `touch()`/`updatedAt`.** O `touch()` novo em `setIntentKeywords`/`setIntentContext` é **correto** (write honesto;
+  o inline antigo é que sub-tocava). Uniformizar: **adicionar `touch()` ao `setCategory`** ([flowTools.ts:205](src/tools/flowTools.ts#L205)),
+  hoje sem touch — todo setter de campo de cabeçalho passa a refletir em `updatedAt`. Sem conflito com o gatilho da Fase 2.1
+  (lá quem decide SE chama o setter é o `applyChoiceRouting`; quando chamado, tocar é certo).
+- **#8 — `beginMutation()` no caminho rejeitado de self-ref (`setContext`).** **Aceitar** — inofensivo: `beginMutation` é
+  idempotente ([flowStore.ts:77-79](src/tools/flowStore.ts#L77-L79)), snapshot só na 1ª mutação = base da sessão; um self-ref
+  recusado captura o estado inalterado (base correta), `revert` segue íntegro, no máximo um `.bak` de estado inalterado.
+  Só comentar o porquê. **Não** pré-checar antes do `beginMutation` — reintroduziria a duplicação da guarda que centralizamos
+  no `setIntentContext`, por ganho nulo.
+
+**Como será testado:**
+- **Unit** ([DetailPanel.routing.test.ts](src/components/DetailPanel.routing.test.ts)) ganha o param `choiceMetaInitial`
+  e os casos: meta == inicial → NÃO grava nem bumpa `updatedAt` (#2/#3) · context inalterado → não regrava (#2) ·
+  keyword esvaziada de propósito → limpa.
+- **Hint de destino duplicado:** teste de lógica pura da detecção (helper que mapeia índice → "duplicado de N").
+- **`KeywordTags` split por espaço:** unit de que `commit('plano premium')` produz dois termos (`'plano, premium'`);
+  espaço/Enter/vírgula confirmam; display de valor legado com espaço continua um chip.
+- **Nudge multi-palavra** ([flowTools.test.ts](src/tools/flowTools.test.ts)): keyword com espaço → **dispara** ·
+  keyword de uma palavra → **não** · não-bloqueante.
+- **`setCategory` toca `updatedAt`** (#7, [flowTools.test.ts](src/tools/flowTools.test.ts)): `set_category` bumpa `updatedAt`.
+- **Re-rodar a suíte cheia** como gate de não-regressão.
 
 ## Melhorias paralelas (independentes das fases)
 
