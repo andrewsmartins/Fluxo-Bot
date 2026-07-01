@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useState, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { ThemeToggle } from './ThemeToggle'
-import { useClickOutside } from '../hooks/useClickOutside'
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover'
 import type { ValidationReport } from '../utils/validateFlow'
 
 export type ExportFormat = 'json' | 'png' | 'svg'
@@ -50,27 +50,21 @@ export function Sidebar(props: SidebarProps) {
   const [exportOpen, setExportOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const exportRef = useClickOutside(() => setExportOpen(false))
-  const reportRef = useClickOutside(() => setReportOpen(false))
+  const exportRef = useRef<HTMLDivElement>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
   const tokenBtnRef = useRef<HTMLButtonElement>(null)
-  const [tokenVisible, setTokenVisible] = useState(false)
-  const [tokenAnchor, setTokenAnchor] = useState<{ top: number; left: number } | null>(null)
-  useEffect(() => {
-    if (tokenOpen && tokenBtnRef.current) {
-      const rect = tokenBtnRef.current.getBoundingClientRect()
-      setTokenAnchor({ top: rect.top, left: rect.right + 8 })
-      requestAnimationFrame(() => setTokenVisible(true))
-    } else {
-      setTokenAnchor(null)
-      setTokenVisible(false)
-    }
-  }, [tokenOpen])
+  // Ancoragem via portal (foge do `overflow-hidden` do rail — ver useAnchoredPopover).
+  const exportAnchor = useAnchoredPopover(exportOpen, exportRef)
+  const reportAnchor = useAnchoredPopover(reportOpen, reportRef)
+  const tokenAnchor = useAnchoredPopover(tokenOpen, tokenBtnRef)
 
   const issueCount = (report?.errors.length ?? 0) + (report?.warnings.length ?? 0)
 
-  // Popovers (Exportar / Token) acompanham o tema — useTheme + ternário (regra do projeto:
-  // nunca `dark:` do Tailwind). O rail em si é sempre escuro, sem theming.
-  const popoverCls = `absolute left-full ml-2 z-40 rounded-lg border shadow-lg overflow-hidden ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`
+  // Popovers (Exportar / Relatório / Token) acompanham o tema — useTheme + ternário (regra
+  // do projeto: nunca `dark:` do Tailwind). O rail em si é sempre escuro, sem theming.
+  // Renderizados via createPortal + position:fixed (não `absolute`), pois o rail tem
+  // `overflow-hidden` (necessário pra animação de recolher/expandir) e recortaria o popover.
+  const popoverCls = `fixed z-50 rounded-lg border shadow-lg overflow-hidden transition-all duration-[180ms] ease-out ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`
   const menuItemCls = `w-full text-left px-3 py-2 text-xs font-medium transition-colors ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'}`
 
   // Atalho para não repetir expanded={expanded} em cada RailButton
@@ -112,18 +106,25 @@ export function Sidebar(props: SidebarProps) {
           disabled={!hasFlow || exporting}
           active={exportOpen}
         />
-        {exportOpen && (
-          <div className={`${popoverCls} min-w-[160px] top-0`}>
-            {([['json', 'JSON (plataforma)'], ['png', 'Imagem PNG'], ['svg', 'Imagem SVG']] as const).map(([fmt, label]) => (
-              <button
-                key={fmt}
-                className={menuItemCls}
-                onClick={() => { setExportOpen(false); onExport(fmt) }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {exportOpen && exportAnchor.rect && createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setExportOpen(false)} />
+            <div
+              className={`${popoverCls} min-w-[160px] ${exportAnchor.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'}`}
+              style={{ top: exportAnchor.rect.top, left: exportAnchor.rect.right + 8 }}
+            >
+              {([['json', 'JSON (plataforma)'], ['png', 'Imagem PNG'], ['svg', 'Imagem SVG']] as const).map(([fmt, label]) => (
+                <button
+                  key={fmt}
+                  className={menuItemCls}
+                  onClick={() => { setExportOpen(false); onExport(fmt) }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
         )}
       </div>
 
@@ -166,15 +167,22 @@ export function Sidebar(props: SidebarProps) {
                 </span>
               )}
             </button>
-            {reportOpen && (
-              <div className={`${popoverCls} w-[320px] bottom-0 max-h-[320px] overflow-y-auto py-1`}>
-                {report.errors.map((e, i) => (
-                  <p key={`e${i}`} className={`px-3 py-1.5 text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>✕ {e}</p>
-                ))}
-                {report.warnings.map((w, i) => (
-                  <p key={`w${i}`} className={`px-3 py-1.5 text-[11px] leading-snug ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>⚠ {w}</p>
-                ))}
-              </div>
+            {reportOpen && reportAnchor.rect && createPortal(
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setReportOpen(false)} />
+                <div
+                  className={`${popoverCls} w-[320px] max-h-[320px] overflow-y-auto py-1 ${reportAnchor.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'}`}
+                  style={{ bottom: window.innerHeight - reportAnchor.rect.bottom, left: reportAnchor.rect.right + 8 }}
+                >
+                  {report.errors.map((e, i) => (
+                    <p key={`e${i}`} className={`px-3 py-1.5 text-[11px] leading-snug ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>✕ {e}</p>
+                  ))}
+                  {report.warnings.map((w, i) => (
+                    <p key={`w${i}`} className={`px-3 py-1.5 text-[11px] leading-snug ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>⚠ {w}</p>
+                  ))}
+                </div>
+              </>,
+              document.body
             )}
           </div>
         )}
@@ -199,12 +207,12 @@ export function Sidebar(props: SidebarProps) {
               </span>
             )}
           </button>
-          {tokenOpen && tokenAnchor && createPortal(
+          {tokenOpen && tokenAnchor.rect && createPortal(
             <>
               <div className="fixed inset-0 z-40" onClick={() => onTokenOpenChange(false)} />
               <div
-                className={`fixed z-50 w-[280px] p-3 flex flex-col gap-2 rounded-lg border shadow-lg transition-all duration-[180ms] ease-out ${tokenVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'} ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}
-                style={{ top: tokenAnchor.top, left: tokenAnchor.left }}
+                className={`${popoverCls} w-[280px] p-3 flex flex-col gap-2 ${tokenAnchor.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'}`}
+                style={{ top: tokenAnchor.rect.top, left: tokenAnchor.rect.right + 8 }}
               >
                 <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Token de sessão</span>
                 <input

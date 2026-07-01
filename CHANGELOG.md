@@ -11,6 +11,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [0.33.1] - 2026-06-30
+
+### Corrigido
+- **Popovers de Exportar e Relatório de validação recortados pelo `overflow-hidden` do rail** ([src/components/Sidebar.tsx](src/components/Sidebar.tsx), [src/hooks/useAnchoredPopover.ts](src/hooks/useAnchoredPopover.ts)) — clicar em "Exportar" marcava o botão como ativo, mas o menu (JSON/PNG/SVG) não aparecia: o `<nav>` do rail tem `overflow-hidden` (necessário pra animação de recolher/expandir) e recortava o popover, renderizado como filho `absolute` dele. Mesmo bug afetava o popover de Relatório de validação. Corrigido replicando o padrão já usado no popover de Token: `createPortal` para `document.body` + `position: fixed` ancorado via `getBoundingClientRect()` do botão-gatilho — escapa do contexto de empilhamento/clipping do rail. Lógica de ancoragem extraída para o hook `useAnchoredPopover` (elimina a duplicação entre os 3 popovers, incluindo o do Token que já existia).
+
 ## [0.33.0] - 2026-06-26
 
 ### Adicionado
